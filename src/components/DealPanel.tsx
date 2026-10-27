@@ -103,7 +103,11 @@ export function DealPanel({ dealId }: { dealId: string }) {
       key: "steps",
       icon: "calendar",
       label: "Adımlar",
-      badge: overdue ? <span className="count bad">{overdue} gecikmiş</span> : openActs.length ? <span className="count">{openActs.length}</span> : null,
+      badge: overdue ? (
+        <span className="count bad">{overdue} gecikmiş</span>
+      ) : openActs.length ? (
+        <span className="count">{openActs.length}</span>
+      ) : null,
     },
     { key: "info", icon: "edit", label: "Bilgiler" },
     { key: "notes", icon: "note", label: "Notlar", badge: deal.notes ? <span className="count">var</span> : null },
@@ -122,7 +126,12 @@ export function DealPanel({ dealId }: { dealId: string }) {
     >
       <header className="drawer-head">
         <div className="drawer-title">
-          <EditableTitle id={titleId} value={deal.title} disabled={!editable} onSave={(v) => save({ title: v }, "Müşteri adı güncellendi")} />
+          <EditableTitle
+            id={titleId}
+            value={deal.title}
+            disabled={!editable}
+            onSave={(v) => save({ title: v }, "Müşteri adı güncellendi")}
+          />
           <div className="drawer-where">
             <span className="where-stage" data-tone={stage.tone}>
               <span className="no" aria-hidden="true">
@@ -148,7 +157,10 @@ export function DealPanel({ dealId }: { dealId: string }) {
                 value={deal.owner}
                 disabled={!isAdmin && !!deal.owner && deal.owner !== me}
                 onChange={(e) =>
-                  run((repo) => assignDeal(repo, deal.id, e.target.value), e.target.value ? `Sorumlu: ${e.target.value}` : "Ortak havuza bırakıldı")
+                  run(
+                    (repo) => assignDeal(repo, deal.id, e.target.value),
+                    e.target.value ? `Sorumlu: ${e.target.value}` : "Ortak havuza bırakıldı",
+                  )
                 }
               >
                 <option value="">Ortak havuz</option>
@@ -164,7 +176,11 @@ export function DealPanel({ dealId }: { dealId: string }) {
         </div>
         <div className="drawer-actions">
           {!deal.owner && isOpenDeal(deal) && (
-            <Button variant="pri" icon="hand" onClick={() => run((repo) => assignDeal(repo, deal.id, me), "Müşteri size atandı")}>
+            <Button
+              variant="pri"
+              icon="hand"
+              onClick={() => run((repo) => assignDeal(repo, deal.id, me), "Müşteri size atandı")}
+            >
               Üstlen
             </Button>
           )}
@@ -175,7 +191,11 @@ export function DealPanel({ dealId }: { dealId: string }) {
                 Satışı geri al
               </Button>
             ) : (
-              <Button variant="won" icon="trophy" onClick={() => run((repo) => setWon(repo, deal.id, true), `Tebrikler, ${deal.title} satıldı`)}>
+              <Button
+                variant="won"
+                icon="trophy"
+                onClick={() => run((repo) => setWon(repo, deal.id, true), `Tebrikler, ${deal.title} satıldı`)}
+              >
                 Satış tamamlandı
               </Button>
             ))}
@@ -193,15 +213,20 @@ export function DealPanel({ dealId }: { dealId: string }) {
 
       {!editable && (
         <div className="readonly-note" role="note">
-          <Icon name="lock" size={16} /> Bu müşteri {deal.owner} sorumluluğunda; yalnız görüntüleyebilirsiniz. Değişiklik için admin
-          gerekir.
+          <Icon name="lock" size={16} /> Bu müşteri {deal.owner} sorumluluğunda; yalnız görüntüleyebilirsiniz.
+          Değişiklik için admin gerekir.
         </div>
       )}
       {deal.stage === "lost" && (
         <div className="banner banner-red">
           <Icon name="ban" />
           <label htmlFor="lost-reason-edit">Olumsuz sonuç nedeni:</label>
-          <TextCommit id="lost-reason-edit" value={deal.lost_reason || ""} disabled={!editable} onSave={(v) => save({ lost_reason: v }, "Neden güncellendi")} />
+          <TextCommit
+            id="lost-reason-edit"
+            value={deal.lost_reason || ""}
+            disabled={!editable}
+            onSave={(v) => save({ lost_reason: v }, "Neden güncellendi")}
+          />
         </div>
       )}
       {showChecklist && (
@@ -224,13 +249,21 @@ export function DealPanel({ dealId }: { dealId: string }) {
           <div className="id-who">
             <b>{contact?.name || "Kişi bağlı değil"}</b>
             <small>
-              {[contact?.role, org && org.name !== deal.title ? `${org.name} · ${ORG_TYPE_LABEL[org.type]}` : org ? ORG_TYPE_LABEL[org.type] : null]
+              {[
+                contact?.role,
+                org && org.name !== deal.title
+                  ? `${org.name} · ${ORG_TYPE_LABEL[org.type]}`
+                  : org
+                    ? ORG_TYPE_LABEL[org.type]
+                    : null,
+              ]
                 .filter(Boolean)
                 .join(" · ") || "Rol belirtilmemiş"}
             </small>
             <small>
               {country ? `${flagOf(country)} ${countryName(country)}` : "Ülke belirsiz"}
-              {contact?.preferred_language && ` · ${LANGUAGE_NAME[contact.preferred_language] || contact.preferred_language}`}
+              {contact?.preferred_language &&
+                ` · ${LANGUAGE_NAME[contact.preferred_language] || contact.preferred_language}`}
             </small>
           </div>
         </div>
@@ -262,7 +295,9 @@ export function DealPanel({ dealId }: { dealId: string }) {
           </div>
           <div>
             <dt>Kort</dt>
-            <dd>{deal.court_count > 0 ? `${deal.court_count} · ${deal.court_model}` : <span className="muted">—</span>}</dd>
+            <dd>
+              {deal.court_count > 0 ? `${deal.court_count} · ${deal.court_model}` : <span className="muted">—</span>}
+            </dd>
           </div>
           <div>
             <dt>Hedef kapanış</dt>
@@ -303,7 +338,8 @@ export function DealPanel({ dealId }: { dealId: string }) {
               <div className={"nowbox " + status.tone} role="status">
                 <Icon name={status.icon} size={18} />
                 <span>
-                  <b>Şimdi:</b> {rotting ? "Planlı bir sonraki adım yok. Unutulmasın diye bir adım planlayın." : status.text}
+                  <b>Şimdi:</b>{" "}
+                  {rotting ? "Planlı bir sonraki adım yok. Unutulmasın diye bir adım planlayın." : status.text}
                 </span>
                 {rotting && editable && !composing && (
                   <Button size="sm" variant="pri" onClick={startCompose}>
@@ -329,7 +365,8 @@ export function DealPanel({ dealId }: { dealId: string }) {
                 <ActivityComposer dealId={deal.id} onDone={() => setComposing(false)} />
               ) : (
                 <button className="composer-closed" onClick={() => setComposing(true)}>
-                  <Icon name="plus" /> Adım planla… <span className="muted">arama, e-posta, toplantı, proforma, saha ziyareti</span>
+                  <Icon name="plus" /> Adım planla…{" "}
+                  <span className="muted">arama, e-posta, toplantı, proforma, saha ziyareti</span>
                 </button>
               ))}
             <Timeline deal={deal} acts={acts} changes={changes} editable={editable} onToggle={toggle} />
@@ -342,8 +379,18 @@ export function DealPanel({ dealId }: { dealId: string }) {
               <div className="fact">
                 <label htmlFor="d-value">Tahmini değer</label>
                 <div className="pair">
-                  <NumberCommit id="d-value" value={deal.value} disabled={!editable} onSave={(v) => save({ value: v })} />
-                  <select value={deal.currency} disabled={!editable} onChange={(e) => save({ currency: e.target.value as Currency })} aria-label="Para birimi">
+                  <NumberCommit
+                    id="d-value"
+                    value={deal.value}
+                    disabled={!editable}
+                    onSave={(v) => save({ value: v })}
+                  />
+                  <select
+                    value={deal.currency}
+                    disabled={!editable}
+                    onChange={(e) => save({ currency: e.target.value as Currency })}
+                    aria-label="Para birimi"
+                  >
                     {CURRENCIES.map((c) => (
                       <option key={c}>{c}</option>
                     ))}
@@ -352,11 +399,21 @@ export function DealPanel({ dealId }: { dealId: string }) {
               </div>
               <div className="fact">
                 <label htmlFor="d-courts">Kort adedi</label>
-                <NumberCommit id="d-courts" value={deal.court_count} disabled={!editable} onSave={(v) => save({ court_count: Math.round(v) })} />
+                <NumberCommit
+                  id="d-courts"
+                  value={deal.court_count}
+                  disabled={!editable}
+                  onSave={(v) => save({ court_count: Math.round(v) })}
+                />
               </div>
               <div className="fact">
                 <label htmlFor="d-model">Kort modeli</label>
-                <select id="d-model" value={deal.court_model} disabled={!editable} onChange={(e) => save({ court_model: e.target.value })}>
+                <select
+                  id="d-model"
+                  value={deal.court_model}
+                  disabled={!editable}
+                  onChange={(e) => save({ court_model: e.target.value })}
+                >
                   {!COURT_MODELS.includes(deal.court_model) && <option>{deal.court_model}</option>}
                   {COURT_MODELS.map((m) => (
                     <option key={m}>{m}</option>
@@ -383,7 +440,9 @@ export function DealPanel({ dealId }: { dealId: string }) {
                       placeholder="ad@firma.com"
                       allowEmpty
                       disabled={!editable}
-                      onSave={(v) => run((repo) => updateContact(repo, contact.id, { email: v.trim() }), "E-posta güncellendi")}
+                      onSave={(v) =>
+                        run((repo) => updateContact(repo, contact.id, { email: v.trim() }), "E-posta güncellendi")
+                      }
                     />
                   </div>
                   <div className="fact">
@@ -394,12 +453,16 @@ export function DealPanel({ dealId }: { dealId: string }) {
                       placeholder="+90 5xx…"
                       allowEmpty
                       disabled={!editable}
-                      onSave={(v) => run((repo) => updateContact(repo, contact.id, { phone: v.trim() }), "Telefon güncellendi")}
+                      onSave={(v) =>
+                        run((repo) => updateContact(repo, contact.id, { phone: v.trim() }), "Telefon güncellendi")
+                      }
                     />
                   </div>
                   <div className="fact">
                     <span>Tercih edilen dil</span>
-                    <span className="val">{LANGUAGE_NAME[contact.preferred_language] || contact.preferred_language}</span>
+                    <span className="val">
+                      {LANGUAGE_NAME[contact.preferred_language] || contact.preferred_language}
+                    </span>
                   </div>
                 </>
               ) : (
@@ -540,7 +603,8 @@ function ActivityComposer({ dealId, onDone }: { dealId: string; onDone: () => vo
       </Field>
       <div className="composer-foot">
         <label className="check">
-          <input type="checkbox" checked={done} onChange={(e) => setDone(e.target.checked)} /> Zaten yapıldı (geçmişe kaydet)
+          <input type="checkbox" checked={done} onChange={(e) => setDone(e.target.checked)} /> Zaten yapıldı (geçmişe
+          kaydet)
         </label>
         <div>
           <Button variant="ghost" onClick={onDone}>
@@ -557,9 +621,7 @@ function ActivityComposer({ dealId, onDone }: { dealId: string; onDone: () => vo
 
 /* ---------------- timeline ---------------- */
 
-type Ev =
-  | { kind: "act"; at: string; a: Activity }
-  | { kind: "stage"; at: string; from: StageKey | null; to: StageKey };
+type Ev = { kind: "act"; at: string; a: Activity } | { kind: "stage"; at: string; from: StageKey | null; to: StageKey };
 
 function Timeline({
   deal,
@@ -691,7 +753,17 @@ export function ActivityRow({
 
 /* ---------------- small inputs ---------------- */
 
-function EditableTitle({ id, value, onSave, disabled }: { id: string; value: string; onSave: (v: string) => void; disabled?: boolean }) {
+function EditableTitle({
+  id,
+  value,
+  onSave,
+  disabled,
+}: {
+  id: string;
+  value: string;
+  onSave: (v: string) => void;
+  disabled?: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState(value);
   useEffect(() => setV(value), [value]);
@@ -759,7 +831,17 @@ function TextCommit({
   );
 }
 
-function NumberCommit({ id, value, onSave, disabled }: { id: string; value: number; onSave: (v: number) => void; disabled?: boolean }) {
+function NumberCommit({
+  id,
+  value,
+  onSave,
+  disabled,
+}: {
+  id: string;
+  value: number;
+  onSave: (v: number) => void;
+  disabled?: boolean;
+}) {
   const [v, setV] = useState(String(value));
   useEffect(() => setV(String(value)), [value]);
   return (
@@ -791,7 +873,12 @@ function NotesBox({ value, onSave, disabled }: { value: string; onSave: (v: stri
       </Field>
       {!disabled && (
         <div>
-          <Button variant="pri" disabled={v === value} title={v === value ? "Değişiklik yok" : undefined} onClick={() => onSave(v)}>
+          <Button
+            variant="pri"
+            disabled={v === value}
+            title={v === value ? "Değişiklik yok" : undefined}
+            onClick={() => onSave(v)}
+          >
             Notu kaydet
           </Button>
         </div>

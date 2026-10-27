@@ -12,7 +12,9 @@ export const USERS = [
 /** Login name → team member. Matches a full address or just its local part ("elshan" = elshan@…). */
 export function userFor(email) {
   const e = String(email).trim().toLowerCase();
-  const u = USERS.find((x) => x.emails.includes(e) || (!e.includes("@") && x.emails.some((m) => m.split("@")[0] === e)));
+  const u = USERS.find(
+    (x) => x.emails.includes(e) || (!e.includes("@") && x.emails.some((m) => m.split("@")[0] === e)),
+  );
   if (u) return { name: u.name, role: u.role, local: !!u.local };
   const local = e.split("@")[0] || e;
   return { name: local.charAt(0).toUpperCase() + local.slice(1), role: "rep", local: false };

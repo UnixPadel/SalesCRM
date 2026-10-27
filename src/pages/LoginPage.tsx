@@ -78,8 +78,8 @@ export function LoginPage() {
         <p className="login-note">
           <Icon name="lock" size={16} />
           <span>
-            Şirket kullanıcı tablosundaki kullanıcı adı ve şifrenizle girersiniz; şifre bu uygulamada saklanmaz. Yönetici
-            hesabı: admin@{MAIL_DOMAIN} (şifresi sunucudaki server/data/config.json dosyasında).
+            Şirket kullanıcı tablosundaki kullanıcı adı ve şifrenizle girersiniz; şifre bu uygulamada saklanmaz.
+            Yönetici hesabı: admin@{MAIL_DOMAIN} (şifresi sunucudaki server/data/config.json dosyasında).
           </span>
         </p>
       </div>

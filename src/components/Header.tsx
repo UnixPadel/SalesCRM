@@ -31,9 +31,23 @@ export function Header({ route, onNewDeal }: { route: Route; onNewDeal: () => vo
   const newLeads = data.leads.filter((l) => l.status === "new" && (l.owner === me || !l.owner)).length;
 
   const NAV: { r: Route; icon: string; label: string; badge?: number; badgeLabel?: string; bad?: boolean }[] = [
-    { r: "pipeline", icon: "pipeline", label: "Pano", badge: rotting, badgeLabel: `${rotting} takipsiz müşteri`, bad: true },
+    {
+      r: "pipeline",
+      icon: "pipeline",
+      label: "Pano",
+      badge: rotting,
+      badgeLabel: `${rotting} takipsiz müşteri`,
+      bad: true,
+    },
     { r: "leads", icon: "inbox", label: "Formlar", badge: newLeads, badgeLabel: `${newLeads} yeni form` },
-    { r: "activities", icon: "calendar", label: "Bugün", badge: dueCount, badgeLabel: `${dueCount} gecikmiş veya bugünkü aktivite`, bad: true },
+    {
+      r: "activities",
+      icon: "calendar",
+      label: "Bugün",
+      badge: dueCount,
+      badgeLabel: `${dueCount} gecikmiş veya bugünkü aktivite`,
+      bad: true,
+    },
     { r: "contacts", icon: "user", label: "Kişiler" },
     { r: "reports", icon: "chart", label: "Raporlar" },
   ];
@@ -82,7 +96,8 @@ export function Header({ route, onNewDeal }: { route: Route; onNewDeal: () => vo
           onTheme={setTheme}
           onLogout={logout}
           onReset={() => {
-            if (confirm("Ekibin tüm verisi silinip örnek veri yeniden yüklensin mi? Bu işlem herkesi etkiler.")) resetDemo();
+            if (confirm("Ekibin tüm verisi silinip örnek veri yeniden yüklensin mi? Bu işlem herkesi etkiler."))
+              resetDemo();
           }}
         />
       </div>
@@ -191,7 +206,10 @@ function GlobalSearch() {
       })
       .slice(0, 6)
       .map((d) => ({
-        id: d.id, group: "Müşteriler", icon: "pipeline", title: d.title,
+        id: d.id,
+        group: "Müşteriler",
+        icon: "pipeline",
+        title: d.title,
         meta: `${STAGE[d.stage].no}. ${STAGE[d.stage].label}${d.value ? " · " + money(d.value, d.currency, true) : ""}`,
         go: () => openDeal(d.id),
       }));
@@ -199,7 +217,11 @@ function GlobalSearch() {
       .filter((o) => has(o.name))
       .slice(0, 4)
       .map((o) => ({
-        id: o.id, group: "Organizasyonlar", icon: "building", title: o.name, meta: countryName(o.country),
+        id: o.id,
+        group: "Organizasyonlar",
+        icon: "building",
+        title: o.name,
+        meta: countryName(o.country),
         go: () => navigate("contacts", o.name),
       }));
     const leads = data.leads
@@ -211,7 +233,11 @@ function GlobalSearch() {
       .map((l) => {
         const c = contactById.get(l.contact_id)!;
         return {
-          id: l.id, group: "Formlar", icon: "inbox", title: c.name, meta: c.email || c.phone,
+          id: l.id,
+          group: "Formlar",
+          icon: "inbox",
+          title: c.name,
+          meta: c.email || c.phone,
           go: () => navigate("leads", c.email || c.name),
         };
       });

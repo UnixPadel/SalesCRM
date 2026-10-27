@@ -17,10 +17,11 @@ export function Toasts() {
   const [host, setHost] = useState<HTMLElement>(() => document.body);
 
   useEffect(() => {
-    const sync = () => setHost((h) => {
-      const next = topHost();
-      return next === h ? h : next;
-    });
+    const sync = () =>
+      setHost((h) => {
+        const next = topHost();
+        return next === h ? h : next;
+      });
     const mo = new MutationObserver(sync);
     mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["open"] });
     sync();

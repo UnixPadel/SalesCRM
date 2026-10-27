@@ -31,13 +31,22 @@ export function ActivitiesPage() {
     .sort((a, b) => a.due_at.localeCompare(b.due_at));
   const grouped: Record<GroupKey, Activity[]> = { overdue: [], today: [], planned: [] };
   list.filter((a) => !a.done).forEach((a) => grouped[activityBucket(a)].push(a));
-  const done = list.filter((a) => a.done).sort((a, b) => (b.done_at || "").localeCompare(a.done_at || "")).slice(0, 30);
+  const done = list
+    .filter((a) => a.done)
+    .sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""))
+    .slice(0, 30);
 
   const toggle = async (a: Activity) => {
     const deal = dealById.get(a.deal_id);
     const lastOpen =
-      !a.done && deal && isOpenDeal(deal) && data.activities.filter((x) => x.deal_id === a.deal_id && !x.done).length === 1;
-    await run((repo) => setActivityDone(repo, a.id, !a.done), a.done ? "Aktivite yeniden açıldı" : "Aktivite tamamlandı");
+      !a.done &&
+      deal &&
+      isOpenDeal(deal) &&
+      data.activities.filter((x) => x.deal_id === a.deal_id && !x.done).length === 1;
+    await run(
+      (repo) => setActivityDone(repo, a.id, !a.done),
+      a.done ? "Aktivite yeniden açıldı" : "Aktivite tamamlandı",
+    );
     if (lastOpen) setNeedsNext((n) => (n.includes(a.deal_id) ? n : [...n, a.deal_id]));
   };
   const planNext = (dealId: string) => {
@@ -78,17 +87,24 @@ export function ActivitiesPage() {
         </div>
         <div className="filters">
           <label className="check">
-            <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Tüm ekibin adımlarını göster
+            <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Tüm ekibin adımlarını
+            göster
           </label>
           <div className="filters" role="group" aria-label="Aktivite tipi">
             {ACTIVITY_TYPES.map((t) => (
-              <button key={t.key} className="chip" aria-pressed={!!types[t.key]} onClick={() => setTypes({ ...types, [t.key]: !types[t.key] })}>
+              <button
+                key={t.key}
+                className="chip"
+                aria-pressed={!!types[t.key]}
+                onClick={() => setTypes({ ...types, [t.key]: !types[t.key] })}
+              >
                 <Icon name={t.icon} size={14} /> {t.label}
               </button>
             ))}
           </div>
           <label className="check">
-            <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} /> Tamamlananları göster
+            <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} /> Tamamlananları
+            göster
           </label>
         </div>
       </div>
@@ -132,7 +148,11 @@ export function ActivitiesPage() {
             <h2 id="ag-done">
               Son tamamlananlar <span className="count">{done.length}</span>
             </h2>
-            {done.length ? <div className="alist">{done.map(row)}</div> : <p className="tl-empty">Tamamlanan aktivite yok.</p>}
+            {done.length ? (
+              <div className="alist">{done.map(row)}</div>
+            ) : (
+              <p className="tl-empty">Tamamlanan aktivite yok.</p>
+            )}
           </section>
         )}
       </div>

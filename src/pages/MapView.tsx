@@ -31,7 +31,8 @@ export function MapView({
   filtered: boolean;
   move: (dealId: string, to: StageKey, opts?: { owner?: string }) => void;
 }) {
-  const { data, me, isAdmin, canEdit, owners, view, orgById, contactById, countryOfDeal, openDeal, run, toast } = useCrm();
+  const { data, me, isAdmin, canEdit, owners, view, orgById, contactById, countryOfDeal, openDeal, run, toast } =
+    useCrm();
   const [dragId, setDragId] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null); // `${owner}|${stage}`
   const stats = stageStats(deals);
@@ -48,14 +49,21 @@ export function MapView({
     lanes = [...names, ""];
   }
 
-  const canDropInLane = (deal: Deal, owner: string) =>
-    owner === deal.owner || isAdmin || owner === me || owner === "";
+  const canDropInLane = (deal: Deal, owner: string) => owner === deal.owner || isAdmin || owner === me || owner === "";
 
   const reassign = (deal: Deal, owner: string) =>
-    run((repo) => assignDeal(repo, deal.id, owner), () => ({
-      msg: owner ? `${deal.title} → sorumlu: ${owner === me ? "siz" : owner}` : `${deal.title} ortak havuza bırakıldı`,
-      action: { label: "Geri al", run: () => run((repo) => assignDeal(repo, deal.id, deal.owner), "Sorumlu geri alındı") },
-    }));
+    run(
+      (repo) => assignDeal(repo, deal.id, owner),
+      () => ({
+        msg: owner
+          ? `${deal.title} → sorumlu: ${owner === me ? "siz" : owner}`
+          : `${deal.title} ortak havuza bırakıldı`,
+        action: {
+          label: "Geri al",
+          run: () => run((repo) => assignDeal(repo, deal.id, deal.owner), "Sorumlu geri alındı"),
+        },
+      }),
+    );
 
   const drop = async (dealId: string, owner: string, stage: StageKey) => {
     const deal = deals.find((d) => d.id === dealId);
@@ -98,8 +106,12 @@ export function MapView({
 
   if (!deals.length) {
     return (
-      <Empty title={filtered ? "Filtreye uyan müşteri yok" : view === "pool" ? "Havuzda müşteri yok" : "Henüz müşteri yok"}>
-        {filtered ? "Filtreleri temizleyin ya da başka bir görünüm seçin." : "Sağ üstteki “Müşteri” düğmesiyle ilk müşteriyi ekleyin."}
+      <Empty
+        title={filtered ? "Filtreye uyan müşteri yok" : view === "pool" ? "Havuzda müşteri yok" : "Henüz müşteri yok"}
+      >
+        {filtered
+          ? "Filtreleri temizleyin ya da başka bir görünüm seçin."
+          : "Sağ üstteki “Müşteri” düğmesiyle ilk müşteriyi ekleyin."}
       </Empty>
     );
   }
@@ -108,7 +120,8 @@ export function MapView({
     <div className="mapwrap">
       <table className="map">
         <caption className="sr-only">
-          Hat haritası: satırlar satışçı hatları, sütunlar duraklar (kolonlar). Her hücrede o duraktaki müşteriler listelenir.
+          Hat haritası: satırlar satışçı hatları, sütunlar duraklar (kolonlar). Her hücrede o duraktaki müşteriler
+          listelenir.
         </caption>
         <thead>
           <tr>
@@ -161,7 +174,13 @@ export function MapView({
               >
                 <th scope="row">
                   <div className="lane-h">
-                    {owner ? <Avatar name={owner} size={36} label={false} /> : <span className="pool-ic" aria-hidden="true"><Icon name="users" size={18} /></span>}
+                    {owner ? (
+                      <Avatar name={owner} size={36} label={false} />
+                    ) : (
+                      <span className="pool-ic" aria-hidden="true">
+                        <Icon name="users" size={18} />
+                      </span>
+                    )}
                     <div>
                       <b>
                         {label}
@@ -294,7 +313,11 @@ function Bead({
   ]
     .filter(Boolean)
     .join(" · ");
-  const where = [org && org !== deal.title ? org : null, person, country ? `${flagOf(country)} ${countryName(country)}` : null]
+  const where = [
+    org && org !== deal.title ? org : null,
+    person,
+    country ? `${flagOf(country)} ${countryName(country)}` : null,
+  ]
     .filter(Boolean)
     .join(" · ");
   const detail = lost ? deal.lost_reason || "Neden belirtilmemiş" : status?.text;
@@ -339,7 +362,7 @@ function Bead({
       aria-describedby="card-help"
     >
       <span className={"bead-ic " + (lost ? "t-red" : status ? "t-" + status.tone : "t-neutral")} aria-hidden="true">
-        <Icon name={lost ? "ban" : status?.icon ?? "user"} size={14} />
+        <Icon name={lost ? "ban" : (status?.icon ?? "user")} size={14} />
       </span>
       <span className="bead-main">
         <span className="bead-name">{deal.title}</span>

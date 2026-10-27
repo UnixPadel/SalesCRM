@@ -35,7 +35,10 @@ export function NewDealDialog({ onClose }: { onClose: () => void }) {
     if (focusInvalid) formRef.current?.querySelector<HTMLElement>("[aria-invalid='true']")?.focus();
   }, [focusInvalid]);
 
-  const orgs = useMemo(() => [...data.organizations].sort((a, b) => a.name.localeCompare(b.name, "tr")), [data.organizations]);
+  const orgs = useMemo(
+    () => [...data.organizations].sort((a, b) => a.name.localeCompare(b.name, "tr")),
+    [data.organizations],
+  );
   const people = data.contacts.filter((c) => orgId !== NEW && c.organization_id === orgId);
   const orgLabel = orgId === NEW ? orgName.trim() : orgs.find((o) => o.id === orgId)?.name || "";
   const autoTitle = orgLabel ? `${orgLabel}${courts ? ` — ${courts} kort` : ""}` : "";
@@ -159,13 +162,27 @@ export function NewDealDialog({ onClose }: { onClose: () => void }) {
           {contactId === NEW && (
             <>
               <Field label="Ad soyad">
-                <input value={person.name} onChange={(e) => setPerson({ ...person, name: e.target.value })} autoComplete="off" />
+                <input
+                  value={person.name}
+                  onChange={(e) => setPerson({ ...person, name: e.target.value })}
+                  autoComplete="off"
+                />
               </Field>
               <Field label="E-posta">
-                <input type="email" value={person.email} onChange={(e) => setPerson({ ...person, email: e.target.value })} autoComplete="off" />
+                <input
+                  type="email"
+                  value={person.email}
+                  onChange={(e) => setPerson({ ...person, email: e.target.value })}
+                  autoComplete="off"
+                />
               </Field>
               <Field label="Telefon" hint="Ülke koduyla: +90 532 …">
-                <input type="tel" value={person.phone} onChange={(e) => setPerson({ ...person, phone: e.target.value })} autoComplete="off" />
+                <input
+                  type="tel"
+                  value={person.phone}
+                  onChange={(e) => setPerson({ ...person, phone: e.target.value })}
+                  autoComplete="off"
+                />
               </Field>
             </>
           )}
@@ -199,7 +216,11 @@ export function NewDealDialog({ onClose }: { onClose: () => void }) {
                 onBlur={blur("value")}
                 aria-invalid={!!err("value")}
               />
-              <select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)} aria-label="Para birimi">
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value as Currency)}
+                aria-label="Para birimi"
+              >
                 {CURRENCIES.map((c) => (
                   <option key={c}>{c}</option>
                 ))}
@@ -207,7 +228,13 @@ export function NewDealDialog({ onClose }: { onClose: () => void }) {
             </div>
           </Field>
           <Field label="Kort adedi">
-            <input type="number" min={0} inputMode="numeric" value={courts} onChange={(e) => setCourts(e.target.value)} />
+            <input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={courts}
+              onChange={(e) => setCourts(e.target.value)}
+            />
           </Field>
           <Field label="Kort modeli">
             <select value={model} onChange={(e) => setModel(e.target.value)}>
@@ -216,7 +243,10 @@ export function NewDealDialog({ onClose }: { onClose: () => void }) {
               ))}
             </select>
           </Field>
-          <Field label="Kolon" hint={stage === "proforma_sent" ? "Kaydedince 3 gün sonrasına takip araması planlanır." : undefined}>
+          <Field
+            label="Kolon"
+            hint={stage === "proforma_sent" ? "Kaydedince 3 gün sonrasına takip araması planlanır." : undefined}
+          >
             <select value={stage} onChange={(e) => setStage(e.target.value as StageKey)}>
               {STAGES.map((s) => (
                 <option key={s.key} value={s.key}>

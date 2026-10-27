@@ -37,12 +37,14 @@ export function LeadsPage({ initialQuery = "" }: { initialQuery?: string }) {
   const base = useMemo(() => {
     const s = q.trim().toLocaleLowerCase("tr");
     return data.leads.filter((l) => {
-      if (owner === "mine" ? l.owner && l.owner !== me : owner === "pool" ? !!l.owner : owner && l.owner !== owner) return false;
+      if (owner === "mine" ? l.owner && l.owner !== me : owner === "pool" ? !!l.owner : owner && l.owner !== owner)
+        return false;
       if (source && l.source !== source) return false;
       const c = contactById.get(l.contact_id);
       if (country && c?.country !== country) return false;
       if (urgency !== null && l.urgency !== urgency) return false;
-      if (s && !`${c?.name} ${c?.email} ${c?.phone} ${l.location} ${l.product}`.toLocaleLowerCase("tr").includes(s)) return false;
+      if (s && !`${c?.name} ${c?.email} ${c?.phone} ${l.location} ${l.product}`.toLocaleLowerCase("tr").includes(s))
+        return false;
       return true;
     });
   }, [data.leads, contactById, owner, source, country, urgency, q]);
@@ -84,10 +86,13 @@ export function LeadsPage({ initialQuery = "" }: { initialQuery?: string }) {
   };
   const patch = (l: Lead, p: Partial<Lead>, msg: string) => run((repo) => updateLead(repo, l.id, p), msg);
   const discard = (l: Lead) =>
-    run((repo) => updateLead(repo, l.id, { status: "discarded" }), () => ({
-      msg: `${contactById.get(l.contact_id)?.name ?? "Lead"} elendi`,
-      action: { label: "Geri al", run: () => patch(l, { status: "new" }, "Lead geri alındı") },
-    }));
+    run(
+      (repo) => updateLead(repo, l.id, { status: "discarded" }),
+      () => ({
+        msg: `${contactById.get(l.contact_id)?.name ?? "Lead"} elendi`,
+        action: { label: "Geri al", run: () => patch(l, { status: "new" }, "Lead geri alındı") },
+      }),
+    );
 
   // Active secondary filters shown as removable chips (they live in the "Filtreler" disclosure).
   const active: { label: string; clear: () => void }[] = [];
@@ -100,7 +105,13 @@ export function LeadsPage({ initialQuery = "" }: { initialQuery?: string }) {
       <div className="toolbar">
         <div className="tabs" role="tablist" aria-label="Lead durumu">
           {STATUS_TABS.map(([k, label]) => (
-            <button key={k} role="tab" aria-selected={status === k} className="tab" onClick={() => reset(() => setStatus(k))}>
+            <button
+              key={k}
+              role="tab"
+              aria-selected={status === k}
+              className="tab"
+              onClick={() => reset(() => setStatus(k))}
+            >
               {label} <span className="count">{counts[k]}</span>
             </button>
           ))}
@@ -109,9 +120,18 @@ export function LeadsPage({ initialQuery = "" }: { initialQuery?: string }) {
           <label className="searchfield">
             <Icon name="search" size={14} />
             <span className="sr-only">Leadlerde ara</span>
-            <input type="search" placeholder="İsim, e-posta, telefon…" value={q} onChange={(e) => reset(() => setQ(e.target.value))} />
+            <input
+              type="search"
+              placeholder="İsim, e-posta, telefon…"
+              value={q}
+              onChange={(e) => reset(() => setQ(e.target.value))}
+            />
           </label>
-          <select value={owner} onChange={(e) => reset(() => setOwner(e.target.value))} aria-label="Satışçıya göre filtrele">
+          <select
+            value={owner}
+            onChange={(e) => reset(() => setOwner(e.target.value))}
+            aria-label="Satışçıya göre filtrele"
+          >
             <option value="mine">Benim + havuz</option>
             <option value="pool">Yalnız havuz (atanmamış)</option>
             <option value="">Tüm ekip</option>
@@ -163,7 +183,12 @@ export function LeadsPage({ initialQuery = "" }: { initialQuery?: string }) {
       <div className="toolbar" style={{ borderBlockEnd: 0, paddingBlockEnd: 0, background: "transparent" }}>
         <div className="filters" role="group" aria-label="Aciliyet">
           {URGENCIES.map((u) => (
-            <button key={u || "none"} className="chip" aria-pressed={urgency === u} onClick={() => reset(() => setUrgency(urgency === u ? null : u))}>
+            <button
+              key={u || "none"}
+              className="chip"
+              aria-pressed={urgency === u}
+              onClick={() => reset(() => setUrgency(urgency === u ? null : u))}
+            >
               {URGENCY_LABEL[u]}
             </button>
           ))}
@@ -177,7 +202,9 @@ export function LeadsPage({ initialQuery = "" }: { initialQuery?: string }) {
 
       {!shown.length ? (
         <Empty title={status === "new" && !q && !owner ? "Gelen form yok" : "Bu filtreye uyan form yok"}>
-          {status === "new" ? "Filtreleri gevşetin ya da Panoya alındı sekmesine bakın." : "Başka bir sekmeye geçin ya da filtreleri temizleyin."}
+          {status === "new"
+            ? "Filtreleri gevşetin ya da Panoya alındı sekmesine bakın."
+            : "Başka bir sekmeye geçin ya da filtreleri temizleyin."}
         </Empty>
       ) : (
         <div className="table-wrap">
@@ -246,15 +273,30 @@ export function LeadsPage({ initialQuery = "" }: { initialQuery?: string }) {
                               Kartı aç
                             </Button>
                           ) : l.status === "discarded" ? (
-                            <Button size="sm" variant="ghost" onClick={() => patch(l, { status: "new" }, "Lead geri alındı")}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => patch(l, { status: "new" }, "Lead geri alındı")}
+                            >
                               Gelen kutusuna al
                             </Button>
                           ) : (
                             <>
-                              <Button size="sm" variant="pri" icon="arrow" loading={busy === l.id} onClick={() => convert(l)} title="Müşteriyle iletişime geçtiniz: kartı panoya ekler">
+                              <Button
+                                size="sm"
+                                variant="pri"
+                                icon="arrow"
+                                loading={busy === l.id}
+                                onClick={() => convert(l)}
+                                title="Müşteriyle iletişime geçtiniz: kartı panoya ekler"
+                              >
                                 Panoya al
                               </Button>
-                              <IconButton icon="ban" label={`${c?.name ?? "Lead"} adlı lead'i ele`} onClick={() => discard(l)} />
+                              <IconButton
+                                icon="ban"
+                                label={`${c?.name ?? "Lead"} adlı lead'i ele`}
+                                onClick={() => discard(l)}
+                              />
                             </>
                           )}
                           <Button
@@ -277,7 +319,11 @@ export function LeadsPage({ initialQuery = "" }: { initialQuery?: string }) {
                               <span className="field-l">İletişim</span>
                               {c?.email && <a href={`mailto:${c.email}`}>{c.email}</a>}
                               {c?.phone && (
-                                <a href={`https://wa.me/${c.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">
+                                <a
+                                  href={`https://wa.me/${c.phone.replace(/\D/g, "")}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
                                   {c.phone} · WhatsApp
                                 </a>
                               )}
@@ -295,14 +341,32 @@ export function LeadsPage({ initialQuery = "" }: { initialQuery?: string }) {
                             <div>
                               <span className="field-l">Temas durumu</span>
                               <div className="touch">
-                                <TouchSelect label="Mail" v={l.mail} yes="sent" onSet={(v) => patch(l, { mail: v }, "Mail durumu güncellendi")} />
-                                <TouchSelect label="Telefon" v={l.phone_call} yes="ok" onSet={(v) => patch(l, { phone_call: v }, "Telefon durumu güncellendi")} />
-                                <TouchSelect label="WhatsApp" v={l.whatsapp} yes="ok" onSet={(v) => patch(l, { whatsapp: v }, "WhatsApp durumu güncellendi")} />
+                                <TouchSelect
+                                  label="Mail"
+                                  v={l.mail}
+                                  yes="sent"
+                                  onSet={(v) => patch(l, { mail: v }, "Mail durumu güncellendi")}
+                                />
+                                <TouchSelect
+                                  label="Telefon"
+                                  v={l.phone_call}
+                                  yes="ok"
+                                  onSet={(v) => patch(l, { phone_call: v }, "Telefon durumu güncellendi")}
+                                />
+                                <TouchSelect
+                                  label="WhatsApp"
+                                  v={l.whatsapp}
+                                  yes="ok"
+                                  onSet={(v) => patch(l, { whatsapp: v }, "WhatsApp durumu güncellendi")}
+                                />
                               </div>
                             </div>
                             <label className="field">
                               <span className="field-l">Sorumlu</span>
-                              <select value={l.owner} onChange={(e) => patch(l, { owner: e.target.value }, "Sorumlu değişti")}>
+                              <select
+                                value={l.owner}
+                                onChange={(e) => patch(l, { owner: e.target.value }, "Sorumlu değişti")}
+                              >
                                 <option value="">Ortak havuz (atanmamış)</option>
                                 {owners.map((o) => (
                                   <option key={o}>{o}</option>
@@ -343,12 +407,26 @@ export function LeadsPage({ initialQuery = "" }: { initialQuery?: string }) {
   );
 }
 
-function TouchSelect({ label, v, yes, onSet }: { label: string; v: TouchState; yes: TouchState; onSet: (v: TouchState) => void }) {
+function TouchSelect({
+  label,
+  v,
+  yes,
+  onSet,
+}: {
+  label: string;
+  v: TouchState;
+  yes: TouchState;
+  onSet: (v: TouchState) => void;
+}) {
   const id = `touch-${label}`;
   return (
     <>
       <label htmlFor={id}>{label}</label>
-      <select id={id} value={v === yes ? "yes" : v === "fail" ? "fail" : "none"} onChange={(e) => onSet(e.target.value === "yes" ? yes : (e.target.value as TouchState))}>
+      <select
+        id={id}
+        value={v === yes ? "yes" : v === "fail" ? "fail" : "none"}
+        onChange={(e) => onSet(e.target.value === "yes" ? yes : (e.target.value as TouchState))}
+      >
         <option value="none">Henüz yok</option>
         <option value="yes">{yes === "sent" ? "Gönderildi" : "Ulaşıldı"}</option>
         <option value="fail">{yes === "sent" ? "Gönderilemedi" : "Ulaşılamadı"}</option>

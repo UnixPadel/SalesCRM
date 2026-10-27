@@ -36,7 +36,8 @@ const SESSION_TTL = 12 * 3600e3;
 const MAIL_CACHE_TTL = 90e3;
 const LIST_LIMIT = 40; // newest messages per folder
 /** Free-mail domains: searching by domain would match unrelated people, so match the full address. */
-const FREEMAIL = /^(gmail|googlemail|hotmail|outlook|live|msn|yahoo|icloud|me|mac|aol|proton|protonmail|gmx|web|yandex|mail|zoho)\./i;
+const FREEMAIL =
+  /^(gmail|googlemail|hotmail|outlook|live|msn|yahoo|icloud|me|mac|aol|proton|protonmail|gmx|web|yandex|mail|zoho)\./i;
 
 /* ---------------- local config (admin password) ---------------- */
 
@@ -145,12 +146,18 @@ const imapClient = (user, pass) =>
 function mailboxAuth(session, mailbox) {
   const own = !mailbox || mailbox === session.email;
   if (own) {
-    if (session.local) return { error: "Admin hesabının posta kutusu yok. Bir satışçının kutusunu okumak için IMAP master kullanıcı tanımlayın." };
+    if (session.local)
+      return {
+        error:
+          "Admin hesabının posta kutusu yok. Bir satışçının kutusunu okumak için IMAP master kullanıcı tanımlayın.",
+      };
     return { user: session.email, pass: session.password, label: session.email };
   }
   if (session.role !== "admin") return { error: "Başka bir satışçının posta kutusunu yalnız admin okuyabilir." };
   if (!IMAP_MASTER_USER || !IMAP_MASTER_PASSWORD)
-    return { error: `${mailbox} kutusunu okumak için sunucuda IMAP_MASTER_USER / IMAP_MASTER_PASSWORD tanımlı olmalı (Dovecot master user).` };
+    return {
+      error: `${mailbox} kutusunu okumak için sunucuda IMAP_MASTER_USER / IMAP_MASTER_PASSWORD tanımlı olmalı (Dovecot master user).`,
+    };
   return { user: `${mailbox}*${IMAP_MASTER_USER}`, pass: IMAP_MASTER_PASSWORD, label: mailbox };
 }
 
@@ -218,7 +225,12 @@ const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "25mb" }));
 
-const publicUser = (s) => ({ email: s.email, name: s.name, role: s.role, hasMailbox: MAIL_ENABLED && !s.local && s.email.includes("@") });
+const publicUser = (s) => ({
+  email: s.email,
+  name: s.name,
+  role: s.role,
+  hasMailbox: MAIL_ENABLED && !s.local && s.email.includes("@"),
+});
 
 /**
  * Login. Three sources, in this order:
@@ -228,7 +240,9 @@ const publicUser = (s) => ({ email: s.email, name: s.name, role: s.role, hasMail
  * CRM_DEV_PASSWORD (local testing only) accepts that password for anyone.
  */
 app.post("/api/auth/login", async (req, res) => {
-  let email = String(req.body?.email || "").trim().toLowerCase(); // login name; becomes the row's e-mail after a table login
+  let email = String(req.body?.email || "")
+    .trim()
+    .toLowerCase(); // login name; becomes the row's e-mail after a table login
   const password = String(req.body?.password || "");
   if (!email) return res.status(400).json({ error: "Kullanıcı adı girin." });
   if (!password) return res.status(400).json({ error: "Şifre girin." });
@@ -247,10 +261,14 @@ app.post("/api/auth/login", async (req, res) => {
       console.error("[login/db]", e.message);
       return res.status(502).json({ error: "Kullanıcı veritabanına bağlanılamadı: " + e.message });
     }
-    if (!r.ok) return res.status(r.inactive ? 403 : 401).json({ error: r.inactive ? "Bu hesap pasif. Yöneticinize başvurun." : "Kullanıcı adı ya da şifre hatalı." });
+    if (!r.ok)
+      return res
+        .status(r.inactive ? 403 : 401)
+        .json({ error: r.inactive ? "Bu hesap pasif. Yöneticinize başvurun." : "Kullanıcı adı ya da şifre hatalı." });
     // Known team members keep the spelling the board already uses as `owner` ("Yuşa"), others use the table's first name.
     const known = r.email ? userFor(r.email) : null;
-    who.name = known && known.name !== r.email.split("@")[0].replace(/^./, (c) => c.toUpperCase()) ? known.name : r.name;
+    who.name =
+      known && known.name !== r.email.split("@")[0].replace(/^./, (c) => c.toUpperCase()) ? known.name : r.name;
     who.role = r.role === "admin" || known?.role === "admin" ? "admin" : r.role;
     if (r.email) email = r.email;
   } else {
@@ -308,9 +326,13 @@ function searchPattern(address) {
 }
 
 app.get("/api/mail", auth, mailOn, async (req, res) => {
-  const address = String(req.query.address || "").trim().toLowerCase();
+  const address = String(req.query.address || "")
+    .trim()
+    .toLowerCase();
   if (!address.includes("@")) return res.status(400).json({ error: "Geçerli bir e-posta adresi gerekli." });
-  const mailbox = String(req.query.mailbox || "").trim().toLowerCase();
+  const mailbox = String(req.query.mailbox || "")
+    .trim()
+    .toLowerCase();
   const creds = mailboxAuth(req.session, mailbox);
   if (creds.error) return res.status(409).json({ error: creds.error, noMailbox: true });
 
@@ -323,8 +345,7 @@ app.get("/api/mail", auth, mailOn, async (req, res) => {
   try {
     const result = await withImap(s, creds, async (c) => {
       const boxes = await c.list();
-      const sentBox =
-        boxes.find((b) => b.specialUse === "\\Sent") || boxes.find((b) => /(^|[./])sent/i.test(b.path));
+      const sentBox = boxes.find((b) => b.specialUse === "\\Sent") || boxes.find((b) => /(^|[./])sent/i.test(b.path));
       const list = [];
       const scanned = [];
       const collect = async (folder, query, direction) => {
@@ -369,7 +390,12 @@ app.get("/api/mail/body", auth, mailOn, async (req, res) => {
   const folder = String(req.query.folder || "");
   const uid = Number(req.query.uid);
   if (!folder || !uid) return res.status(400).json({ error: "folder ve uid gerekli." });
-  const creds = mailboxAuth(req.session, String(req.query.mailbox || "").trim().toLowerCase());
+  const creds = mailboxAuth(
+    req.session,
+    String(req.query.mailbox || "")
+      .trim()
+      .toLowerCase(),
+  );
   if (creds.error) return res.status(409).json({ error: creds.error });
   try {
     const text = await withImap(req.session, creds, async (c) => {
@@ -405,7 +431,11 @@ app.get("/api/users", auth, async (_req, res) => {
         list: rows.map((r) => {
           const known = userFor(r.email);
           const generic = r.email.split("@")[0].replace(/^./, (c) => c.toUpperCase());
-          return { name: known.name !== generic ? known.name : r.first || r.login, email: r.email, role: known.role === "admin" ? "admin" : r.role };
+          return {
+            name: known.name !== generic ? known.name : r.first || r.login,
+            email: r.email,
+            role: known.role === "admin" ? "admin" : r.role,
+          };
         }),
       };
     } catch (e) {
@@ -511,13 +541,19 @@ O zaman arayüz bu adresten açılır.</p>
 
 app.listen(PORT, async () => {
   console.log(`[crm] server on http://localhost:${PORT}  (data ${DATA_FILE})`);
-  console.log(MAIL_ENABLED ? `[crm] e-posta okuma açık (imap ${IMAP_HOST}:${IMAP_PORT})` : "[crm] e-posta okuma kapalı (MAIL_ENABLED=0)");
+  console.log(
+    MAIL_ENABLED
+      ? `[crm] e-posta okuma açık (imap ${IMAP_HOST}:${IMAP_PORT})`
+      : "[crm] e-posta okuma kapalı (MAIL_ENABLED=0)",
+  );
   if (IMAP_MASTER_USER) console.log(`[crm] IMAP master user etkin: adminler satışçı kutularını okuyabilir`);
   if (authDbEnabled()) {
     console.log(`[crm] giriş: kullanıcı tablosu ${authDbLabel()}`);
     try {
       const n = await checkTable();
-      console.log(`[crm] kullanıcı tablosu okundu: ${n} kayıt (KullaniciAdi/Email + Sifre, Durum=Aktif, YetkiTuru → rol)`);
+      console.log(
+        `[crm] kullanıcı tablosu okundu: ${n} kayıt (KullaniciAdi/Email + Sifre, Durum=Aktif, YetkiTuru → rol)`,
+      );
     } catch (e) {
       console.error("[crm] kullanıcı tablosu okunamadı:", e.message);
     }

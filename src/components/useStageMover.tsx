@@ -42,13 +42,10 @@ export function useStageMover() {
         action: {
           label: "Geri al",
           run: () =>
-            run(
-              async (repo) => {
-                await undoStageMove(repo, dealId, prev, r.followUp?.id);
-                if (handover) await assignDeal(repo, dealId, prevOwner);
-              },
-              `${STAGE[prev.stage].label} aşamasına geri alındı`,
-            ),
+            run(async (repo) => {
+              await undoStageMove(repo, dealId, prev, r.followUp?.id);
+              if (handover) await assignDeal(repo, dealId, prevOwner);
+            }, `${STAGE[prev.stage].label} aşamasına geri alındı`),
         },
       }),
     );
@@ -116,8 +113,8 @@ function LostReasonDialog({
       }
     >
       <p className="lede">
-        <strong>{title}</strong> olumsuz sonuçlandı. Neden belirtmek zorunlu; kartın üstünde görünür ve raporlardaki analiz bu
-        alandan beslenir.
+        <strong>{title}</strong> olumsuz sonuçlandı. Neden belirtmek zorunlu; kartın üstünde görünür ve raporlardaki
+        analiz bu alandan beslenir.
       </p>
       <fieldset className="reason-list" aria-describedby={error ? "lost-err" : undefined}>
         <legend className="field-l">Neden</legend>

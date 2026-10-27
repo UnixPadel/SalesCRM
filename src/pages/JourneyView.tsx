@@ -88,7 +88,11 @@ export function JourneyView({
         {STAGES.map((s) => {
           const here = deals
             .filter((d) => d.stage === s.key)
-            .sort((a, b) => (s.open ? a.stage_entered_at.localeCompare(b.stage_entered_at) : b.stage_entered_at.localeCompare(a.stage_entered_at)));
+            .sort((a, b) =>
+              s.open
+                ? a.stage_entered_at.localeCompare(b.stage_entered_at)
+                : b.stage_entered_at.localeCompare(a.stage_entered_at),
+            );
           return (
             <section
               key={s.key}
@@ -102,7 +106,9 @@ export function JourneyView({
                   key={d.id}
                   deal={d}
                   sub={[
-                    d.organization_id && orgById.get(d.organization_id)?.name !== d.title ? orgById.get(d.organization_id)?.name : null,
+                    d.organization_id && orgById.get(d.organization_id)?.name !== d.title
+                      ? orgById.get(d.organization_id)?.name
+                      : null,
                     d.contact_id ? contactById.get(d.contact_id)?.name : null,
                     countryOfDeal(d) ? `${flagOf(countryOfDeal(d))} ${countryName(countryOfDeal(d))}` : null,
                   ]
@@ -114,10 +120,16 @@ export function JourneyView({
                   onMove={(to) => move(d.id, to)}
                   onWon={() => run((repo) => setWon(repo, d.id, true), `Tebrikler, ${d.title} satıldı`)}
                   onTake={() =>
-                    run((repo) => assignDeal(repo, d.id, me), () => ({
-                      msg: `${d.title} artık sizin müşteriniz`,
-                      action: { label: "Geri al", run: () => run((repo) => assignDeal(repo, d.id, ""), "Havuza geri bırakıldı") },
-                    }))
+                    run(
+                      (repo) => assignDeal(repo, d.id, me),
+                      () => ({
+                        msg: `${d.title} artık sizin müşteriniz`,
+                        action: {
+                          label: "Geri al",
+                          run: () => run((repo) => assignDeal(repo, d.id, ""), "Havuza geri bırakıldı"),
+                        },
+                      }),
+                    )
                   }
                   onDragStart={(e) => {
                     e.dataTransfer.setData("text/plain", d.id);
@@ -130,7 +142,9 @@ export function JourneyView({
                   }}
                 />
               ))}
-              {!here.length && <p className="jcol-empty">{s.open ? "Bu durakta kimse yok" : "Kırmızı hatta kimse yok"}</p>}
+              {!here.length && (
+                <p className="jcol-empty">{s.open ? "Bu durakta kimse yok" : "Kırmızı hatta kimse yok"}</p>
+              )}
             </section>
           );
         })}
@@ -199,7 +213,12 @@ function JourneyCard({
     <article
       ref={self}
       className={
-        "jcard" + (rotting ? " is-rotting" : "") + (won ? " is-won" : "") + (lost ? " is-lost" : "") + (!deal.owner ? " is-pool" : "") + (dragging ? " is-dragging" : "")
+        "jcard" +
+        (rotting ? " is-rotting" : "") +
+        (won ? " is-won" : "") +
+        (lost ? " is-lost" : "") +
+        (!deal.owner ? " is-pool" : "") +
+        (dragging ? " is-dragging" : "")
       }
       draggable={editable}
       onDragStart={onDragStart}
@@ -242,7 +261,12 @@ function JourneyCard({
             Üstlen
           </Button>
         ) : editable && !won && next ? (
-          <Button size="sm" variant="sec" onClick={() => go(next.key)} title={`${next.no}. ${next.label} durağına taşı`}>
+          <Button
+            size="sm"
+            variant="sec"
+            onClick={() => go(next.key)}
+            title={`${next.no}. ${next.label} durağına taşı`}
+          >
             <Icon name="arrow" size={14} /> {next.short}
           </Button>
         ) : editable && !won && !lost ? (

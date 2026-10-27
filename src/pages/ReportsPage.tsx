@@ -29,10 +29,22 @@ export function ReportsPage() {
   return (
     <div className="reports">
       <section className="kpis" aria-label="Özet göstergeler">
-        <Kpi label="Açık hat değeri" value={eur(open.reduce((s, d) => s + toEUR(d), 0))} sub={`${open.length} açık müşteri`} />
-        <Kpi label="Ağırlıklı tahmin" value={eur(open.reduce((s, d) => s + weightedEUR(d), 0))} sub="Değer × kolon olasılığı" />
+        <Kpi
+          label="Açık hat değeri"
+          value={eur(open.reduce((s, d) => s + toEUR(d), 0))}
+          sub={`${open.length} açık müşteri`}
+        />
+        <Kpi
+          label="Ağırlıklı tahmin"
+          value={eur(open.reduce((s, d) => s + weightedEUR(d), 0))}
+          sub="Değer × kolon olasılığı"
+        />
         <Kpi label="Bu ay satılan" value={eur(thisMonth.valueEUR)} sub={`${thisMonth.count} satış`} />
-        <Kpi label="Satışa dönüşüm" value={closed ? pct(won.length / closed) : "—"} sub={`${won.length} satıldı, ${lost.length} red line`} />
+        <Kpi
+          label="Satışa dönüşüm"
+          value={closed ? pct(won.length / closed) : "—"}
+          sub={`${won.length} satıldı, ${lost.length} red line`}
+        />
       </section>
 
       <div className="rgrid">
@@ -44,7 +56,8 @@ export function ReportsPage() {
             role="img"
             aria-label={
               wonMonths.length
-                ? "Satış olan aylar: " + wonMonths.map((m) => `${m.label} ${m.count} satış ${eur(m.valueEUR)}`).join("; ")
+                ? "Satış olan aylar: " +
+                  wonMonths.map((m) => `${m.label} ${m.count} satış ${eur(m.valueEUR)}`).join("; ")
                 : "Son 12 ayda satış yok"
             }
           >
@@ -66,7 +79,9 @@ export function ReportsPage() {
           <ul className="hbars">
             {rates.map((r) => (
               <li className="hbar" key={r.stage}>
-                <span className="hbar-l">{STAGE[r.stage].no}. {STAGE[r.stage].label}</span>
+                <span className="hbar-l">
+                  {STAGE[r.stage].no}. {STAGE[r.stage].label}
+                </span>
                 <span className="hbar-track" aria-hidden="true">
                   <i style={{ inlineSize: `${(r.rate ?? 0) * 100}%` }} />
                 </span>

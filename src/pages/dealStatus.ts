@@ -15,7 +15,8 @@ export function dealStatus(deal: Deal, activities: Activity[]): DealStatus | nul
   if (isRotting(deal, activities)) return { tone: "bad", icon: "flame", text: "Takipsiz · planlı adım yok" };
   const { next, status } = nextActivity(deal.id, activities);
   if (!next) return null;
-  if (status === "overdue") return { tone: "bad", icon: "alarm", text: `Gecikti (${relDays(next.due_at)}): ${next.subject}` };
+  if (status === "overdue")
+    return { tone: "bad", icon: "alarm", text: `Gecikti (${relDays(next.due_at)}): ${next.subject}` };
   if (status === "today") return { tone: "ok", icon: "clock", text: `Bugün ${fmtTime(next.due_at)}: ${next.subject}` };
   return { tone: "neutral", icon: "calendar", text: `${fmtDate(next.due_at)}: ${next.subject}` };
 }

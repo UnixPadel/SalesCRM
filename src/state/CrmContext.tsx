@@ -240,7 +240,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const owners = useMemo(() => {
     const names = team.map((t) => t.name);
     // keep whoever is logged in (or already owns rows) assignable even if the roster is stale
-    if (me && !isViewer && !names.includes(me) && !(user?.email.startsWith("admin@"))) names.push(me);
+    if (me && !isViewer && !names.includes(me) && !user?.email.startsWith("admin@")) names.push(me);
     return names.length ? names : OWNERS;
   }, [team, me, isViewer, user]);
   // Everyone opens on their own customers; the team view is one click away.
@@ -249,7 +249,10 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     (owner: string) => (view === "all" ? true : view === "pool" ? !owner : owner === me),
     [view, me],
   );
-  const canEdit = useCallback((owner: string) => isAdmin || (!isViewer && (!owner || owner === me)), [isAdmin, isViewer, me]);
+  const canEdit = useCallback(
+    (owner: string) => isAdmin || (!isViewer && (!owner || owner === me)),
+    [isAdmin, isViewer, me],
+  );
 
   const orgById = useMemo(() => new Map(data.organizations.map((o) => [o.id, o])), [data.organizations]);
   const contactById = useMemo(() => new Map(data.contacts.map((c) => [c.id, c])), [data.contacts]);
@@ -262,9 +265,35 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   );
 
   const value: CrmCtx = {
-    data, ready, orgById, contactById, countryOfDeal, user, authChecked, login, logout, me, isAdmin, isViewer, team, owners, canEdit,
-    view, setView, inView, theme, setTheme, run, openDealId, openDeal: setOpenDealId, freshDeals, markFresh,
-    toasts, toast, dismissToast, resetDemo,
+    data,
+    ready,
+    orgById,
+    contactById,
+    countryOfDeal,
+    user,
+    authChecked,
+    login,
+    logout,
+    me,
+    isAdmin,
+    isViewer,
+    team,
+    owners,
+    canEdit,
+    view,
+    setView,
+    inView,
+    theme,
+    setTheme,
+    run,
+    openDealId,
+    openDeal: setOpenDealId,
+    freshDeals,
+    markFresh,
+    toasts,
+    toast,
+    dismissToast,
+    resetDemo,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

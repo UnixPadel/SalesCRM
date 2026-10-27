@@ -27,7 +27,11 @@ export function ContactsPage({ initialQuery = "" }: { initialQuery?: string }) {
     .filter((o) => !s || `${o.name} ${o.website} ${countryName(o.country)}`.toLocaleLowerCase("tr").includes(s))
     .sort((a, b) => a.name.localeCompare(b.name, "tr"));
   const people = data.contacts
-    .filter((c) => (!onlyLinked || c.organization_id) && (!s || `${c.name} ${c.email} ${c.phone}`.toLocaleLowerCase("tr").includes(s)))
+    .filter(
+      (c) =>
+        (!onlyLinked || c.organization_id) &&
+        (!s || `${c.name} ${c.email} ${c.phone}`.toLocaleLowerCase("tr").includes(s)),
+    )
     .sort((a, b) => a.name.localeCompare(b.name, "tr"));
   const rows = tab === "orgs" ? orgs : people;
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
@@ -38,10 +42,20 @@ export function ContactsPage({ initialQuery = "" }: { initialQuery?: string }) {
     <div className="contacts">
       <div className="toolbar">
         <div className="tabs" role="tablist" aria-label="Kayıt tipi">
-          <button role="tab" aria-selected={tab === "orgs"} className="tab" onClick={() => (setTab("orgs"), setPage(0))}>
+          <button
+            role="tab"
+            aria-selected={tab === "orgs"}
+            className="tab"
+            onClick={() => (setTab("orgs"), setPage(0))}
+          >
             <Icon name="building" size={14} /> Organizasyonlar <span className="count">{orgs.length}</span>
           </button>
-          <button role="tab" aria-selected={tab === "people"} className="tab" onClick={() => (setTab("people"), setPage(0))}>
+          <button
+            role="tab"
+            aria-selected={tab === "people"}
+            className="tab"
+            onClick={() => (setTab("people"), setPage(0))}
+          >
             <Icon name="user" size={14} /> Kişiler <span className="count">{people.length}</span>
           </button>
         </div>
@@ -49,11 +63,20 @@ export function ContactsPage({ initialQuery = "" }: { initialQuery?: string }) {
           <label className="searchfield">
             <Icon name="search" size={14} />
             <span className="sr-only">Ara</span>
-            <input type="search" placeholder="Ad, e-posta, ülke…" value={q} onChange={(e) => (setQ(e.target.value), setPage(0))} />
+            <input
+              type="search"
+              placeholder="Ad, e-posta, ülke…"
+              value={q}
+              onChange={(e) => (setQ(e.target.value), setPage(0))}
+            />
           </label>
           {tab === "people" && (
             <label className="check">
-              <input type="checkbox" checked={onlyLinked} onChange={(e) => (setOnlyLinked(e.target.checked), setPage(0))} />
+              <input
+                type="checkbox"
+                checked={onlyLinked}
+                onChange={(e) => (setOnlyLinked(e.target.checked), setPage(0))}
+              />
               Yalnız organizasyona bağlı kişiler
             </label>
           )}
@@ -61,7 +84,9 @@ export function ContactsPage({ initialQuery = "" }: { initialQuery?: string }) {
       </div>
 
       {!rows.length ? (
-        <Empty title="Kayıt bulunamadı">Aramayı değiştirin{tab === "people" && onlyLinked ? " ya da form kişilerini de gösterin" : ""}.</Empty>
+        <Empty title="Kayıt bulunamadı">
+          Aramayı değiştirin{tab === "people" && onlyLinked ? " ya da form kişilerini de gösterin" : ""}.
+        </Empty>
       ) : tab === "orgs" ? (
         <div className="table-wrap">
           <table className="tbl">
@@ -70,9 +95,15 @@ export function ContactsPage({ initialQuery = "" }: { initialQuery?: string }) {
                 <th scope="col">Organizasyon</th>
                 <th scope="col">Tip</th>
                 <th scope="col">Ülke</th>
-                <th scope="col" className="num">Açık müşteri</th>
-                <th scope="col" className="num">Açık değer</th>
-                <th scope="col" className="num">Satılan</th>
+                <th scope="col" className="num">
+                  Açık müşteri
+                </th>
+                <th scope="col" className="num">
+                  Açık değer
+                </th>
+                <th scope="col" className="num">
+                  Satılan
+                </th>
                 <th scope="col">
                   <span className="sr-only">Müşteri kartları</span>
                 </th>
@@ -96,7 +127,12 @@ export function ContactsPage({ initialQuery = "" }: { initialQuery?: string }) {
                           className="bare"
                           aria-label={`${o.name} tipi`}
                           value={o.type}
-                          onChange={(e) => run((r) => updateOrganization(r, o.id, { type: e.target.value as OrgType }), "Tip güncellendi")}
+                          onChange={(e) =>
+                            run(
+                              (r) => updateOrganization(r, o.id, { type: e.target.value as OrgType }),
+                              "Tip güncellendi",
+                            )
+                          }
                         >
                           {ORG_TYPES.map((t) => (
                             <option key={t.key} value={t.key}>
@@ -107,11 +143,21 @@ export function ContactsPage({ initialQuery = "" }: { initialQuery?: string }) {
                       </td>
                       <td>{countryName(o.country)}</td>
                       <td className="num">{open.length}</td>
-                      <td className="num">{eur(open.reduce((sum, d) => sum + toEUR(d), 0), true)}</td>
+                      <td className="num">
+                        {eur(
+                          open.reduce((sum, d) => sum + toEUR(d), 0),
+                          true,
+                        )}
+                      </td>
                       <td className="num">{won.length}</td>
                       <td>
                         <div className="row-actions">
-                          <Button size="sm" variant="ghost" aria-expanded={expanded} onClick={() => setOpenOrg(expanded ? null : o.id)}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-expanded={expanded}
+                            onClick={() => setOpenOrg(expanded ? null : o.id)}
+                          >
                             {ds.length} kart <Icon name="chevron" size={14} />
                           </Button>
                         </div>
@@ -125,7 +171,9 @@ export function ContactsPage({ initialQuery = "" }: { initialQuery?: string }) {
                               ds.map((d) => (
                                 <button key={d.id} className="org-deal" onClick={() => openDeal(d.id)}>
                                   <b>{d.title}</b>
-                                  <span className="muted">{STAGE[d.stage].no}. {STAGE[d.stage].label}</span>
+                                  <span className="muted">
+                                    {STAGE[d.stage].no}. {STAGE[d.stage].label}
+                                  </span>
                                   <span>{money(d.value, d.currency)}</span>
                                   <Avatar name={d.owner} size={24} />
                                 </button>

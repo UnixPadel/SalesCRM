@@ -22,7 +22,9 @@ const COL = {
   active: env("AUTH_DB_ACTIVE_COL", "Durum"),
 };
 /** Role values that make someone an admin of the board; everyone else is a sales rep. */
-const ADMIN_ROLES = env("AUTH_DB_ADMIN_ROLES", "Yonetici").split(",").map((s) => s.trim().toLowerCase());
+const ADMIN_ROLES = env("AUTH_DB_ADMIN_ROLES", "Yonetici")
+  .split(",")
+  .map((s) => s.trim().toLowerCase());
 const ACTIVE_VALUE = env("AUTH_DB_ACTIVE_VALUE", "Aktif").toLowerCase();
 
 const url = () => process.env.AUTH_DB_URL || "";
@@ -59,7 +61,12 @@ async function connect() {
       quote: (id) => '"' + String(id).replace(/"/g, '""') + '"',
       query: async (sql, params = []) => {
         let i = 0;
-        return (await pool.query(sql.replace(/\?/g, () => `$${++i}`), params)).rows;
+        return (
+          await pool.query(
+            sql.replace(/\?/g, () => `$${++i}`),
+            params,
+          )
+        ).rows;
       },
     };
   } else {
@@ -69,7 +76,9 @@ async function connect() {
 }
 
 /** Roles that may own customers on the board (the sales team); other active users log in as viewers. */
-const SALES_ROLES = env("AUTH_DB_SALES_ROLES", "Yonetici,Temsilci").split(",").map((s) => s.trim().toLowerCase());
+const SALES_ROLES = env("AUTH_DB_SALES_ROLES", "Yonetici,Temsilci")
+  .split(",")
+  .map((s) => s.trim().toLowerCase());
 export const roleKind = (roleLabel) => {
   const r = String(roleLabel ?? "").toLowerCase();
   return ADMIN_ROLES.includes(r) ? "admin" : SALES_ROLES.includes(r) ? "rep" : "viewer";
@@ -85,7 +94,13 @@ export async function listTeam() {
     [ACTIVE_VALUE],
   );
   return rows
-    .map((r) => ({ login: String(r.login ?? ""), email: String(r.email ?? "").toLowerCase(), first: String(r.first ?? "").trim(), last: String(r.last ?? "").trim(), role: roleKind(r.role) }))
+    .map((r) => ({
+      login: String(r.login ?? ""),
+      email: String(r.email ?? "").toLowerCase(),
+      first: String(r.first ?? "").trim(),
+      last: String(r.last ?? "").trim(),
+      role: roleKind(r.role),
+    }))
     .filter((r) => r.role !== "viewer");
 }
 
@@ -126,5 +141,12 @@ export async function checkLogin(login, password) {
   if (Number(twins[0]?.n ?? 0) > 0 && last) name = `${first} ${last[0].toLocaleUpperCase("tr")}.`;
 
   const role = roleKind(row[COL.role]);
-  return { ok: true, name, email: String(row[COL.email] ?? "").toLowerCase(), role, isAdmin: role === "admin", roleLabel: row[COL.role] };
+  return {
+    ok: true,
+    name,
+    email: String(row[COL.email] ?? "").toLowerCase(),
+    role,
+    isAdmin: role === "admin",
+    roleLabel: row[COL.role],
+  };
 }

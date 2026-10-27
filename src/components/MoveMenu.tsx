@@ -3,7 +3,15 @@ import { STAGES } from "../domain/constants";
 import type { StageKey } from "../domain/types";
 
 /** "Taşı" menu shared by the column board and the line map: lists every column, current one disabled. */
-export function MoveMenu({ current, onPick, onClose }: { current: StageKey; onPick: (s: StageKey) => void; onClose: () => void }) {
+export function MoveMenu({
+  current,
+  onPick,
+  onClose,
+}: {
+  current: StageKey;
+  onPick: (s: StageKey) => void;
+  onClose: () => void;
+}) {
   const ref = useRef<HTMLUListElement>(null);
   useEffect(() => {
     const items = () => [...(ref.current?.querySelectorAll<HTMLButtonElement>("button:not([aria-current])") ?? [])];

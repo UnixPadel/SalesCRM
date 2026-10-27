@@ -251,13 +251,16 @@ export async function convertLead(repo: CrmRepository, leadId: ID, by: string): 
       value: 0,
       currency: "EUR",
       court_count: courts,
-      court_model: /plate/i.test(product) ? "Plate Padel" : /canopy|kanopi/i.test(product) ? "Roof Top Kanopi" : "Panoramik",
+      court_model: /plate/i.test(product)
+        ? "Plate Padel"
+        : /canopy|kanopi/i.test(product)
+          ? "Roof Top Kanopi"
+          : "Panoramik",
       expected_close_date: null,
       owner,
       lead_id: lead.id,
     });
-    if (lead.form_answers)
-      await tx.deals.update(deal.id, { notes: `Form cevapları: ${lead.form_answers}` });
+    if (lead.form_answers) await tx.deals.update(deal.id, { notes: `Form cevapları: ${lead.form_answers}` });
     await tx.leads.update(lead.id, { status: "qualified", deal_id: deal.id, owner });
     return (await tx.deals.get(deal.id))!;
   });
@@ -334,11 +337,7 @@ export async function updateLead(repo: CrmRepository, id: ID, patch: Partial<Omi
 export async function updateContact(repo: CrmRepository, id: ID, patch: Partial<Omit<Contact, "id">>) {
   return repo.contacts.update(id, patch);
 }
-export async function updateOrganization(
-  repo: CrmRepository,
-  id: ID,
-  patch: Partial<Omit<Organization, "id">>,
-) {
+export async function updateOrganization(repo: CrmRepository, id: ID, patch: Partial<Omit<Organization, "id">>) {
   return repo.organizations.update(id, patch);
 }
 

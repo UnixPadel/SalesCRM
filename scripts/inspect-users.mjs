@@ -15,7 +15,8 @@ const conn = await mysql.createConnection({
 const table = process.env.AUTH_DB_TABLE || "KullaniciBilgileri";
 const [cols] = await conn.query(`SHOW COLUMNS FROM \`${table}\``);
 console.log("columns:");
-for (const c of cols) console.log(`  ${c.Field}  ${c.Type}${c.Null === "NO" ? "  not null" : ""}${c.Key ? "  " + c.Key : ""}`);
+for (const c of cols)
+  console.log(`  ${c.Field}  ${c.Type}${c.Null === "NO" ? "  not null" : ""}${c.Key ? "  " + c.Key : ""}`);
 const [[{ n }]] = await conn.query(`SELECT COUNT(*) AS n FROM \`${table}\``);
 console.log("rows:", n);
 const secret = /sifre|parola|pass|pwd|hash|token/i;

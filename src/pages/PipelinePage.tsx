@@ -39,7 +39,21 @@ const VIEWS: { key: View; label: string; icon: string }[] = [
 ];
 
 export function PipelinePage() {
-  const { data, me, isAdmin, canEdit, owners, view, setView, inView, orgById, contactById, countryOfDeal, openDeal, run } = useCrm();
+  const {
+    data,
+    me,
+    isAdmin,
+    canEdit,
+    owners,
+    view,
+    setView,
+    inView,
+    orgById,
+    contactById,
+    countryOfDeal,
+    openDeal,
+    run,
+  } = useCrm();
   const { move, dialog } = useStageMover();
   const [f, setF] = useState<Filter>(loadFilter);
   const [mode, setModeState] = useState<Mode>(loadMode);
@@ -86,13 +100,18 @@ export function PipelinePage() {
   const stats = stageStats(deals);
   const rotting = deals.filter((d) => isRotting(d, data.activities)).length;
   const ids = new Set(deals.map((d) => d.id));
-  const overdue = data.activities.filter((a) => !a.done && ids.has(a.deal_id) && activityBucket(a) === "overdue").length;
+  const overdue = data.activities.filter(
+    (a) => !a.done && ids.has(a.deal_id) && activityBucket(a) === "overdue",
+  ).length;
 
   const take = (d: Deal) =>
-    run((repo) => assignDeal(repo, d.id, me), () => ({
-      msg: `${d.title} artık sizin müşteriniz`,
-      action: { label: "Geri al", run: () => run((repo) => assignDeal(repo, d.id, ""), "Havuza geri bırakıldı") },
-    }));
+    run(
+      (repo) => assignDeal(repo, d.id, me),
+      () => ({
+        msg: `${d.title} artık sizin müşteriniz`,
+        action: { label: "Geri al", run: () => run((repo) => assignDeal(repo, d.id, ""), "Havuza geri bırakıldı") },
+      }),
+    );
 
   const dropProps = (stage: StageKey) => ({
     onDragOver: (e: React.DragEvent) => {
@@ -115,10 +134,20 @@ export function PipelinePage() {
     <div className="pipeline">
       <div className="boardbar">
         <div className="seg seg-lg" role="radiogroup" aria-label="Görünüm">
-          <button role="radio" aria-checked={mode === "map"} onClick={() => setMode("map")} title="Hat haritası: satışçı hatları ve duraklar">
+          <button
+            role="radio"
+            aria-checked={mode === "map"}
+            onClick={() => setMode("map")}
+            title="Hat haritası: satışçı hatları ve duraklar"
+          >
             <Icon name="route" size={16} /> Hat haritası
           </button>
-          <button role="radio" aria-checked={mode === "columns"} onClick={() => setMode("columns")} title="Klasik kolonlu pano">
+          <button
+            role="radio"
+            aria-checked={mode === "columns"}
+            onClick={() => setMode("columns")}
+            title="Klasik kolonlu pano"
+          >
             <Icon name="columns" size={16} /> Kolonlar
           </button>
         </div>
@@ -130,7 +159,11 @@ export function PipelinePage() {
           ))}
         </div>
         {isAdmin && view === "all" && (
-          <select value={f.owner} onChange={(e) => setFilter({ owner: e.target.value })} aria-label="Satışçıya göre filtrele">
+          <select
+            value={f.owner}
+            onChange={(e) => setFilter({ owner: e.target.value })}
+            aria-label="Satışçıya göre filtrele"
+          >
             <option value="">Tüm satışçılar</option>
             {owners.map((o) => (
               <option key={o} value={o}>
@@ -139,7 +172,11 @@ export function PipelinePage() {
             ))}
           </select>
         )}
-        <select value={f.country} onChange={(e) => setFilter({ country: e.target.value })} aria-label="Ülkeye göre filtrele">
+        <select
+          value={f.country}
+          onChange={(e) => setFilter({ country: e.target.value })}
+          aria-label="Ülkeye göre filtrele"
+        >
           <option value="">Tüm ülkeler</option>
           {countries.map(([c, n]) => (
             <option key={c} value={c}>
@@ -151,7 +188,10 @@ export function PipelinePage() {
           <Icon name="flame" size={14} /> Takipsiz olanlar
         </button>
         {(f.country || f.rotting || ownerFilter) && (
-          <button className="btn btn-ghost btn-sm" onClick={() => setFilter({ country: "", rotting: false, owner: "" })}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setFilter({ country: "", rotting: false, owner: "" })}
+          >
             Filtreleri temizle
           </button>
         )}
@@ -162,82 +202,96 @@ export function PipelinePage() {
       </div>
 
       <p id="card-help" className="sr-only">
-        Açmak için Enter. Alt + sağ/sol ok ile sonraki ya da önceki durağa (kolona) taşıyın, ya da Taşı menüsünü kullanın.
+        Açmak için Enter. Alt + sağ/sol ok ile sonraki ya da önceki durağa (kolona) taşıyın, ya da Taşı menüsünü
+        kullanın.
       </p>
 
       {mode === "map" ? (
-        <MapView deals={deals} ownerFilter={ownerFilter} filtered={!!(f.country || f.rotting || ownerFilter)} move={move} />
+        <MapView
+          deals={deals}
+          ownerFilter={ownerFilter}
+          filtered={!!(f.country || f.rotting || ownerFilter)}
+          move={move}
+        />
       ) : (
-      <div className="board">
-        {STAGES.map((s) => {
-          const st = stats[s.key];
-          const cards = deals
-            .filter((d) => d.stage === s.key)
-            .sort((a, b) =>
-              s.open ? a.stage_entered_at.localeCompare(b.stage_entered_at) : b.stage_entered_at.localeCompare(a.stage_entered_at),
-            );
-          const headId = `col-${s.key}`;
-          return (
-            <section
-              key={s.key}
-              aria-labelledby={headId}
-              className={"col" + (over === s.key ? " is-over" : "")}
-              data-tone={s.tone}
-              {...dropProps(s.key)}
-            >
-              <header className="col-head">
-                <span className="col-no" aria-hidden="true">
-                  {s.no}
-                </span>
-                <h2 id={headId}>{s.label}</h2>
-                <span className="col-count" aria-label={`${st.count} müşteri`}>
-                  {st.count}
-                </span>
-                <span className="col-hint">{s.hint}</span>
-              </header>
-              <div className="col-sum">
-                {st.totalEUR > 0 && (
-                  <span>
-                    <b>{eur(st.totalEUR, true)}</b> toplam
+        <div className="board">
+          {STAGES.map((s) => {
+            const st = stats[s.key];
+            const cards = deals
+              .filter((d) => d.stage === s.key)
+              .sort((a, b) =>
+                s.open
+                  ? a.stage_entered_at.localeCompare(b.stage_entered_at)
+                  : b.stage_entered_at.localeCompare(a.stage_entered_at),
+              );
+            const headId = `col-${s.key}`;
+            return (
+              <section
+                key={s.key}
+                aria-labelledby={headId}
+                className={"col" + (over === s.key ? " is-over" : "")}
+                data-tone={s.tone}
+                {...dropProps(s.key)}
+              >
+                <header className="col-head">
+                  <span className="col-no" aria-hidden="true">
+                    {s.no}
                   </span>
-                )}
-                {st.count > 0 && <span title="Bu kolondaki müşterilerin ortalama bekleme süresi">ort. {st.avgDays} gün</span>}
-              </div>
-              <div className="col-body">
-                {cards.map((d) => (
-                  <DealCard
-                    key={d.id}
-                    deal={d}
-                    org={d.organization_id ? orgById.get(d.organization_id)?.name : undefined}
-                    person={d.contact_id ? contactById.get(d.contact_id)?.name : undefined}
-                    country={countryOfDeal(d)}
-                    activities={data.activities}
-                    dragging={dragId === d.id}
-                    editable={canEdit(d.owner)}
-                    onOpen={() => openDeal(d.id)}
-                    onMove={(to) => move(d.id, to)}
-                    onTake={() => take(d)}
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData("text/plain", d.id);
-                      e.dataTransfer.effectAllowed = "move";
-                      setDragId(d.id);
-                    }}
-                    onDragEnd={() => {
-                      setDragId(null);
-                      setOver(null);
-                    }}
-                  />
-                ))}
-                {!cards.length && (
-                  <div className="col-empty">
-                    {f.country || f.rotting || ownerFilter ? "Filtreye uyan müşteri yok" : view === "pool" ? "Havuzda müşteri yok" : "Bu kolon boş"}
-                  </div>
-                )}
-              </div>
-            </section>
-          );
-        })}
-      </div>
+                  <h2 id={headId}>{s.label}</h2>
+                  <span className="col-count" aria-label={`${st.count} müşteri`}>
+                    {st.count}
+                  </span>
+                  <span className="col-hint">{s.hint}</span>
+                </header>
+                <div className="col-sum">
+                  {st.totalEUR > 0 && (
+                    <span>
+                      <b>{eur(st.totalEUR, true)}</b> toplam
+                    </span>
+                  )}
+                  {st.count > 0 && (
+                    <span title="Bu kolondaki müşterilerin ortalama bekleme süresi">ort. {st.avgDays} gün</span>
+                  )}
+                </div>
+                <div className="col-body">
+                  {cards.map((d) => (
+                    <DealCard
+                      key={d.id}
+                      deal={d}
+                      org={d.organization_id ? orgById.get(d.organization_id)?.name : undefined}
+                      person={d.contact_id ? contactById.get(d.contact_id)?.name : undefined}
+                      country={countryOfDeal(d)}
+                      activities={data.activities}
+                      dragging={dragId === d.id}
+                      editable={canEdit(d.owner)}
+                      onOpen={() => openDeal(d.id)}
+                      onMove={(to) => move(d.id, to)}
+                      onTake={() => take(d)}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("text/plain", d.id);
+                        e.dataTransfer.effectAllowed = "move";
+                        setDragId(d.id);
+                      }}
+                      onDragEnd={() => {
+                        setDragId(null);
+                        setOver(null);
+                      }}
+                    />
+                  ))}
+                  {!cards.length && (
+                    <div className="col-empty">
+                      {f.country || f.rotting || ownerFilter
+                        ? "Filtreye uyan müşteri yok"
+                        : view === "pool"
+                          ? "Havuzda müşteri yok"
+                          : "Bu kolon boş"}
+                    </div>
+                  )}
+                </div>
+              </section>
+            );
+          })}
+        </div>
       )}
       {dialog}
     </div>
@@ -282,7 +336,11 @@ function DealCard({
   const rotting = isRotting(deal, activities);
   const status = dealStatus(deal, activities);
   const idx = ORDER.indexOf(deal.stage);
-  const sub = [org && org !== deal.title ? org : null, person, country ? `${flagOf(country)} ${countryName(country)}` : null]
+  const sub = [
+    org && org !== deal.title ? org : null,
+    person,
+    country ? `${flagOf(country)} ${countryName(country)}` : null,
+  ]
     .filter(Boolean)
     .join(" · ");
 

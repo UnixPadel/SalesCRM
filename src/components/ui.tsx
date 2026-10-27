@@ -49,7 +49,8 @@ const PATHS: Record<string, string> = {
   building: "M4 21V5l8-3v19M12 9h8v12M7 8h2M7 12h2M7 16h2M15 13h2M15 17h2M2 21h20",
   phone: "M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2",
   mail: "M3 6h18v12H3zM3 7l9 6 9-6",
-  users: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M16 4a3.5 3.5 0 0 1 0 7M18 14.5c2.4.6 4 2.4 4 5.5",
+  users:
+    "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M16 4a3.5 3.5 0 0 1 0 7M18 14.5c2.4.6 4 2.4 4 5.5",
   file: "M6 2h8l5 5v15H6zM14 2v5h5M9 13h7M9 17h7",
   pin: "M12 22s7-7.5 7-13a7 7 0 0 0-14 0c0 5.5 7 13 7 13zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5",
   search: "M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15zM16 16l5 5",
@@ -84,7 +85,8 @@ const PATHS: Record<string, string> = {
   tag: "M3 12V3h9l9 9-9 9zM7.5 7.5h.01",
   paperclip: "M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8",
   eye: "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6",
-  eyeOff: "M3 3l18 18M10.5 10.6A3 3 0 0 0 13.4 13.5M7.5 7.7C4.5 9.3 2 12 2 12s4 7 10 7c1.8 0 3.4-.5 4.8-1.2M10 5.2C10.6 5.1 11.3 5 12 5c6 0 10 7 10 7s-1 1.8-2.9 3.6",
+  eyeOff:
+    "M3 3l18 18M10.5 10.6A3 3 0 0 0 13.4 13.5M7.5 7.7C4.5 9.3 2 12 2 12s4 7 10 7c1.8 0 3.4-.5 4.8-1.2M10 5.2C10.6 5.1 11.3 5 12 5c6 0 10 7 10 7s-1 1.8-2.9 3.6",
   money: "M3 7h18v10H3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M6 10h.01M18 14h.01",
   court: "M3 5h18v14H3zM12 5v14M3 12h18",
   route: "M5 18h6a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6M5 18a2 2 0 1 0-.01 0M19 6a2 2 0 1 0-.01 0",
@@ -150,7 +152,13 @@ export function IconButton({
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & { icon: string; label: string; size?: "sm" | "md" }) {
   return (
-    <button type="button" {...rest} aria-label={label} title={label} className={`icon-btn icon-${size} ${className ?? ""}`}>
+    <button
+      type="button"
+      {...rest}
+      aria-label={label}
+      title={label}
+      className={`icon-btn icon-${size} ${className ?? ""}`}
+    >
       <Icon name={icon} size={size === "sm" ? 16 : 18} />
     </button>
   );
@@ -187,7 +195,17 @@ export function Avatar({ name, size = 24, label = true }: { name: string; size?:
 /* ---------------- status tag: icon + text, never colour alone ---------------- */
 
 export type Tone = "bad" | "warn" | "ok" | "info" | "neutral";
-export function StatusTag({ tone, icon, children, title }: { tone: Tone; icon: string; children: ReactNode; title?: string }) {
+export function StatusTag({
+  tone,
+  icon,
+  children,
+  title,
+}: {
+  tone: Tone;
+  icon: string;
+  children: ReactNode;
+  title?: string;
+}) {
   return (
     <span className={"status status-" + tone} title={title}>
       <Icon name={icon} size={14} />

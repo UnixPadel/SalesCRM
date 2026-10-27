@@ -17,7 +17,15 @@ type BodyState = { status: "loading" | "ok" | "err"; text: string };
  *  - `mailbox` empty: the logged-in person's own mailbox.
  *  - `mailbox` = a rep's address: that rep's mailbox (admins only, needs the IMAP master user).
  */
-export function MailThread({ address, mailbox: preferredMailbox, ownerName }: { address: string; mailbox?: string; ownerName?: string }) {
+export function MailThread({
+  address,
+  mailbox: preferredMailbox,
+  ownerName,
+}: {
+  address: string;
+  mailbox?: string;
+  ownerName?: string;
+}) {
   const { user } = useCrm();
   const [mailbox, setMailbox] = useState(preferredMailbox);
   const [st, setSt] = useState<ListState>({ status: "idle" });
@@ -62,7 +70,10 @@ export function MailThread({ address, mailbox: preferredMailbox, ownerName }: { 
       const r = await api<MailBody>("GET", `/api/mail/body?${qs}`);
       setBodies((b) => ({ ...b, [m.id]: { status: "ok", text: r.text } }));
     } catch (e) {
-      setBodies((b) => ({ ...b, [m.id]: { status: "err", text: e instanceof ApiError ? e.message : "İleti okunamadı." } }));
+      setBodies((b) => ({
+        ...b,
+        [m.id]: { status: "err", text: e instanceof ApiError ? e.message : "İleti okunamadı." },
+      }));
     }
   };
 
@@ -92,8 +103,8 @@ export function MailThread({ address, mailbox: preferredMailbox, ownerName }: { 
     >
       {!address ? (
         <p className="mail-state empty">
-          <Icon name="warn" size={16} /> Kişinin e-posta adresi kayıtlı değil. Müşteri bilgilerine adresi ekleyince yazışmalar burada
-          görünür.
+          <Icon name="warn" size={16} /> Kişinin e-posta adresi kayıtlı değil. Müşteri bilgilerine adresi ekleyince
+          yazışmalar burada görünür.
         </p>
       ) : st.status === "loading" || st.status === "idle" ? (
         <div className="mail-skel" aria-busy="true" aria-label="Postalar yükleniyor">
@@ -128,15 +139,16 @@ export function MailThread({ address, mailbox: preferredMailbox, ownerName }: { 
                   <b>{st.result.pattern}</b> adresiyle eşleşen iletiler ({whose}).
                 </>
               )}{" "}
-              Taranan: {st.result.scanned.map((f) => `${f.folder} (${f.total.toLocaleString("tr-TR")} ileti)`).join(", ")}
+              Taranan:{" "}
+              {st.result.scanned.map((f) => `${f.folder} (${f.total.toLocaleString("tr-TR")} ileti)`).join(", ")}
               {!st.result.sentFolder && " · gönderilenler klasörü bulunamadı"}
               {st.refreshing && " · yenileniyor…"}
             </span>
           </p>
           {!list.length ? (
             <p className="mail-state empty">
-              <Icon name="mail" size={16} /> Bu müşteriyle eşleşen ileti yok. Yazıştığınız adres farklıysa müşteri bilgilerinden
-              e-postayı düzeltin.
+              <Icon name="mail" size={16} /> Bu müşteriyle eşleşen ileti yok. Yazıştığınız adres farklıysa müşteri
+              bilgilerinden e-postayı düzeltin.
             </p>
           ) : (
             <>
@@ -149,14 +161,20 @@ export function MailThread({ address, mailbox: preferredMailbox, ownerName }: { 
                   const body = bodies[m.id];
                   return (
                     <li key={m.id} className="mail">
-                      <button className="mail-row" aria-expanded={open} aria-controls={`mb-${m.uid}`} onClick={() => toggle(m)}>
+                      <button
+                        className="mail-row"
+                        aria-expanded={open}
+                        aria-controls={`mb-${m.uid}`}
+                        onClick={() => toggle(m)}
+                      >
                         <span className={"mail-dir " + m.direction} aria-hidden="true">
                           <Icon name={m.direction === "in" ? "arrowIn" : "arrowOut"} size={18} />
                         </span>
                         <span className="mail-main">
                           <span className="mail-subject">{m.subject}</span>
                           <span className="mail-meta">
-                            <b>{m.direction === "in" ? "Gelen" : "Giden"}</b> · {m.direction === "in" ? m.from : `→ ${m.to}`}
+                            <b>{m.direction === "in" ? "Gelen" : "Giden"}</b> ·{" "}
+                            {m.direction === "in" ? m.from : `→ ${m.to}`}
                             {m.attachments > 0 && (
                               <>
                                 {" "}
@@ -171,7 +189,10 @@ export function MailThread({ address, mailbox: preferredMailbox, ownerName }: { 
                         </span>
                       </button>
                       {open && (
-                        <pre id={`mb-${m.uid}`} className={"mail-body" + (body?.status === "loading" ? " is-loading" : "")}>
+                        <pre
+                          id={`mb-${m.uid}`}
+                          className={"mail-body" + (body?.status === "loading" ? " is-loading" : "")}
+                        >
                           {!body || body.status === "loading" ? "İleti yükleniyor…" : body.text}
                         </pre>
                       )}
