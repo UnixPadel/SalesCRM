@@ -19,8 +19,12 @@ export default tseslint.config(
   },
   {
     // Sunucu, betikler, modüller ve testler: Node ortamı.
-    files: ["server/**/*.{mjs,ts}", "scripts/**/*.mjs", "src/modules/**/*.ts", "tests/**/*.ts", "*.{js,mjs,ts}"],
+    files: ["server/**/*.{mjs,ts}", "scripts/**/*.mjs", "src/modules/**/*.ts", "tests/**/*.ts", "*.{js,mjs,cjs,ts}"],
     languageOptions: { globals: globals.node },
+  },
+  {
+    files: ["**/*.cjs"],
+    languageOptions: { sourceType: "commonjs", globals: globals.node },
   },
   {
     // ADR-0004: secret'lar ve config tek yerden okunur; modüller process.env'e dokunmaz.
