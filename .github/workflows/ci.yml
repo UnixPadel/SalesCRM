@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: lint · format · typecheck · arch · secrets · test · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Typecheck (arayüz + modüller)
+        run: npm run typecheck
+
+      - name: Architecture rules (dependency-cruiser)
+        run: npm run arch
+
+      - name: Secret scan (secretlint)
+        run: npm run secrets
+
+      - name: Tests (vitest)
+        run: npm run test
+
+      - name: Build (vite)
+        run: npm run build:only

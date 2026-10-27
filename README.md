@@ -10,6 +10,24 @@ npm run dev        # API sunucusu (8787) + Vite (http://localhost:5173) birlikte
 
 Üretim: `npm run build` sonra `npm start` (sunucu `dist/` klasörünü de servis eder, tek port: 8787).
 
+## Geliştirme kuralları (Faz 0'dan itibaren)
+
+- Mimari kararlar `docs/adr/` altında; açık kararlar ve sahipleri `docs/decisions.md`.
+- Yeni kod `src/modules/` altındaki modüler yapıya yazılır; sınırlar `src/modules/README.md` ve `.dependency-cruiser.cjs`.
+- Her PR'da `npm run verify` yeşil olmalı: lint, format, tip kontrolü, mimari test, secret tarama, testler.
+  `npm run build` de önce bunu çalıştırır. CI aynı zinciri `.github/workflows/ci.yml` ile koşar.
+- PR şablonundaki "Bitti tanımı" listesi her PR'da işaretlenir.
+
+| Komut | Ne yapar |
+|---|---|
+| `npm run lint` | ESLint (typescript-eslint, react-hooks) |
+| `npm run format` / `format:check` | Prettier |
+| `npm run typecheck` | `tsc` arayüz + modüller |
+| `npm run arch` | dependency-cruiser katman ve modül kuralları |
+| `npm run secrets` | secretlint |
+| `npm run test` | Vitest (`src/modules`, `tests`) |
+| `npm run verify` | Hepsi sırayla |
+
 ## Giriş ve şifreler
 
 Giriş, şirketin **KullaniciBilgileri** tablosuyla yapılır (Clever Cloud MySQL):
