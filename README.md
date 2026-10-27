@@ -12,12 +12,12 @@ npm run dev        # API sunucusu (8787) + Vite (http://localhost:5173) birlikte
 
 ## Giriş ve şifreler
 
-Giriş, şirketin **KullaniciBilgileri** tablosuyla yapılır (Clever Cloud MySQL `b5l1shhnklxmq4ogmpjc`):
+Giriş, şirketin **KullaniciBilgileri** tablosuyla yapılır (Clever Cloud MySQL):
 **kullanıcı adı ya da e-posta** + tablodaki şifre (`Sifre`, düz metin). Yalnız `Durum = Aktif` olanlar
 girebilir. Şifre sunucuda karşılaştırılır; tarayıcıya ya da günlüğe yazılmaz.
 
 Kurulum: `.env.example` → `.env`; `AUTH_DB_URL` satırına Clever Cloud bağlantısını yazın
-(`mysql://<User>:<Password>@<Server>:<Port>/<Database>`). Sunucu açılışta tabloyu okuyup kayıt sayısını
+(panelden kopyalanan MySQL bağlantı adresi; biçim `.env.example` içinde). Sunucu açılışta tabloyu okuyup kayıt sayısını
 günlüğe yazar. Yardımcı betikler: `node scripts/list-users.mjs` (kim girebilir, şifresiz),
 `node scripts/test-login.mjs` (giriş kontrolünü gerçek tabloyla dener, şifre yazdırmaz).
 
