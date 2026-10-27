@@ -38,6 +38,6 @@ Mimari kurallar (dependency-cruiser):
 
 ## Sonuçlar
 
-- Mevcut arayüz kodu lint kapsamındadır; Faz 0'da yalnız kural ihlali sıfırlanana kadar gereken en küçük düzeltme yapılır, davranış değişmez.
+- Mevcut arayüz ve sunucu kodu lint kapsamındadır. Faz 0'da davranış değiştirmemek için beş kural yalnız eski kodda uyarı seviyesindedir (`react-hooks/set-state-in-effect`, `react-hooks/refs`, `no-useless-assignment`, `no-explicit-any`, `no-unused-expressions`); `src/modules` ve `tests` için hepsi hatadır. Eski kod Faz 1'de modüllere taşınırken bu istisna kaldırılır.
 - Format kuralı: 2 boşluk, çift tırnak, 120 sütun. Mevcut kod bu kurala göre bir kez biçimlendirilir (ayrı commit).
 - PR şablonu "Bitti tanımı" listesini taşır.

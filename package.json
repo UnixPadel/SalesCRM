@@ -6,9 +6,18 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "server": "node server/index.mjs",
-    "build": "tsc --noEmit && vite build",
     "start": "node server/index.mjs",
-    "typecheck": "tsc --noEmit",
+    "build": "npm run verify && vite build",
+    "build:only": "vite build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.modules.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "arch": "depcruise --config .dependency-cruiser.cjs src server",
+    "secrets": "secretlint \"**/*\"",
+    "verify": "npm run lint && npm run format:check && npm run typecheck && npm run arch && npm run secrets && npm run test",
     "contrast": "node scripts/contrast.mjs"
   },
   "dependencies": {
@@ -21,12 +30,27 @@
     "react-dom": "18.3.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.1.0",
     "@types/express": "^5.0.0",
     "@types/mailparser": "^3.4.6",
+    "@types/node": "^26.6.5",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
     "@vitejs/plugin-react": "4.3.4",
+    "dependency-cruiser": "^18.7.0",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "secretlint": "^13.1.0",
     "typescript": "5.6.3",
-    "vite": "5.4.11"
+    "typescript-eslint": "^8.72.1",
+    "vite": "5.4.11",
+    "vitest": "^3.2.7"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

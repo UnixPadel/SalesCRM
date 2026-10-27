@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+server/data/
+legacy/
+package-lock.json
+src/seed/leads.json
+*.md
