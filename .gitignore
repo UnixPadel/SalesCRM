@@ -1,0 +1,17 @@
+node_modules/
+dist/
+server/data/
+
+# yerel ortam ve secret'lar
+.env
+.env.*
+!.env.example
+
+# ham veri dışa aktarımları (kişisel veri; depoya girmez)
+*.xlsx
+*.xls
+*.csv
+
+# araç çıktıları
+coverage/
+.eslintcache

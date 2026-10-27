@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "crm",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "crm-test-login",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev.mjs", "--dev-login=test1234"],
+      "port": 5173
+    }
+  ]
+}
