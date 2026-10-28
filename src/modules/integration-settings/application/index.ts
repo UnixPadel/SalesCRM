@@ -4,6 +4,7 @@
  */
 import type { Clock } from "../../shared/kernel";
 import {
+  applyMappings,
   resolveMappings,
   type FieldMapping,
   type FieldMappingRepository,
@@ -11,6 +12,10 @@ import {
   type Setting,
   type SettingsRepository,
 } from "../domain";
+
+/** Adaptörlerin ve lead-intake'in ihtiyacı olan domain tipleri ve saf fonksiyon, bu kapıdan. */
+export { applyMappings };
+export type { FieldMapping, MappedFields, MappingTarget, RawField, ResolvedMapping, UnmappedPolicy } from "../domain";
 
 export interface IntegrationSettingsDeps {
   mappings: FieldMappingRepository;
