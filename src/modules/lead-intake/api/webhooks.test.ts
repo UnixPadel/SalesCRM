@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { bootLeadIntake, type LeadIntakeApp } from "../../../bootstrap/leadIntake";
 import { bootSalesPipeline, type SalesPipelineApp } from "../../../bootstrap/salesPipeline";
-import type { LeadDto } from "../../sales-pipeline/api/dto";
 import { generateKeyBase64, hmacSha256Hex, silentLogger } from "../../shared/kernel";
 import { createRateLimiter } from "./webhooks";
 
@@ -68,7 +67,12 @@ afterAll(async () => {
 const post = (path: string, body: Buffer | string, headers: Record<string, string> = {}) =>
   fetch(base + path, { method: "POST", body, headers: { "content-type": "application/json", ...headers } });
 const sig = (body: Buffer) => `sha256=${hmacSha256Hex(APP_SECRET, body)}`;
-const leads = async () => (await (await fetch(`${base}/api/pipeline/leads?includeTest=1`)).json()) as LeadDto[];
+/** Modüller arası kural: başka modülün api katmanı import edilmez; testin baktığı alanlar yerel tip. */
+interface LeadView extends Record<string, unknown> {
+  id: string;
+  platformLeadId: string | null;
+}
+const leads = async () => (await (await fetch(`${base}/api/pipeline/leads?includeTest=1`)).json()) as LeadView[];
 
 describe("GET /webhooks/meta", () => {
   it("doğru token → challenge düz metin; yanlış token → 403", async () => {
