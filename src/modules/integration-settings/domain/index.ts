@@ -1,2 +1,3 @@
-// Faz 0: bos iskelet. Icerik ilgili fazda eklenir; katman kurallari .dependency-cruiser.cjs ile zorlanir.
-export {};
+// integration-settings/domain: alan eşlemesi kuralları ve ayar tipleri. Platform adı yok.
+export * from "./mapping";
+export * from "./ports";
