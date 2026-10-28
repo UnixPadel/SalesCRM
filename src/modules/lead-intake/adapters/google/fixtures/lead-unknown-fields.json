@@ -1,0 +1,17 @@
+{
+  "lead_id": "CjwKCAiA-lead-0004",
+  "user_column_data": [
+    { "column_name": "Full Name", "string_value": "Hans Müller", "column_id": "FULL_NAME" },
+    { "column_name": "Work Email", "string_value": "hans@mueller.de", "column_id": "WORK_EMAIL" },
+    { "column_name": "Country", "string_value": "Germany", "column_id": "COUNTRY" },
+    { "column_name": "Kaç kort?", "string_value": "3", "column_id": "custom_question_1" },
+    { "column_name": "Bütçe", "string_value": "100k+", "column_id": "custom_question_2" },
+    { "column_name": "Bozuk", "string_value": "x" }
+  ],
+  "api_version": "1.0",
+  "form_id": 7002,
+  "campaign_id": 8002,
+  "google_key": "test-webhook-key",
+  "is_test": false,
+  "gcl_id": "Cj0KCQjw-gclid-unknown"
+}

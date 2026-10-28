@@ -1,0 +1,20 @@
+{
+  "lead_id": "CjwKCAiA-lead-0001",
+  "user_column_data": [
+    { "column_name": "Full Name", "string_value": "Ayşe Demir", "column_id": "FULL_NAME" },
+    { "column_name": "User Phone", "string_value": "+905321234567", "column_id": "PHONE_NUMBER" },
+    { "column_name": "User Email", "string_value": "ayse.demir@example.com", "column_id": "EMAIL" },
+    { "column_name": "Country", "string_value": "TR", "column_id": "COUNTRY" },
+    { "column_name": "City", "string_value": "İzmir", "column_id": "CITY" },
+    { "column_name": "Company Name", "string_value": "Demir Spor", "column_id": "COMPANY_NAME" },
+    { "column_name": "Job Title", "string_value": "Tesis Müdürü", "column_id": "JOB_TITLE" }
+  ],
+  "api_version": "1.0",
+  "form_id": 7001,
+  "campaign_id": 8001,
+  "adgroup_id": 9001,
+  "creative_id": 9501,
+  "gcl_id": "Cj0KCQjw-gclid-normal",
+  "is_test": false,
+  "google_key": "test-webhook-key"
+}
