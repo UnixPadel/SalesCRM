@@ -10,22 +10,22 @@ Onaylanan varsayılanlar (2026-10-28, Elshan): kütüphanesiz zamanlayıcı (pg-
 
 | Görev | Commit | Durum |
 |---|---|---|
-| Migration'lar: `inbound_webhook_events`, `form_field_mappings`, `integration_settings` (+ `user_notifications`) | `db:` 7243473 | Tamam — `db/migrations/0003`, `0004` seed |
-| Webhook controller'ları: doğrula → inbox'a yaz → hemen 200 | `api:` c8f25d6 | Tamam — `lead-intake/api/webhooks.ts` |
-| İşleyici worker'ı: inbox → kaynak adaptörü → `InboundLeadDto` → `CreateLeadFromAd` | `lead-intake application:` 5526a6e | Tamam — `ProcessInbox`, her 5 sn |
+| Migration'lar: `inbound_webhook_events`, `form_field_mappings`, `integration_settings` (+ `user_notifications`) | `db:` d602e2c | Tamam — `db/migrations/0003`, `0004` seed |
+| Webhook controller'ları: doğrula → inbox'a yaz → hemen 200 | `api:` c7fb7b5 | Tamam — `lead-intake/api/webhooks.ts` |
+| İşleyici worker'ı: inbox → kaynak adaptörü → `InboundLeadDto` → `CreateLeadFromAd` | `lead-intake application:` 737a7ac | Tamam — `ProcessInbox`, her 5 sn |
 | Hata ayrımı: geçici yeniden denenir, kalıcı `failed` | aynı | Tamam — 1, 5, 30, 120, 720 dk; sonra `failed` (`intake.retries_exhausted`) |
-| Inbox payload şifreli; 30 günden eski payload'ı silen iş | `kernel:` 9d783b2, `lead-intake infrastructure:` 83eb518 | Tamam — AES-256-GCM, günlük `PurgeInboxPayloads` |
-| `LeadCreated` abonesi: uygulama içi bildirim ve e-posta | `notifications:` 7beec7c | Tamam — zil + SMTP portu (SMTP hesabı bekliyor) |
-| Meta GET doğrulama (`hub.verify_token`, `hub.challenge`) | `adapters/meta:` 0ec1ec5 | Tamam |
+| Inbox payload şifreli; 30 günden eski payload'ı silen iş | `kernel:` 7acebf4, `lead-intake infrastructure:` edc7b19 | Tamam — AES-256-GCM, günlük `PurgeInboxPayloads` |
+| `LeadCreated` abonesi: uygulama içi bildirim ve e-posta | `notifications:` 54df736 | Tamam — zil + SMTP portu (SMTP hesabı bekliyor) |
+| Meta GET doğrulama (`hub.verify_token`, `hub.challenge`) | `adapters/meta:` 077593a | Tamam |
 | Meta POST doğrulama: `X-Hub-Signature-256`, ham gövde, sabit zamanlı | aynı | Tamam — `safeEqual` (HMAC özetleri `timingSafeEqual`) |
 | Graph API client; sürüm config'te tek değer | aynı | Tamam — `META_GRAPH_API_VERSION` |
-| `leadgen_id` ile lead'in tamamı; `field_data` → `form_field_mappings` | aynı + `integration-settings:` 3267e9f | Tamam |
+| `leadgen_id` ile lead'in tamamı; `field_data` → `form_field_mappings` | aynı + `integration-settings:` c4b286c | Tamam |
 | Eşlenmeyen alan "ek yanıt" | aynı | Tamam — `extra_answers` |
 | Sayfa aboneliği betiği ve runbook | aynı | Tamam — `scripts/meta-subscribe.ts`, `docs/runbooks/meta-lead-ads.md` |
 | Saatlik yedek senkron: aktif form başına son 2 saat, aynı inbox | aynı | Tamam — `RunBackfill`, `metaBackfillSource` |
 | Sistem kullanıcısı token'ı secret deposunda; Lead Erişimi (MarcaDM) | — | **Yazılım dışı, bekliyor** — `META_SYSTEM_USER_TOKEN` adı sabit; `docs/decisions.md` madde 9 |
-| Google webhook ucu; `google_key` sabit zamanlı, uyuşmazsa 401 | `adapters/google:` d445a2d, `api:` | Tamam |
-| `user_column_data` → `column_id`; `gcl_id` → `lead_attribution.gclid` | aynı + `application:` 45e68a0 | Tamam |
+| Google webhook ucu; `google_key` sabit zamanlı, uyuşmazsa 401 | `adapters/google:` 0c603d9, `api:` | Tamam |
+| `user_column_data` → `column_id`; `gcl_id` → `lead_attribution.gclid` | aynı + `application:` ec27f79 | Tamam |
 | `is_test` lead'leri test işaretli | aynı | Tamam |
 | Tanınmayan alanlar yok sayılır | aynı | Tamam — adları `extra_answers.ignored_columns` |
 | Webhook URL'si ve anahtar MarcaDM'e güvenli kanaldan | — | **Yazılım dışı, bekliyor** — `docs/runbooks/google-lead-form.md`; madde 10 |
