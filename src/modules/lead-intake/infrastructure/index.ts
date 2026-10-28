@@ -1,2 +1,2 @@
-// Faz 0: bos iskelet. Icerik ilgili fazda eklenir; katman kurallari .dependency-cruiser.cjs ile zorlanir.
-export {};
+// lead-intake/infrastructure: inbox Postgres deposu. Zamanlayıcı shared/kernel'de, bağlama bootstrap'ta.
+export { pgInboxRepository } from "./inboxRepository";
