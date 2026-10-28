@@ -98,6 +98,19 @@ describe("CreateLead", () => {
     );
   });
 
+  it("attribution: tıklama kimliği verilirse lead ile birlikte saklanır; hepsi boşsa satır yok", async () => {
+    const withId = unwrap(
+      await manual({
+        source: "google_form",
+        platformLeadId: "g-1",
+        attribution: { gclid: "Cj0KCQ", utmSource: "ads" },
+      }),
+    ).lead;
+    expect(h.uow.state.attributions[withId.id]).toMatchObject({ gclid: "Cj0KCQ", utmSource: "ads", fbclid: null });
+    const without = unwrap(await manual({ email: "b@a.com", phone: "", attribution: { gclid: "" } })).lead;
+    expect(h.uow.state.attributions[without.id]).toBeUndefined();
+  });
+
   it("test lead'i outbox'a girmez", async () => {
     unwrap(await manual({ isTest: true }));
     expect(h.uow.state.outbox).toHaveLength(0);

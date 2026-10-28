@@ -82,6 +82,42 @@ export interface StageEvent {
   undoneAt: Date | null;
 }
 
+/** Tıklama kimlikleri ve UTM (lead_attribution, 1:1). Alan adları sektör standardı parametre adlarıdır. */
+export interface LeadAttribution {
+  gclid: string | null;
+  gbraid: string | null;
+  wbraid: string | null;
+  fbclid: string | null;
+  fbc: string | null;
+  fbp: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmTerm: string | null;
+  utmContent: string | null;
+  landingUrl: string | null;
+  clickAt: Date | null;
+}
+
+export const EMPTY_ATTRIBUTION: LeadAttribution = {
+  gclid: null,
+  gbraid: null,
+  wbraid: null,
+  fbclid: null,
+  fbc: null,
+  fbp: null,
+  utmSource: null,
+  utmMedium: null,
+  utmCampaign: null,
+  utmTerm: null,
+  utmContent: null,
+  landingUrl: null,
+  clickAt: null,
+};
+
+export const hasAttribution = (a: Partial<LeadAttribution>): boolean =>
+  Object.values(a).some((v) => v !== null && v !== undefined && v !== "");
+
 export const EMPTY_CAMPAIGN: CampaignInfo = {
   campaignId: null,
   campaignName: null,

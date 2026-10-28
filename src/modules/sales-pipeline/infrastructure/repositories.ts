@@ -15,9 +15,11 @@ import type {
   TerritoryRuleSource,
 } from "../domain";
 import {
+  attributionFromRow,
   leadFromRow,
   personFromRow,
   stageEventFromRow,
+  type AttributionRow,
   type LeadRow,
   type PersonRow,
   type StageEventRow,
@@ -107,8 +109,42 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
     async updateAssignee(id, userId, updatedAt) {
       await q.query("UPDATE leads SET assigned_user_id = $2, updated_at = $3 WHERE id = $1", [id, userId, updatedAt]);
     },
+    async saveAttribution(leadId, a) {
+      await q.query(
+        `INSERT INTO lead_attribution (${ATTR_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+         ON CONFLICT (lead_id) DO UPDATE SET gclid = EXCLUDED.gclid, gbraid = EXCLUDED.gbraid, wbraid = EXCLUDED.wbraid,
+           fbclid = EXCLUDED.fbclid, fbc = EXCLUDED.fbc, fbp = EXCLUDED.fbp, utm_source = EXCLUDED.utm_source,
+           utm_medium = EXCLUDED.utm_medium, utm_campaign = EXCLUDED.utm_campaign, utm_term = EXCLUDED.utm_term,
+           utm_content = EXCLUDED.utm_content, landing_url = EXCLUDED.landing_url, click_at = EXCLUDED.click_at`,
+        [
+          leadId,
+          a.gclid,
+          a.gbraid,
+          a.wbraid,
+          a.fbclid,
+          a.fbc,
+          a.fbp,
+          a.utmSource,
+          a.utmMedium,
+          a.utmCampaign,
+          a.utmTerm,
+          a.utmContent,
+          a.landingUrl,
+          a.clickAt,
+        ],
+      );
+    },
+    async findAttribution(leadId) {
+      const r = await queryOne<AttributionRow>(q, `SELECT ${ATTR_COLS} FROM lead_attribution WHERE lead_id = $1`, [
+        leadId,
+      ]);
+      return r && attributionFromRow(r);
+    },
   };
 }
+
+const ATTR_COLS =
+  "lead_id, gclid, gbraid, wbraid, fbclid, fbc, fbp, utm_source, utm_medium, utm_campaign, utm_term, utm_content, landing_url, click_at";
 
 export function pgPersonRepository(q: Queryable): PersonRepository {
   return {

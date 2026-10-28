@@ -1,6 +1,6 @@
 import type { TerritoryRule } from "./assignment";
 import type { DomainEvent } from "./events";
-import type { Lead, Person, StageEvent } from "./lead";
+import type { Lead, LeadAttribution, Person, StageEvent } from "./lead";
 import type { StageCode } from "./stage";
 
 /** Portlar (Genel plan kural 2): uygulamalar infrastructure katmanında, testler sahte uygulamayla. */
@@ -21,6 +21,9 @@ export interface LeadRepository {
   insert(lead: Lead): Promise<void>;
   updateStage(id: string, stage: StageCode, updatedAt: Date): Promise<void>;
   updateAssignee(id: string, userId: string | null, updatedAt: Date): Promise<void>;
+  /** Tıklama kimlikleri (1:1); lead ile aynı transaction'da yazılır. */
+  saveAttribution(leadId: string, attribution: LeadAttribution): Promise<void>;
+  findAttribution(leadId: string): Promise<LeadAttribution | undefined>;
 }
 
 export interface PersonRepository {

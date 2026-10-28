@@ -1,5 +1,12 @@
 import { NotFoundError, RuleError, err, ok, type Result } from "../../shared/kernel";
-import { allowedTransitions, planUndo, type Lead, type StageCode, type StageEvent } from "../domain";
+import {
+  allowedTransitions,
+  planUndo,
+  type Lead,
+  type LeadAttribution,
+  type StageCode,
+  type StageEvent,
+} from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
 import { canSee, territoriesOf } from "./visibility";
 
@@ -35,6 +42,11 @@ export class LeadQueries {
         limit: input.limit,
       });
     });
+  }
+
+  /** Tıklama kimlikleri; yoksa undefined. Yalnız iç kullanım ve testler (erişim denetimi `get` ile). */
+  async attribution(leadId: string): Promise<LeadAttribution | undefined> {
+    return this.deps.uow.run((repos) => repos.leads.findAttribution(leadId));
   }
 
   async get(leadId: string, actor: Actor): Promise<Result<LeadDetail, RuleError>> {

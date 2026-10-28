@@ -220,6 +220,21 @@ describe("Postgres repository'leri + transaction", () => {
     expect(auto.assignedUserId).toBe("rep-2");
   });
 
+  it("attribution: lead_attribution satırı lead ile aynı transaction'da; yeniden okunur", async () => {
+    const lead = unwrap(
+      await manual({
+        source: "google_form",
+        platformLeadId: "g-77",
+        attribution: { gclid: "Cj0KCQ-test", clickAt: new Date("2026-02-28T09:00:00Z") },
+      }),
+    ).lead;
+    expect(await count("lead_attribution", `lead_id = '${lead.id}'`)).toBe(1);
+    const read = await sp.queries.attribution(lead.id);
+    expect(read).toMatchObject({ gclid: "Cj0KCQ-test", fbclid: null, clickAt: new Date("2026-02-28T09:00:00Z") });
+    const plain = unwrap(await manual({ email: "noattr@a.com", phone: "" })).lead;
+    expect(await count("lead_attribution", `lead_id = '${plain.id}'`)).toBe(0);
+  });
+
   it("referans veri: aşama sözlüğü ve kayıp nedenleri TR/EN", async () => {
     const stages = await readStageDefinitions(db);
     expect(stages.map((s) => s.code)).toEqual(["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"]);

@@ -1,12 +1,15 @@
 import { RuleError, err, ok, type Result } from "../../shared/kernel";
 import { Email, PhoneNumber } from "../../shared/normalization";
 import {
+  EMPTY_ATTRIBUTION,
   EMPTY_CAMPAIGN,
   PlatformLeadId,
+  hasAttribution,
   resolveAssignee,
   type CampaignInfo,
   type DomainEvent,
   type Lead,
+  type LeadAttribution,
   type LeadSource,
   type Person,
   type Repositories,
@@ -28,6 +31,8 @@ export interface CreateLeadInput {
   productInterest?: string;
   notes?: string;
   campaign?: Partial<CampaignInfo>;
+  /** Tıklama kimlikleri (Faz 2: reklam platformlarından). Hepsi boşsa satır yazılmaz. */
+  attribution?: Partial<LeadAttribution>;
   isTest?: boolean;
   extraAnswers?: Record<string, unknown>;
   /** Açıkça verilirse ülke kuralı atlanır (admin elle atar). */
@@ -132,6 +137,9 @@ export class CreateLead {
         updatedAt: now,
       };
       await repos.leads.insert(lead);
+      if (input.attribution && hasAttribution(input.attribution)) {
+        await repos.leads.saveAttribution(lead.id, { ...EMPTY_ATTRIBUTION, ...input.attribution });
+      }
 
       const event: StageEvent = {
         id: ids.next(),

@@ -7,6 +7,7 @@ import type {
   DomainEvent,
   DomainEventPublisher,
   Lead,
+  LeadAttribution,
   LeadListFilter,
   LeadRepository,
   LostReasonSource,
@@ -37,6 +38,7 @@ export interface MemoryState {
   leads: Lead[];
   persons: Person[];
   events: StageEvent[];
+  attributions: Record<string, LeadAttribution>;
   outbox: OutboxRow[];
   territories: TerritoryRule[];
   lostReasons: string[];
@@ -48,6 +50,7 @@ export const emptyState = (): MemoryState => ({
   leads: [],
   persons: [],
   events: [],
+  attributions: {},
   outbox: [],
   territories: [],
   lostReasons: ["price_too_high", "competitor", "no_response", "unqualified"],
@@ -104,6 +107,13 @@ function reposFor(s: MemoryState): Repositories {
       if (!l) throw new Error("lead yok");
       l.assignedUserId = userId;
       l.updatedAt = updatedAt;
+    },
+    async saveAttribution(leadId, a) {
+      s.attributions[leadId] = { ...a };
+    },
+    async findAttribution(leadId) {
+      const a = s.attributions[leadId];
+      return a ? { ...a } : undefined;
     },
   };
   const persons: PersonRepository = {

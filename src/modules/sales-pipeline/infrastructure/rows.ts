@@ -1,4 +1,4 @@
-import type { Lead, LeadSource, Person, StageCode, StageEvent, StageEventOrigin } from "../domain";
+import type { Lead, LeadAttribution, LeadSource, Person, StageCode, StageEvent, StageEventOrigin } from "../domain";
 
 /** Satır ↔ domain nesnesi çevirisi. Sütun adları db/migrations/0001 ile birebir. */
 
@@ -64,6 +64,38 @@ export function leadFromRow(r: LeadRow): Lead {
     updatedAt: date(r.updated_at),
   };
 }
+
+export interface AttributionRow extends Record<string, unknown> {
+  gclid: string | null;
+  gbraid: string | null;
+  wbraid: string | null;
+  fbclid: string | null;
+  fbc: string | null;
+  fbp: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_term: string | null;
+  utm_content: string | null;
+  landing_url: string | null;
+  click_at: Date | string | null;
+}
+
+export const attributionFromRow = (r: AttributionRow): LeadAttribution => ({
+  gclid: r.gclid,
+  gbraid: r.gbraid,
+  wbraid: r.wbraid,
+  fbclid: r.fbclid,
+  fbc: r.fbc,
+  fbp: r.fbp,
+  utmSource: r.utm_source,
+  utmMedium: r.utm_medium,
+  utmCampaign: r.utm_campaign,
+  utmTerm: r.utm_term,
+  utmContent: r.utm_content,
+  landingUrl: r.landing_url,
+  clickAt: r.click_at === null ? null : date(r.click_at),
+});
 
 export interface PersonRow extends Record<string, unknown> {
   id: string;

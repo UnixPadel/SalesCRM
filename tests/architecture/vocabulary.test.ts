@@ -17,7 +17,8 @@ function sourceFiles(dir: string): string[] {
   return out;
 }
 
-const FORBIDDEN = /\b(meta|facebook|graph api|google|gclid|leadgen|capi|data manager)\b/i;
+/** `gclid`/`fbclid` sütun adları sektör standardı parametre adlarıdır, platform adı değil (Faz 2). */
+const FORBIDDEN = /\b(meta|facebook|graph api|google|leadgen|capi|data manager)\b/i;
 
 /** Yorumlar ve `import.meta` kural dışı: kural kodun platforma bağlanmasını yasaklar, açıklamayı değil. */
 function stripComments(src: string): string {
