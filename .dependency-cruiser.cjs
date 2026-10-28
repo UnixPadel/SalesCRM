@@ -27,8 +27,16 @@ module.exports = {
       from: { path: "^src/modules/([^/]+)/domain/" },
       to: {
         path: "^src/modules/",
-        pathNot: ["^src/modules/$1/domain/", "^src/modules/shared/"],
+        pathNot: ["^src/modules/$1/domain/", "^src/modules/shared/(kernel|normalization)/"],
       },
+    },
+    {
+      name: "application-no-shared-db",
+      comment:
+        "Kural 2: domain ve application veritabanını bilmez; shared/db yalnız infrastructure katmanından import edilir.",
+      severity: "error",
+      from: { path: "^src/modules/[^/]+/(domain|application)/" },
+      to: { path: "^src/modules/shared/db/" },
     },
     {
       name: "application-no-infrastructure",

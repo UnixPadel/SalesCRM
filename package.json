@@ -18,7 +18,8 @@
     "arch": "depcruise --config .dependency-cruiser.cjs src server",
     "secrets": "secretlint \"**/*\"",
     "verify": "npm run lint && npm run format:check && npm run typecheck && npm run arch && npm run secrets && npm run test",
-    "contrast": "node scripts/contrast.mjs"
+    "contrast": "node scripts/contrast.mjs",
+    "db:migrate": "tsx scripts/db-migrate.ts"
   },
   "dependencies": {
     "express": "5.3.0",
@@ -38,6 +39,7 @@
     "@types/express": "^5.0.0",
     "@types/mailparser": "^3.4.6",
     "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
     "@vitejs/plugin-react": "4.3.4",
