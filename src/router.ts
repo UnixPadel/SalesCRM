@@ -1,12 +1,14 @@
-export type Route = "pipeline" | "leads" | "activities" | "reports" | "contacts";
-export const ROUTES: Route[] = ["pipeline", "leads", "activities", "reports", "contacts"];
+export type Route = "inbox" | "lead" | "pipeline" | "activities" | "reports" | "contacts" | "leads";
+export const ROUTES: Route[] = ["inbox", "lead", "pipeline", "activities", "reports", "contacts", "leads"];
 
-export function parseHash(): { route: Route; q: string } {
+/** `#/inbox`, `#/lead/<id>`, `#/contacts?q=…` */
+export function parseHash(): { route: Route; q: string; id: string } {
   const [path, query] = location.hash.replace(/^#\/?/, "").split("?");
-  const route = (ROUTES.includes(path as Route) ? path : "pipeline") as Route;
-  return { route, q: new URLSearchParams(query || "").get("q") || "" };
+  const [seg, id = ""] = (path ?? "").split("/");
+  const route = (ROUTES.includes(seg as Route) ? seg : "inbox") as Route;
+  return { route, q: new URLSearchParams(query || "").get("q") || "", id: decodeURIComponent(id) };
 }
 
-export function navigate(route: Route, q?: string) {
-  location.hash = `/${route}${q ? "?q=" + encodeURIComponent(q) : ""}`;
+export function navigate(route: Route, q?: string, id?: string) {
+  location.hash = `/${route}${id ? "/" + encodeURIComponent(id) : ""}${q ? "?q=" + encodeURIComponent(q) : ""}`;
 }

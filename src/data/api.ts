@@ -5,6 +5,9 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** Makine kodu (ör. "stage.backward"); yeni pipeline uç noktaları gönderir, eski uç noktalar göndermez. */
+    public code?: string,
+    public details?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -36,8 +39,9 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
     data = { error: text };
   }
   if (!res.ok) {
-    const msg = (data as { error?: string } | null)?.error || `${res.status} ${res.statusText}`;
-    throw new ApiError(res.status, msg);
+    const body = data as { error?: string; code?: string; details?: Record<string, unknown> } | null;
+    const msg = body?.error || `${res.status} ${res.statusText}`;
+    throw new ApiError(res.status, msg, body?.code, body?.details);
   }
   return data as T;
 }

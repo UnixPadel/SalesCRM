@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { STAGE, countryName } from "../domain/constants";
 import { activityBucket, isRotting } from "../domain/rules";
+import { useLang, type Lang } from "../i18n";
 import { navigate, type Route } from "../router";
 import { useCrm, type Theme } from "../state/CrmContext";
 import { Avatar, Button, Icon, money } from "./ui";
@@ -20,41 +21,36 @@ interface Opt {
   go: () => void;
 }
 
-export function Header({ route, onNewDeal }: { route: Route; onNewDeal: () => void }) {
+export function Header({ route, onNewLead }: { route: Route; onNewLead: () => void }) {
   const { data, user, me, isAdmin, isViewer, inView, theme, setTheme, logout, resetDemo } = useCrm();
+  const { t, lang, setLang } = useLang();
 
   const dealOwner = new Map(data.deals.map((d) => [d.id, d.owner]));
   const dueCount = data.activities.filter(
     (a) => !a.done && dealOwner.get(a.deal_id) === me && activityBucket(a) !== "planned",
   ).length;
   const rotting = data.deals.filter((d) => inView(d.owner) && isRotting(d, data.activities)).length;
-  const newLeads = data.leads.filter((l) => l.status === "new" && (l.owner === me || !l.owner)).length;
+  void rotting;
 
+  // Faz 1: Gelen kutusu ve Pano yeni pipeline; Bugün / Kişiler / Raporlar eski veriyle çalışır.
   const NAV: { r: Route; icon: string; label: string; badge?: number; badgeLabel?: string; bad?: boolean }[] = [
-    {
-      r: "pipeline",
-      icon: "pipeline",
-      label: "Pano",
-      badge: rotting,
-      badgeLabel: `${rotting} takipsiz müşteri`,
-      bad: true,
-    },
-    { r: "leads", icon: "inbox", label: "Formlar", badge: newLeads, badgeLabel: `${newLeads} yeni form` },
+    { r: "inbox", icon: "inbox", label: t("nav.inbox") },
+    { r: "pipeline", icon: "columns", label: t("nav.board") },
     {
       r: "activities",
       icon: "calendar",
-      label: "Bugün",
+      label: t("nav.today"),
       badge: dueCount,
       badgeLabel: `${dueCount} gecikmiş veya bugünkü aktivite`,
       bad: true,
     },
-    { r: "contacts", icon: "user", label: "Kişiler" },
-    { r: "reports", icon: "chart", label: "Raporlar" },
+    { r: "contacts", icon: "user", label: t("nav.contacts") },
+    { r: "reports", icon: "chart", label: t("nav.reports") },
   ];
 
   return (
     <header className="hdr">
-      <a className="wordmark" href="#/pipeline" aria-label="Unixpadel satış panosu, ana sayfa">
+      <a className="wordmark" href="#/inbox" aria-label="Unixpadel satış panosu, ana sayfa">
         <b>unixpadel</b>
         <span>satış panosu</span>
       </a>
@@ -64,7 +60,7 @@ export function Header({ route, onNewDeal }: { route: Route; onNewDeal: () => vo
             key={n.r}
             href={`#/${n.r}`}
             className="nav-link"
-            aria-current={route === n.r ? "page" : undefined}
+            aria-current={route === n.r || (n.r === "inbox" && route === "lead") ? "page" : undefined}
             aria-label={n.badge ? `${n.label}, ${n.badgeLabel}` : n.label}
           >
             <Icon name={n.icon} size={18} />
@@ -83,8 +79,8 @@ export function Header({ route, onNewDeal }: { route: Route; onNewDeal: () => vo
       <div className="hdr-end">
         <GlobalSearch />
         {!isViewer && (
-          <Button variant="pri" icon="plus" onClick={onNewDeal}>
-            Müşteri
+          <Button variant="pri" icon="plus" onClick={onNewLead}>
+            {t("nav.newLead")}
           </Button>
         )}
         <UserMenu
@@ -94,6 +90,8 @@ export function Header({ route, onNewDeal }: { route: Route; onNewDeal: () => vo
           isViewer={isViewer}
           theme={theme}
           onTheme={setTheme}
+          lang={lang}
+          onLang={setLang}
           onLogout={logout}
           onReset={() => {
             if (confirm("Ekibin tüm verisi silinip örnek veri yeniden yüklensin mi? Bu işlem herkesi etkiler."))
@@ -112,6 +110,8 @@ function UserMenu({
   isViewer,
   theme,
   onTheme,
+  lang,
+  onLang,
   onLogout,
   onReset,
 }: {
@@ -121,9 +121,12 @@ function UserMenu({
   isViewer: boolean;
   theme: Theme;
   onTheme: (t: Theme) => void;
+  lang: Lang;
+  onLang: (l: Lang) => void;
   onLogout: () => void;
   onReset: () => void;
 }) {
+  const { t } = useLang();
   const ref = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const away = (e: MouseEvent) => {
@@ -160,6 +163,13 @@ function UserMenu({
         </div>
         <button className="menu-item" onClick={() => onTheme(next.key)} title={`Şimdi: ${cur.label}`}>
           <Icon name={cur.icon} /> {cur.label} <span className="muted">→ {next.label.replace("Tema: ", "")}</span>
+        </button>
+        <button
+          className="menu-item"
+          onClick={() => onLang(lang === "tr" ? "en" : "tr")}
+          lang={lang === "tr" ? "en" : "tr"}
+        >
+          <Icon name="globe" /> {t("lang.switch")}
         </button>
         {isAdmin && (
           <button className="menu-item" onClick={onReset}>

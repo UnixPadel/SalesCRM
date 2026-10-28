@@ -1,12 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": [
-      "ES2022"
-    ],
-    "types": [
-      "node"
-    ],
+    "lib": ["ES2022"],
+    "types": ["node"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
@@ -19,11 +15,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": [
-    "src/modules",
-    "src/bootstrap",
-    "tests",
-    "scripts/**/*.ts",
-    "vitest.config.ts"
-  ]
+  "include": ["src/modules", "src/bootstrap", "tests", "scripts/**/*.ts", "vitest.config.ts"]
 }

@@ -124,12 +124,16 @@ export interface Snapshot {
 export type Role = "admin" | "rep" | "viewer";
 /** Logged-in person (company user table, or the local Admin account). */
 export interface TeamMember {
+  /** Kalıcı kimlik (kullanıcı tablosundaki KullaniciID); yeni pipeline ataması bu değerle tutulur. */
+  id: string;
   name: string;
   email: string;
   role: Role;
 }
 /** Logged-in person (company user table, or the local Admin account). */
 export interface User {
+  /** Kalıcı kimlik: KullaniciID, yerel Admin için "admin". */
+  id: string;
   email: string;
   name: string;
   role: Role;

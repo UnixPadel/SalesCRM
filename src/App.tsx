@@ -1,22 +1,28 @@
 import { useEffect, useState } from "react";
 import { DealPanel } from "./components/DealPanel";
 import { Header } from "./components/Header";
-import { NewDealDialog } from "./components/NewDealDialog";
 import { Toasts } from "./components/Toasts";
 import { Skeleton } from "./components/ui";
 import { ActivitiesPage } from "./pages/ActivitiesPage";
 import { ContactsPage } from "./pages/ContactsPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { LoginPage } from "./pages/LoginPage";
-import { PipelinePage } from "./pages/PipelinePage";
 import { ReportsPage } from "./pages/ReportsPage";
+import { InboxPage } from "./pipeline/InboxPage";
+import { KanbanPage } from "./pipeline/KanbanPage";
+import { LeadPage } from "./pipeline/LeadPage";
+import { NewLeadDialog } from "./pipeline/NewLeadDialog";
 import { parseHash } from "./router";
 import { useCrm } from "./state/CrmContext";
 
+/**
+ * Yönlendirme. Faz 1: gelen kutusu, lead detayı ve pano yeni satış pipeline'ından (Postgres) gelir;
+ * "Bugün", "Raporlar", "Kişiler" ve eski form listesi geçiş süresince eski JSON verisiyle çalışır.
+ */
 export default function App() {
   const { ready, authChecked, user, openDealId } = useCrm();
-  const [{ route, q }, setLoc] = useState(parseHash);
-  const [newDeal, setNewDeal] = useState(false);
+  const [{ route, q, id }, setLoc] = useState(parseHash);
+  const [newLead, setNewLead] = useState(false);
 
   useEffect(() => {
     const on = () => setLoc(parseHash());
@@ -37,27 +43,33 @@ export default function App() {
   }
   if (!user) return <LoginPage />;
 
+  const legacy = route === "activities" || route === "reports" || route === "contacts" || route === "leads";
+
   return (
     <div className="shell">
-      <Header route={route} onNewDeal={() => setNewDeal(true)} />
+      <Header route={route} onNewLead={() => setNewLead(true)} />
       <main className="page" id="main">
-        {!ready ? (
-          <BoardSkeleton />
+        {route === "inbox" ? (
+          <InboxPage initialQuery={q} key={q} />
+        ) : route === "lead" ? (
+          <LeadPage id={id} key={id} />
         ) : route === "pipeline" ? (
-          <PipelinePage />
-        ) : route === "leads" ? (
-          <LeadsPage initialQuery={q} key={q} />
+          <KanbanPage />
+        ) : legacy && !ready ? (
+          <BoardSkeleton />
         ) : route === "activities" ? (
           <ActivitiesPage />
         ) : route === "reports" ? (
           <ReportsPage />
+        ) : route === "leads" ? (
+          <LeadsPage initialQuery={q} key={q} />
         ) : (
           <ContactsPage initialQuery={q} key={q} />
         )}
       </main>
 
       {openDealId && <DealPanel dealId={openDealId} key={openDealId} />}
-      {newDeal && <NewDealDialog onClose={() => setNewDeal(false)} />}
+      {newLead && <NewLeadDialog onClose={() => setNewLead(false)} />}
 
       <Toasts />
     </div>
