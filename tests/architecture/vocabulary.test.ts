@@ -19,6 +19,14 @@ function sourceFiles(dir: string): string[] {
 
 const FORBIDDEN = /\b(meta|facebook|graph api|google|gclid|leadgen|capi|data manager)\b/i;
 
+/** Yorumlar ve `import.meta` kural dışı: kural kodun platforma bağlanmasını yasaklar, açıklamayı değil. */
+function stripComments(src: string): string {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1")
+    .replace(/import\.meta/g, "import_meta");
+}
+
 describe("platform-agnostic core (sales-pipeline, integration-settings/domain, shared)", () => {
   const dirs = ["sales-pipeline", join("integration-settings", "domain"), "shared"];
 
@@ -26,7 +34,7 @@ describe("platform-agnostic core (sales-pipeline, integration-settings/domain, s
     it(`${dir} does not mention an ad platform`, () => {
       const offenders: string[] = [];
       for (const file of sourceFiles(join(ROOT, dir))) {
-        const lines = readFileSync(file, "utf8").split("\n");
+        const lines = stripComments(readFileSync(file, "utf8")).split("\n");
         lines.forEach((line, i) => {
           if (FORBIDDEN.test(line)) offenders.push(`${relative(ROOT, file)}:${i + 1}: ${line.trim()}`);
         });
