@@ -43,6 +43,7 @@ export function relDays(iso: string) {
 const PATHS: Record<string, string> = {
   pipeline: "M3 4h4v16H3zM10 4h4v11h-4zM17 4h4v7h-4z",
   inbox: "M3 13l3-8h12l3 8v6H3zM3 13h5l1 3h6l1-3h5",
+  bell: "M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4",
   calendar: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4",
   chart: "M4 20V10M10 20V4M16 20v-7M22 20H2",
   user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4 4-6 8-6s8 2 8 6",

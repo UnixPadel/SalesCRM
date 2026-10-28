@@ -221,6 +221,33 @@ function htmlToText(html) {
     .trim();
 }
 
+/**
+ * Kullanıcı rehberi (bildirim e-postaları): KullaniciID → ad, e-posta. Şirket tablosu 5 dakika önbellekte;
+ * tablo kapalıysa boş döner (e-posta gönderilmez, uygulama içi bildirim yine yazılır).
+ */
+function userDirectory() {
+  let cache = { at: 0, rows: [] };
+  const team = async () => {
+    if (Date.now() - cache.at > 5 * 60_000) {
+      try {
+        cache = { at: Date.now(), rows: authDbEnabled() ? await listTeam() : [] };
+      } catch (e) {
+        console.warn("[crm] kullanıcı rehberi okunamadı:", e?.message || e);
+        cache.at = Date.now();
+      }
+    }
+    return cache.rows;
+  };
+  return {
+    async findById(id) {
+      const r = (await team()).find((u) => String(u.id) === String(id));
+      return r
+        ? { id: String(r.id), name: `${r.first} ${r.last}`.trim() || r.login, email: r.email || null }
+        : undefined;
+    },
+  };
+}
+
 /* ---------------- app ---------------- */
 
 const app = express();
@@ -228,7 +255,7 @@ app.disable("x-powered-by");
 
 /* ---- satış pipeline'ı ve gelen lead akışı (src/modules) ----
  * Webhook'lar oturumsuzdur ve imza için ham gövde ister: genel JSON ayrıştırıcıdan ÖNCE bağlanır. */
-const salesPipeline = await bootSalesPipeline();
+const salesPipeline = await bootSalesPipeline({ users: userDirectory() });
 const leadIntake = bootLeadIntake(salesPipeline);
 app.use("/webhooks", leadIntake.webhooks);
 

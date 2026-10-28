@@ -4,7 +4,7 @@ import type { Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { actorFromSession, bootSalesPipeline, type SalesPipelineApp } from "../../../bootstrap/salesPipeline";
 import { silentLogger } from "../../shared/kernel";
-import type { ApiErrorDto, LeadDetailDto, LeadDto, ReferenceDto } from "./dto";
+import type { ApiErrorDto, LeadDetailDto, LeadDto, NotificationsDto, ReferenceDto } from "./dto";
 
 let app: SalesPipelineApp;
 let server: Server;
@@ -187,6 +187,36 @@ describe("lead akışı: oluştur → aşama → geri al → kazan", () => {
         })
       ).status,
     ).toBe(404);
+  });
+});
+
+describe("bildirimler", () => {
+  it("admin satışçıya lead atar → satışçıda okunmamış bildirim; yalnız sahibi okundu yapar; tümünü okundu", async () => {
+    const created = await call<{ lead: LeadDto }>("admin", "POST", "/api/pipeline/leads", {
+      fullName: "Bildirim Test",
+      email: "bildirim@example.com",
+      country: "TR",
+      assignedUserId: "rep-2",
+    });
+    expect(created.status).toBe(201);
+    const mine = await call<NotificationsDto>("rep2", "GET", "/api/pipeline/notifications");
+    expect(mine.status).toBe(200);
+    expect(mine.body.unreadCount).toBeGreaterThanOrEqual(1);
+    const n = mine.body.items.find((x) => x.leadId === created.body.lead.id)!;
+    expect(n).toMatchObject({
+      type: "lead_assigned",
+      readAt: null,
+      body: { leadName: "Bildirim Test", country: "TR" },
+    });
+    expect((await call("rep1", "GET", "/api/pipeline/notifications")).body).toMatchObject({ unreadCount: 0 });
+    expect((await call("rep1", "POST", `/api/pipeline/notifications/${n.id}/read`)).status).toBe(404);
+    expect((await call("rep2", "POST", `/api/pipeline/notifications/${n.id}/read`)).status).toBe(200);
+    const after = await call<NotificationsDto>("rep2", "GET", "/api/pipeline/notifications");
+    expect(after.body.items.find((x) => x.id === n.id)?.readAt).not.toBeNull();
+    expect((await call<{ marked: number }>("rep2", "POST", "/api/pipeline/notifications/read-all")).body.marked).toBe(
+      after.body.unreadCount,
+    );
+    expect((await call(null, "GET", "/api/pipeline/notifications")).status).toBe(401);
   });
 });
 

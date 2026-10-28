@@ -490,3 +490,112 @@ a.pl-row:focus-visible {
     inline-size: calc(100vw - 16px) !important;
   }
 }
+
+/* ---- Bildirim zili (başlık) ---- */
+.notif {
+  position: relative;
+}
+.notif > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--hit-md);
+  block-size: var(--hit-md);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  position: relative;
+  color: var(--text-2);
+}
+.notif > summary::-webkit-details-marker {
+  display: none;
+}
+@media (hover: hover) {
+  .notif > summary:hover {
+    background: var(--surface-2);
+  }
+}
+.notif[open] > summary {
+  background: var(--surface-3);
+}
+.notif .badge {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-end: 0;
+  min-inline-size: 18px;
+  block-size: 18px;
+  padding-inline: 5px;
+  border-radius: var(--r-pill);
+  background: var(--bad);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+.notif .pop {
+  inline-size: 340px;
+  max-inline-size: calc(100vw - 16px);
+  padding: var(--s-2);
+  gap: var(--s-1);
+}
+.notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-2);
+  font-weight: 700;
+}
+.notif-head .btn {
+  font-size: var(--t-xs);
+}
+.notif-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-block-size: 60vh;
+  overflow: auto;
+}
+.notif-item {
+  display: grid;
+  grid-template-columns: 8px 1fr;
+  gap: var(--s-2);
+  align-items: start;
+  inline-size: 100%;
+  padding: var(--s-2);
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  font: inherit;
+}
+.notif-item:hover,
+.notif-item:focus-visible {
+  background: var(--surface-2);
+}
+.notif-item .dot {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  margin-block-start: 6px;
+  background: transparent;
+}
+.notif-item.unread .dot {
+  background: var(--accent);
+}
+.notif-item.unread .t {
+  font-weight: 700;
+}
+.notif-item .m {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--text-3);
+}
+.notif-empty {
+  padding: var(--s-3);
+  color: var(--text-3);
+  text-align: center;
+}

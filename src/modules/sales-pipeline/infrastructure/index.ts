@@ -2,3 +2,5 @@
 export { PgUnitOfWork, repositoriesFor } from "./unitOfWork";
 export { pgLeadRepository, pgOutboxWriter, pgPersonRepository, pgStageEventRepository } from "./repositories";
 export { readStageDefinitions, readLostReasons, type StageDefinition, type LostReason } from "./referenceData";
+export { pgNotificationStore } from "./notifications";
+export { createSmtpEmailSender, loggingEmailSender } from "./smtpEmailSender";

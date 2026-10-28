@@ -3,9 +3,17 @@
 // password instead of a real mailbox (local testing only; see README).
 import { spawn } from "node:child_process";
 
+// `--set=KEY=VALUE` (tekrarlanabilir): yalnız bu çalıştırma için ortam değişkeni; webhook smoke testleri
+// gibi yerel denemelerde .env dosyasına dokunmadan secret vermek için.
 const node = process.execPath;
 const devLogin = process.argv.find((a) => a.startsWith("--dev-login="))?.slice("--dev-login=".length);
-const env = { ...process.env, ...(devLogin ? { CRM_DEV_PASSWORD: devLogin } : {}) };
+const sets = Object.fromEntries(
+  process.argv
+    .filter((a) => a.startsWith("--set="))
+    .map((a) => a.slice("--set=".length))
+    .map((kv) => [kv.slice(0, kv.indexOf("=")), kv.slice(kv.indexOf("=") + 1)]),
+);
+const env = { ...process.env, ...(devLogin ? { CRM_DEV_PASSWORD: devLogin } : {}), ...sets };
 
 // PORT belongs to Vite (preview tooling sets it); the API listens on API_PORT (default 8787).
 const { PORT: _vitePort, ...apiEnv } = env;

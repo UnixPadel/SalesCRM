@@ -7,15 +7,28 @@ import { openDatabase, type Db } from "../modules/shared/db";
 import {
   createLogger,
   loadConfig,
+  readSecret,
   systemClock,
   uuidGenerator,
   type AppConfig,
   type Env,
   type Logger,
 } from "../modules/shared/kernel";
-import { createSalesPipeline, type SalesPipeline } from "../modules/sales-pipeline/application";
+import {
+  LeadNotifier,
+  NotificationQueries,
+  createSalesPipeline,
+  type EmailSender,
+  type SalesPipeline,
+  type UserDirectory,
+} from "../modules/sales-pipeline/application";
 import { createSalesPipelineRouter } from "../modules/sales-pipeline/api";
-import { PgUnitOfWork } from "../modules/sales-pipeline/infrastructure";
+import {
+  PgUnitOfWork,
+  createSmtpEmailSender,
+  loggingEmailSender,
+  pgNotificationStore,
+} from "../modules/sales-pipeline/infrastructure";
 
 export interface SessionLike {
   userId?: string;
@@ -26,6 +39,7 @@ export interface SessionLike {
 export interface SalesPipelineApp {
   router: Router;
   pipeline: SalesPipeline;
+  notifications: NotificationQueries;
   db: Db;
   config: AppConfig;
   logger: Logger;
@@ -45,27 +59,63 @@ export function actorFromSession(s: SessionLike | undefined) {
   return { userId, isAdmin: s.role === "admin" || viewer, readOnly: viewer };
 }
 
-export async function bootSalesPipeline(
-  opts: { logger?: Logger; memory?: boolean; env?: Env } = {},
-): Promise<SalesPipelineApp> {
-  const config = loadConfig(opts.env ?? process.env);
+export interface BootOptions {
+  logger?: Logger;
+  memory?: boolean;
+  env?: Env;
+  /** Kullanıcı rehberi (ad, e-posta); sunucu şirket kullanıcı tablosundan verir. Yoksa e-posta gönderilmez. */
+  users?: UserDirectory;
+  /** Testler: sahte gönderici. Verilmezse SMTP_HOST varsa SMTP, yoksa yalnız log. */
+  email?: EmailSender;
+}
+
+export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPipelineApp> {
+  const env = opts.env ?? process.env;
+  const config = loadConfig(env);
   const logger = opts.logger ?? createLogger({ module: "sales-pipeline" });
   const db = await openDatabase(config, { memory: opts.memory ?? false });
+  const uow = new PgUnitOfWork(db, uuidGenerator);
+
+  // Bildirimler (Faz 2): LeadCreated → atanan satışçıya uygulama içi + e-posta. Olaylar ayrıca loglanır.
+  const email =
+    opts.email ??
+    (config.smtp.host
+      ? createSmtpEmailSender(
+          config.smtp,
+          { user: readSecret(config.smtp.userSecretName, env), pass: readSecret(config.smtp.passwordSecretName, env) },
+          logger,
+        )
+      : loggingEmailSender(logger));
+  const notificationStore = pgNotificationStore(db);
+  const notifier = new LeadNotifier({
+    uow,
+    notifications: notificationStore,
+    email,
+    users: opts.users ?? { findById: async () => undefined },
+    clock: systemClock,
+    ids: uuidGenerator,
+    logger: logger.child({ module: "notifications" }),
+    publicBaseUrl: config.publicBaseUrl,
+  });
+  const notifications = new NotificationQueries(notificationStore, systemClock);
+
   const pipeline = createSalesPipeline({
-    uow: new PgUnitOfWork(db, uuidGenerator),
+    uow,
     clock: systemClock,
     ids: uuidGenerator,
     platforms: { enabledProviders: () => config.enabledProviders },
-    // Bildirimler Faz 2'de abone olur; şimdilik olaylar yalnız loglanır.
     events: {
-      publish: async (events) =>
-        events.forEach((e) => logger.debug("domain event", { type: e.type, leadId: e.leadId })),
+      publish: async (events) => {
+        events.forEach((e) => logger.debug("domain event", { type: e.type, leadId: e.leadId }));
+        await notifier.publish(events);
+      },
     },
     logger,
     undoWindowMs: config.undoWindowMinutes * 60_000,
   });
   const router = createSalesPipelineRouter({
     pipeline,
+    notifications,
     db,
     logger,
     undoWindowMinutes: config.undoWindowMinutes,
@@ -74,6 +124,7 @@ export async function bootSalesPipeline(
   logger.info("sales-pipeline hazır", {
     db: config.databaseUrl ? "postgres" : "pglite",
     providers: config.enabledProviders,
+    email: opts.email ? "custom" : config.smtp.host ? "smtp" : "log",
   });
-  return { router, pipeline, db, config, logger, close: () => db.close() };
+  return { router, pipeline, notifications, db, config, logger, close: () => db.close() };
 }

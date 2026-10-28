@@ -169,6 +169,7 @@ export class CreateLead {
           personId: person.id,
           source: lead.source,
           assignedUserId,
+          actorUserId: input.actor?.userId ?? null,
           occurredAt: now,
         },
       ];

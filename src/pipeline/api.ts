@@ -6,6 +6,7 @@ import type {
   CreateLeadBody,
   LeadDetailDto,
   LeadDto,
+  NotificationsDto,
   ReferenceDto,
   StageCodeDto,
 } from "../modules/sales-pipeline/api/dto";
@@ -58,6 +59,9 @@ export const pipelineApi = {
   undo: (id: string) =>
     call<{ lead: LeadDto; revertedTo: StageCodeDto }>("POST", `/leads/${encodeURIComponent(id)}/undo`),
   assign: (id: string, body: AssignBody) => call<LeadDto>("POST", `/leads/${encodeURIComponent(id)}/assign`, body),
+  notifications: () => call<NotificationsDto>("GET", "/notifications?limit=30"),
+  markRead: (id: string) => call<{ ok: true }>("POST", `/notifications/${encodeURIComponent(id)}/read`),
+  markAllRead: () => call<{ marked: number }>("POST", "/notifications/read-all"),
 };
 
 export type { ApiErrorDto };

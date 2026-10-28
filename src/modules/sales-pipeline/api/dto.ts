@@ -104,3 +104,19 @@ export interface ApiErrorDto {
   code: string;
   details?: Record<string, unknown>;
 }
+
+export interface NotificationDto {
+  id: string;
+  type: "lead_assigned";
+  leadId: string | null;
+  title: string;
+  /** { leadName, company, country, source, isTest } */
+  body: Record<string, unknown>;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface NotificationsDto {
+  items: NotificationDto[];
+  unreadCount: number;
+}

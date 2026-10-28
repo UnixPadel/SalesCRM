@@ -12,6 +12,20 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["scripts/dev.mjs", "--dev-login=test1234"],
       "port": 5173
+    },
+    {
+      "name": "crm-webhook-smoke",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/dev.mjs",
+        "--dev-login=test1234",
+        "--set=GOOGLE_LEAD_FORM_KEY=smoke-google-key",
+        "--set=META_APP_SECRET=smoke-meta-secret",
+        "--set=META_VERIFY_TOKEN=smoke-verify-token",
+        "--set=INBOX_ENCRYPTION_KEY=c21va2Utc21va2Utc21va2Utc21va2Utc21va2UtMDE=",
+        "--set=PUBLIC_BASE_URL=http://localhost:5173"
+      ],
+      "port": 5173
     }
   ]
 }

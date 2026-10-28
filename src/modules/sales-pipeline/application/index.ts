@@ -6,6 +6,23 @@ export { UndoStageChange, type UndoStageChangeInput, type UndoStageChangeResult 
 export { AssignLead, type AssignLeadInput } from "./assignLead";
 export { LeadQueries, type LeadDetail, type ListLeadsInput } from "./queries";
 export { canAct, canSee, territoriesOf } from "./visibility";
+export {
+  InMemoryNotificationStore,
+  LeadNotifier,
+  NotificationQueries,
+  RecordingEmailSender,
+  StaticUserDirectory,
+  bodyOf,
+  leadLink,
+  type DirectoryUser,
+  type EmailMessage,
+  type EmailSender,
+  type LeadNotifierDeps,
+  type Notification,
+  type NotificationStore,
+  type NotificationType,
+  type UserDirectory,
+} from "./notifications";
 
 import { AssignLead } from "./assignLead";
 import { ChangeLeadStage } from "./changeLeadStage";

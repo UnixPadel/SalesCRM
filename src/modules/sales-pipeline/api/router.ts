@@ -1,13 +1,22 @@
 import { Router, type Request, type Response } from "express";
 import type { Db } from "../../shared/db";
 import { RuleError, isAppError, type Logger, type Result } from "../../shared/kernel";
-import type { Actor, SalesPipeline } from "../application";
+import type { Actor, Notification, NotificationQueries, SalesPipeline } from "../application";
 import { QUALIFICATION_QUESTIONS, isStageCode } from "../domain";
 import { readLostReasons, readStageDefinitions } from "../infrastructure";
-import type { ApiErrorDto, AssignBody, ChangeStageBody, CreateLeadBody, ReferenceDto } from "./dto";
+import type {
+  ApiErrorDto,
+  AssignBody,
+  ChangeStageBody,
+  CreateLeadBody,
+  NotificationDto,
+  NotificationsDto,
+  ReferenceDto,
+} from "./dto";
 
 export interface RouterDeps {
   pipeline: SalesPipeline;
+  notifications: NotificationQueries;
   db: Db;
   logger: Logger;
   undoWindowMinutes: number;
@@ -133,6 +142,29 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
     send(res, await pipeline.assignLead.execute({ leadId: String(req.params["id"]), toUserId, actor: a }));
   });
 
+  // ---- Bildirimler: herkes yalnız kendininkini görür; okundu işareti veri değişikliği sayılmaz (görüntüleyici de yapabilir).
+  r.get("/notifications", async (req, res) => {
+    const a = actor(req, res, false);
+    if (!a) return;
+    const limit = Math.min(Number(req.query["limit"]) || 50, 200);
+    const { items, unreadCount } = await deps.notifications.list(a, limit);
+    res.json(<NotificationsDto>{ items: items.map(notificationDto), unreadCount });
+  });
+
+  r.post("/notifications/read-all", async (req, res) => {
+    const a = actor(req, res, false);
+    if (!a) return;
+    res.json({ marked: await deps.notifications.markAllRead(a) });
+  });
+
+  r.post("/notifications/:id/read", async (req, res) => {
+    const a = actor(req, res, false);
+    if (!a) return;
+    const ok = await deps.notifications.markRead(String(req.params["id"]), a);
+    if (!ok) return res.status(404).json(<ApiErrorDto>{ error: "Bildirim bulunamadı.", code: "not_found" });
+    res.json({ ok: true });
+  });
+
   // Beklenmeyen hata: logla (kişisel veri maskelenir), ayrıntı dışarı sızmaz.
   r.use((err: unknown, req: Request, res: Response, _next: () => void) => {
     if (isAppError(err) && err.kind === "rule") return sendError(res, err as RuleError);
@@ -141,6 +173,27 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
   });
 
   return r;
+}
+
+const parseBody = (raw: string): Record<string, unknown> => {
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+};
+
+function notificationDto(n: Notification): NotificationDto {
+  const body = parseBody(n.body);
+  return {
+    id: n.id,
+    type: n.type,
+    leadId: n.leadId,
+    title: n.title,
+    body,
+    createdAt: n.createdAt.toISOString(),
+    readAt: n.readAt === null ? null : n.readAt.toISOString(),
+  };
 }
 
 const STATUS: Record<string, number> = {

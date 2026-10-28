@@ -3,6 +3,7 @@ import { STAGE, countryName } from "../domain/constants";
 import { activityBucket, isRotting } from "../domain/rules";
 import { useLang, type Lang } from "../i18n";
 import { navigate, type Route } from "../router";
+import { NotificationsBell } from "../pipeline/NotificationsBell";
 import { useCrm, type Theme } from "../state/CrmContext";
 import { Avatar, Button, Icon, money } from "./ui";
 
@@ -83,6 +84,7 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
             {t("nav.newLead")}
           </Button>
         )}
+        <NotificationsBell />
         <UserMenu
           name={user?.name ?? ""}
           email={user?.email ?? ""}

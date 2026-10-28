@@ -8,6 +8,8 @@ export interface LeadCreated {
   personId: string;
   source: LeadSource;
   assignedUserId: string | null;
+  /** Elle açan kişi; webhook akışında null. Kendi açtığı lead için satışçıya bildirim gitmez. */
+  actorUserId: string | null;
   occurredAt: Date;
 }
 
