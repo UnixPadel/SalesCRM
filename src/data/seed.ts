@@ -1,5 +1,6 @@
-// First-load seed: realistic customers across all five columns + the 955 real form-campaign
-// leads from the original tracker. Dates are relative to "now" so overdue states stay visible.
+// First-load seed: fictional customers across all five columns + a small synthetic sample of
+// form-campaign leads (src/seed/leads.json; no real persons — real exports stay outside the repo,
+// see docs/decisions.md item 6.5). Dates are relative to "now" so overdue states stay visible.
 import { languageFor, normalizeOwner, STAGES } from "../domain/constants";
 import type {
   Activity,

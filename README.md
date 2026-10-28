@@ -184,7 +184,7 @@ adından yazan herkes eşleşir, gmail/hotmail gibi adreslerde tam adres aranır
 - Tüm ekip aynı veriyi görür: sunucu `server/data/crm.json` dosyasında tutar (`/api/db/*`).
 - `src/data/repository.ts` depolamadan bağımsız arayüz; `src/data/httpRepository.ts` sunucu sürücüsü.
 - `db/schema.sql` Postgres şeması; alan adları TypeScript tipleriyle birebir aynı.
-- İlk açılışta örnek veri yüklenir (15 müşteri + 955 gerçek form kaydı). Kullanıcı menüsündeki
+- İlk açılışta örnek veri yüklenir (15 kurgusal müşteri + 24 sentetik form kaydı; gerçek dışa aktarımlar depoda değil, `server/data/` altında durur). Kullanıcı menüsündeki
   "Örnek veriyi sıfırla" herkesin verisini siler.
 
 ## Tasarım

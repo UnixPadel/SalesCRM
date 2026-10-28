@@ -24,4 +24,4 @@ Veri bugün `server/data/crm.json` içinde tek JSON dosyasında tutuluyor; `db/s
 ## Sonuçlar
 
 - Hosting kararı (ADR-0005) Postgres'in nerede çalışacağını belirler: Clever Cloud addon, VPS üzerinde Docker ya da yönetilen servis.
-- Mevcut JSON veri Faz 1'de tek seferlik içe aktarma betiğiyle Postgres'e taşınır; `seed` verisi (955 gerçek form kaydı) kişisel veri içerdiği için taşıma öncesi KVKK kararı gerekir (bkz. `docs/decisions.md`).
+- Mevcut JSON veri Faz 1'de tek seferlik içe aktarma betiğiyle Postgres'e taşınır; `seed` verisi 2026-10-28'de sentetik örnekle değiştirildi ve gerçek kayıtlar geçmişten temizlendi (bkz. `docs/decisions.md` madde 6.5); gerçek dışa aktarım yalnız git dışında `server/data/` altında.

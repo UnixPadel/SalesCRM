@@ -53,7 +53,7 @@ Son üç tam ay ortalaması ≈ 134/ay; Meta'nın Dönüşüm Lead'leri eşiği 
 2. Onay metni sürümü lead'le birlikte saklanacak; form onay kutusu metni kim yazar?
 3. Saklama süresi: ham webhook payload'ı 30 gün, lead kaydı ne kadar?
 4. AB ve Birleşik Krallık lead'leri için GDPR değerlendirmesi aynı görüşe eklenir mi?
-5. **Mevcut depo:** `src/seed/leads.json` ve `legacy/leads.json` 955 gerçek kişinin ad, e-posta ve telefonunu içeriyor ve sürüm kontrolünde. Bu veri depodan çıkarılmalı mı; çıkarılacaksa geçmiş de temizlenmeli mi? (Yazılım + Hukuk) **Karar 2026-10-28 (Elshan):** şimdilik depoda kalıyor; hukuk görüşünden sonra yeniden değerlendirilecek. Uzak depoya push edilmeden önce bu madde tekrar açılır.
+5. **Mevcut depo:** `src/seed/leads.json` ve `legacy/leads.json` 955 gerçek kişinin ad, e-posta ve telefonunu içeriyor ve sürüm kontrolünde. Bu veri depodan çıkarılmalı mı; çıkarılacaksa geçmiş de temizlenmeli mi? (Yazılım + Hukuk) **Karar 2026-10-28 (Elshan), aynı gün güncellendi:** uzak depoya push'tan önce **çıkarıldı**. `legacy/leads.json` silindi, `src/seed/leads.json` 24 kayıtlık sentetik örnekle değiştirildi (example.com adresleri, uydurma numaralar) ve iki dosyanın eski içeriği `git filter-repo` ile geçmişten temizlendi. Gerçek dışa aktarımlar yalnız `server/data/` (git dışı) altında durur; taşıma betiği `--file` ile oradan okur. Hukuk görüşü yine de bekleniyor (saklama süresi, onay metni).
 
 ## 8 — Ülke → satışçı şablonu
 
