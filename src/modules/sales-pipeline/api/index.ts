@@ -1,2 +1,3 @@
-// Faz 0: bos iskelet. Icerik ilgili fazda eklenir; katman kurallari .dependency-cruiser.cjs ile zorlanir.
-export {};
+// sales-pipeline/api: Express rotaları ve DTO'lar. Controller doğrular, çağırır, döner.
+export { createSalesPipelineRouter, sendError, type RouterDeps } from "./router";
+export type * from "./dto";

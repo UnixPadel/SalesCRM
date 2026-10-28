@@ -19,7 +19,14 @@ export default tseslint.config(
   },
   {
     // Sunucu, betikler, modüller ve testler: Node ortamı.
-    files: ["server/**/*.{mjs,ts}", "scripts/**/*.mjs", "src/modules/**/*.ts", "tests/**/*.ts", "*.{js,mjs,cjs,ts}"],
+    files: [
+      "server/**/*.{mjs,ts}",
+      "scripts/**/*.{mjs,ts}",
+      "src/modules/**/*.ts",
+      "src/bootstrap/**/*.ts",
+      "tests/**/*.ts",
+      "*.{js,mjs,cjs,ts}",
+    ],
     languageOptions: { globals: globals.node },
   },
   {

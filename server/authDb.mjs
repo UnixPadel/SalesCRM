@@ -13,6 +13,7 @@
 const env = (k, d) => process.env[k] || d;
 const TABLE = env("AUTH_DB_TABLE", "KullaniciBilgileri");
 const COL = {
+  id: env("AUTH_DB_ID_COL", "KullaniciID"),
   user: env("AUTH_DB_USER_COL", "KullaniciAdi"),
   email: env("AUTH_DB_EMAIL_COL", "Email"),
   pass: env("AUTH_DB_PASS_COL", "Sifre"),
@@ -89,12 +90,13 @@ export async function listTeam() {
   const d = await connect();
   const q = d.quote;
   const rows = await d.query(
-    `select ${q(COL.user)} as login, ${q(COL.email)} as email, ${q(COL.first)} as first, ${q(COL.last)} as last, ${q(COL.role)} as role
+    `select ${q(COL.id)} as id, ${q(COL.user)} as login, ${q(COL.email)} as email, ${q(COL.first)} as first, ${q(COL.last)} as last, ${q(COL.role)} as role
        from ${q(TABLE)} where lower(${q(COL.active)}) = ? order by ${q(COL.first)}`,
     [ACTIVE_VALUE],
   );
   return rows
     .map((r) => ({
+      id: String(r.id ?? r.login ?? ""),
       login: String(r.login ?? ""),
       email: String(r.email ?? "").toLowerCase(),
       first: String(r.first ?? "").trim(),
@@ -108,7 +110,7 @@ export async function listTeam() {
 export async function checkTable() {
   const d = await connect();
   const q = d.quote;
-  const cols = [COL.user, COL.email, COL.pass, COL.first, COL.last, COL.role, COL.active].map(q).join(", ");
+  const cols = [COL.id, COL.user, COL.email, COL.pass, COL.first, COL.last, COL.role, COL.active].map(q).join(", ");
   const rows = await d.query(`select count(*) as n from (select ${cols} from ${q(TABLE)}) t`);
   return Number(rows[0]?.n ?? rows[0]?.N ?? 0);
 }
@@ -143,6 +145,8 @@ export async function checkLogin(login, password) {
   const role = roleKind(row[COL.role]);
   return {
     ok: true,
+    /** Kalıcı kullanıcı kimliği (KullaniciID); lead ataması bu değerle tutulur (ADR-0006, Faz 1). */
+    id: String(row[COL.id] ?? row[COL.user] ?? key),
     name,
     email: String(row[COL.email] ?? "").toLowerCase(),
     role,

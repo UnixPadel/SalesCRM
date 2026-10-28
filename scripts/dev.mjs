@@ -10,7 +10,7 @@ const env = { ...process.env, ...(devLogin ? { CRM_DEV_PASSWORD: devLogin } : {}
 // PORT belongs to Vite (preview tooling sets it); the API listens on API_PORT (default 8787).
 const { PORT: _vitePort, ...apiEnv } = env;
 const procs = [
-  spawn(node, ["server/index.mjs"], { stdio: "inherit", env: apiEnv }),
+  spawn(node, ["node_modules/tsx/dist/cli.mjs", "server/index.mjs"], { stdio: "inherit", env: apiEnv }),
   spawn(node, ["node_modules/vite/bin/vite.js"], { stdio: "inherit", env }),
 ];
 let stopping = false;

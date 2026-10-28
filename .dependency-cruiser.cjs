@@ -69,7 +69,15 @@ module.exports = {
         "Modüller eski arayüz koduna (src/components, src/pages, src/state…) bağlanmaz; taşıma tersi yönde olur.",
       severity: "error",
       from: { path: "^src/modules/" },
-      to: { path: "^src/", pathNot: "^src/modules/" },
+      to: { path: "^src/", pathNot: "^src/(modules|bootstrap)/" },
+    },
+    {
+      name: "bootstrap-only-from-host",
+      comment:
+        "Kompozisyon kökü (src/bootstrap) yalnız sunucu ve testler tarafından import edilir; modüller onu bilmez.",
+      severity: "error",
+      from: { path: "^src/modules/", pathNot: "\\.test\\.ts$" },
+      to: { path: "^src/bootstrap/" },
     },
     {
       name: "no-circular",

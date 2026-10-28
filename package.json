@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "server": "node server/index.mjs",
-    "start": "node server/index.mjs",
+    "server": "tsx server/index.mjs",
+    "start": "tsx server/index.mjs",
     "build": "npm run verify && vite build",
     "build:only": "vite build",
     "lint": "eslint .",

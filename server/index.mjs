@@ -16,6 +16,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { authDbEnabled, authDbLabel, checkLogin, checkTable, listTeam } from "./authDb.mjs";
 import { emailsOf, USERS, userFor } from "./users.mjs";
+import { bootSalesPipeline } from "../src/bootstrap/salesPipeline.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // API_PORT (not PORT): dev tooling sets PORT for the Vite dev server.
@@ -226,6 +227,7 @@ app.disable("x-powered-by");
 app.use(express.json({ limit: "25mb" }));
 
 const publicUser = (s) => ({
+  id: s.userId,
   email: s.email,
   name: s.name,
   role: s.role,
@@ -270,6 +272,7 @@ app.post("/api/auth/login", async (req, res) => {
     who.name =
       known && known.name !== r.email.split("@")[0].replace(/^./, (c) => c.toUpperCase()) ? known.name : r.name;
     who.role = r.role === "admin" || known?.role === "admin" ? "admin" : r.role;
+    who.id = r.id;
     if (r.email) email = r.email;
   } else {
     if (!email.endsWith("@" + MAIL_DOMAIN))
@@ -288,6 +291,8 @@ app.post("/api/auth/login", async (req, res) => {
   const sid = randomBytes(24).toString("base64url");
   const session = {
     email,
+    // Kalıcı kimlik: kullanıcı tablosundaki KullaniciID; yerel Admin "admin"; IMAP/dev girişinde e-posta.
+    userId: who.local ? "admin" : who.id || email,
     name: who.name,
     role: who.role,
     local: who.local,
@@ -421,7 +426,9 @@ let teamCache = { at: 0, list: null };
 /** Active sales users from the user table; falls back to the static USERS list without a database. */
 app.get("/api/users", auth, async (_req, res) => {
   if (!authDbEnabled()) {
-    return res.json(USERS.filter((u) => !u.local).map((u) => ({ name: u.name, email: u.emails[0], role: u.role })));
+    return res.json(
+      USERS.filter((u) => !u.local).map((u) => ({ id: u.emails[0], name: u.name, email: u.emails[0], role: u.role })),
+    );
   }
   if (!teamCache.list || teamCache.at < Date.now() - 300e3) {
     try {
@@ -432,6 +439,7 @@ app.get("/api/users", auth, async (_req, res) => {
           const known = userFor(r.email);
           const generic = r.email.split("@")[0].replace(/^./, (c) => c.toUpperCase());
           return {
+            id: r.id,
             name: known.name !== generic ? known.name : r.first || r.login,
             email: r.email,
             role: known.role === "admin" ? "admin" : r.role,
@@ -512,6 +520,10 @@ app.delete("/api/db/:table/:id", auth, table, (req, res) => {
   }
   res.status(204).end();
 });
+
+/* ---- satış pipeline'ı (src/modules/sales-pipeline) ---- */
+const salesPipeline = await bootSalesPipeline();
+app.use("/api/pipeline", auth, salesPipeline.router);
 
 app.use("/api", (_req, res) => res.status(404).json({ error: "Bilinmeyen uç nokta." }));
 
