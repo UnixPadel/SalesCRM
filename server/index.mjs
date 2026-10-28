@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { authDbEnabled, authDbLabel, checkLogin, checkTable, listTeam } from "./authDb.mjs";
 import { emailsOf, USERS, userFor } from "./users.mjs";
 import { bootSalesPipeline } from "../src/bootstrap/salesPipeline.ts";
+import { bootLeadIntake } from "../src/bootstrap/leadIntake.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // API_PORT (not PORT): dev tooling sets PORT for the Vite dev server.
@@ -224,6 +225,13 @@ function htmlToText(html) {
 
 const app = express();
 app.disable("x-powered-by");
+
+/* ---- satış pipeline'ı ve gelen lead akışı (src/modules) ----
+ * Webhook'lar oturumsuzdur ve imza için ham gövde ister: genel JSON ayrıştırıcıdan ÖNCE bağlanır. */
+const salesPipeline = await bootSalesPipeline();
+const leadIntake = bootLeadIntake(salesPipeline);
+app.use("/webhooks", leadIntake.webhooks);
+
 app.use(express.json({ limit: "25mb" }));
 
 const publicUser = (s) => ({
@@ -521,8 +529,6 @@ app.delete("/api/db/:table/:id", auth, table, (req, res) => {
   res.status(204).end();
 });
 
-/* ---- satış pipeline'ı (src/modules/sales-pipeline) ---- */
-const salesPipeline = await bootSalesPipeline();
 app.use("/api/pipeline", auth, salesPipeline.router);
 
 app.use("/api", (_req, res) => res.status(404).json({ error: "Bilinmeyen uç nokta." }));

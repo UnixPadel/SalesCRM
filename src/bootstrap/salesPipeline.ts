@@ -10,6 +10,7 @@ import {
   systemClock,
   uuidGenerator,
   type AppConfig,
+  type Env,
   type Logger,
 } from "../modules/shared/kernel";
 import { createSalesPipeline, type SalesPipeline } from "../modules/sales-pipeline/application";
@@ -27,6 +28,7 @@ export interface SalesPipelineApp {
   pipeline: SalesPipeline;
   db: Db;
   config: AppConfig;
+  logger: Logger;
   close(): Promise<void>;
 }
 
@@ -43,8 +45,10 @@ export function actorFromSession(s: SessionLike | undefined) {
   return { userId, isAdmin: s.role === "admin" || viewer, readOnly: viewer };
 }
 
-export async function bootSalesPipeline(opts: { logger?: Logger; memory?: boolean } = {}): Promise<SalesPipelineApp> {
-  const config = loadConfig();
+export async function bootSalesPipeline(
+  opts: { logger?: Logger; memory?: boolean; env?: Env } = {},
+): Promise<SalesPipelineApp> {
+  const config = loadConfig(opts.env ?? process.env);
   const logger = opts.logger ?? createLogger({ module: "sales-pipeline" });
   const db = await openDatabase(config, { memory: opts.memory ?? false });
   const pipeline = createSalesPipeline({
@@ -71,5 +75,5 @@ export async function bootSalesPipeline(opts: { logger?: Logger; memory?: boolea
     db: config.databaseUrl ? "postgres" : "pglite",
     providers: config.enabledProviders,
   });
-  return { router, pipeline, db, config, close: () => db.close() };
+  return { router, pipeline, db, config, logger, close: () => db.close() };
 }
