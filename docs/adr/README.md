@@ -14,6 +14,7 @@ Durumlar: **Bekliyor** (karar verilmedi, seçenekler listeli) · **Kabul edildi*
 | [0006](0006-asama-modeli-gecisi.md) | Mevcut 5 kolondan 6 aşamalı modele geçiş | **Bekliyor** |
 | [0007](0007-kod-kalitesi-araclari.md) | Lint, format, test, mimari test, secret tarayıcı, CI | Kabul edildi |
 | [0008](0008-pglite-ve-tsx.md) | Testlerde ve yerelde PGlite; sunucu çalışma zamanı tsx | Kabul edildi |
+| [0009](0009-inbox-sifreleme-ve-zamanlayici.md) | Inbox payload şifreleme (AES-GCM) ve kütüphanesiz zamanlayıcı | Kabul edildi |
 
 Şablon:
 

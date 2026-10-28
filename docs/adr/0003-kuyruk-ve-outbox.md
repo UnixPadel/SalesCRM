@@ -23,5 +23,7 @@ Genel plan iki desen ister. **Inbox:** webhook ham gövdeyi kaydedip 200 döner,
 
 ## Sonuçlar
 
+- **Güncelleme 2026-10-28 (Faz 2):** pg-boss eklenmedi; ikinci seçenek (kütüphanesiz zamanlayıcı + `SKIP LOCKED`) uygulandı. Gerekçe ADR-0009.
+
 - Tek veritabanı: Postgres hem veri hem kuyruk. Yedeği alınırken ikisi birlikte alınır.
 - Dağıtıcı ve işleyici kodu `ad-feedback/application` ve `lead-intake/application` altında, pg-boss ise yalnız `infrastructure/` katmanında görünür.

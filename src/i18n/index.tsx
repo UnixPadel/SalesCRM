@@ -41,8 +41,8 @@ const DICT = {
   "inbox.title": ["Gelen kutusu", "Inbox"],
   "inbox.empty": ["Görünür lead yok.", "No visible leads."],
   "inbox.emptyHint": [
-    "Yeni lead eklemek için sağ üstteki düğmeyi kullanın. Reklam formları Faz 2'de otomatik düşecek.",
-    "Use the button in the top right to add a lead. Ad forms will arrive automatically in phase 2.",
+    "Yeni lead eklemek için sağ üstteki düğmeyi kullanın. Reklam formlarından gelen lead'ler otomatik düşer.",
+    "Use the button in the top right to add a lead. Leads from ad forms arrive automatically.",
   ],
   "inbox.stageFilter": ["Aşama", "Stage"],
   "inbox.includeTest": ["Test lead'leri", "Test leads"],

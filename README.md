@@ -42,6 +42,25 @@ taşıma provası; `--dry-run` olmadan yazar; sorumlu adları kullanıcı tablos
 veriyle çalışır.
 
 
+## Gelen lead akışı (Faz 2)
+
+Meta Lead Ads ve Google Ads lead formları `src/modules/lead-intake` üzerinden düşer:
+
+- **Webhook uçları** (oturumsuz, genel JSON ayrıştırıcıdan önce bağlı): `GET/POST /webhooks/meta`
+  (`hub.challenge`; `X-Hub-Signature-256` ham gövde üzerinde, sabit zamanlı) ve `POST /webhooks/google`
+  (`google_key`). Doğrulanan bildirim `inbound_webhook_events` tablosuna **şifreli** yazılır ve hemen 200
+  döner. Gövde sınırı 1 MB, IP başına hız sınırı.
+- **İşleyici** (her 5 sn): inbox → kaynak adaptörü → `InboundLeadDto` → Faz 1 `CreateLead`. Geçici hata
+  1, 5, 30, 120, 720 dk sonra yeniden denenir; kalıcı hata `failed`. Aynı bildirim iki kez → tek lead.
+- **Meta:** lead'in tamamı Graph API'den `leadgen_id` ile çekilir; `field_data` → `form_field_mappings`;
+  eşlenmeyen alan "ek yanıt". Saatlik yedek senkron son 2 saatin lead'lerini aynı inbox'a yazar.
+  Kurulum: `docs/runbooks/meta-lead-ads.md`, `npx tsx scripts/meta-subscribe.ts --page <PAGE_ID>`.
+- **Google:** `user_column_data` → `column_id` eşlemesi, `gcl_id` → `lead_attribution.gclid`, `is_test`
+  → test lead; tanınmayan sütun yok sayılır. Kurulum: `docs/runbooks/google-lead-form.md`.
+- **Bildirim:** `LeadCreated` olayında atanan satışçıya başlıktaki zilde bildirim ve (SMTP varsa) e-posta.
+- Yerel deneme: `.claude/launch.json` içindeki `crm-webhook-smoke` ayarı sahte secret'larla açar;
+  `scripts/dev.mjs --set=KEY=VALUE` ile `.env`'e dokunmadan değişken verilir.
+
 ## Geliştirme kuralları (Faz 0'dan itibaren)
 
 - Mimari kararlar `docs/adr/` altında; açık kararlar ve sahipleri `docs/decisions.md`.
@@ -84,7 +103,8 @@ sunucusuna bağlanmaz. Geri açmak için `.env` içinde `MAIL_ENABLED=1`.
 
 Ortam değişkenleri: `API_PORT` (8787), `AUTH_DB_URL`, `AUTH_DB_TABLE` ve `AUTH_DB_*_COL` (bkz. `.env.example`),
 `MAIL_ENABLED`, `IMAP_HOST`, `IMAP_PORT`, `MAIL_DOMAIN`, `CRM_DATA` (eski veri dosyası, varsayılan `server/data/crm.json`),
-`DATABASE_URL` (Postgres; yoksa PGlite), `PGLITE_DIR`, `UNDO_WINDOW_MINUTES` (10), `ENABLED_PROVIDERS` (Faz 4–5).
+`DATABASE_URL` (Postgres; yoksa PGlite), `PGLITE_DIR`, `UNDO_WINDOW_MINUTES` (10), `ENABLED_PROVIDERS` (Faz 4–5),
+Faz 2: `INBOX_ENCRYPTION_KEY`, `META_*`, `GOOGLE_LEAD_FORM_KEY`, `SMTP_*`, `PUBLIC_BASE_URL`, `INTAKE_*`, `BACKFILL_*` (hepsi `.env.example` içinde).
 
 ## Roller
 

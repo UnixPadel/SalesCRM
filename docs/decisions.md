@@ -13,6 +13,15 @@ Genel plan'daki sekiz karar. İlk ikisi verilmeden Faz 1'e başlanmaz. Durum: **
 | 7 | Optimizasyon olayı (Meta ve Google'da hangi aşama) | MarcaDM | Bekliyor | 2 numaralı ölçüme bağlı |
 | 8 | Ülke → sorumlu ve yedek satışçı tablosu | Satış | Bekliyor | `territory_rules` tablosunu doldurur; şablon aşağıda |
 
+## Faz 2 ile açılan işler (yazılım dışı)
+
+| # | İş | Sahip | Durum | Not |
+|---|---|---|---|---|
+| 9 | Meta sistem kullanıcısı token'ı ve Lead Erişimi | Yönetim + MarcaDM | Bekliyor | `docs/runbooks/meta-lead-ads.md`; token hosting ortam değişkenine girer |
+| 10 | Google lead form webhook anahtarının MarcaDM'e teslimi | IT + MarcaDM | Bekliyor | `docs/runbooks/google-lead-form.md`; güvenli kanal |
+| 11 | Bildirim e-postası için SMTP hesabı (gönderen adres, şifre) | IT | Bekliyor | `SMTP_*` değişkenleri; yoksa yalnız uygulama içi bildirim |
+| 12 | `INBOX_ENCRYPTION_KEY` üretimi ve yedeği | IT | Bekliyor | ADR-0009; anahtar kaybolursa eski payload okunamaz |
+
 ## 1 — Hesap sahipliği kontrol listesi
 
 - [ ] Unixpadel Business Manager'da "Business" tipi Meta uygulaması; MarcaDM'e yalnız rol bazlı erişim
@@ -55,4 +64,4 @@ Son üç tam ay ortalaması ≈ 134/ay; Meta'nın Dönüşüm Lead'leri eşiği 
 | DE | | |
 | … | | |
 
-Satış doldurur; Faz 2'de `territory_rules` tablosuna aktarılır. Eşleşmeyen ülke ortak havuza düşer.
+Satış doldurur; `territory_rules` tablosuna SQL ile girilir (`INSERT INTO territory_rules (country_code, assigned_user_id, fallback_user_id) VALUES ('TR', '<KullaniciID>', NULL);`). Eşleşmeyen ülke ortak havuza düşer. Faz 2 gelen lead akışı bu tabloyu kullanır; boşken reklam lead'leri havuza düşer ve kimseye bildirim gitmez.
