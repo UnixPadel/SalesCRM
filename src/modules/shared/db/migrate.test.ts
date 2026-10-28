@@ -4,7 +4,7 @@ import { MIGRATIONS_DIR } from "./open";
 import { migrate, readMigrations } from "./migrate";
 import { createPgliteDb } from "./pglite";
 
-describe("migration koşucusu + Faz 1 şeması (PGlite)", () => {
+describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
   let db: Db;
   beforeAll(async () => {
     db = await createPgliteDb();
@@ -13,21 +13,24 @@ describe("migration koşucusu + Faz 1 şeması (PGlite)", () => {
 
   it("dosyaları sırayla uygular, ikinci çalıştırmada atlar", async () => {
     const files = readMigrations(MIGRATIONS_DIR);
-    expect(files.map((f) => f.version)).toEqual([1, 2]);
+    expect(files.map((f) => f.version)).toEqual([1, 2, 3, 4]);
     const first = await migrate(db, files);
-    expect(first.applied).toEqual(["0001_faz1_core", "0002_faz1_seed"]);
+    expect(first.applied).toEqual(["0001_faz1_core", "0002_faz1_seed", "0003_faz2_intake", "0004_faz2_seed"]);
     const second = await migrate(db, files);
     expect(second.applied).toEqual([]);
-    expect(second.skipped).toHaveLength(2);
+    expect(second.skipped).toHaveLength(4);
   });
 
-  it("on tablo ve seed verisi var", async () => {
+  it("on dört tablo ve seed verisi var", async () => {
     const tables = (
       await db.query<{ table_name: string }>(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1",
       )
     ).map((r) => r.table_name);
     expect(tables).toEqual([
+      "form_field_mappings",
+      "inbound_webhook_events",
+      "integration_settings",
       "lead_attribution",
       "lead_consents",
       "lead_stage_events",
@@ -39,6 +42,7 @@ describe("migration koşucusu + Faz 1 şeması (PGlite)", () => {
       "schema_migrations",
       "stage_definitions",
       "territory_rules",
+      "user_notifications",
     ]);
     const stages = await db.query<{ code: string; is_terminal: boolean }>(
       "SELECT code, is_terminal FROM stage_definitions ORDER BY sort_order",
@@ -47,6 +51,9 @@ describe("migration koşucusu + Faz 1 şeması (PGlite)", () => {
     expect(stages.filter((s) => s.is_terminal).map((s) => s.code)).toEqual(["WON", "LOST"]);
     expect(await db.query("SELECT code FROM lost_reasons")).toHaveLength(7);
     expect(await db.query("SELECT * FROM territory_rules")).toHaveLength(0);
+    expect(await db.query("SELECT id FROM form_field_mappings WHERE provider = 'meta'")).toHaveLength(16);
+    expect(await db.query("SELECT id FROM form_field_mappings WHERE provider = 'google'")).toHaveLength(14);
+    expect(await db.query("SELECT key FROM integration_settings")).toHaveLength(4);
   });
 
   it("UNIQUE(source, platform_lead_id) çift kaydı engeller", async () => {

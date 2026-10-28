@@ -30,7 +30,7 @@ afterAll(() => db.close());
 
 beforeEach(async () => {
   await db.exec(
-    "TRUNCATE outbound_conversion_events, lead_stage_events, lead_consents, lead_attribution, leads, persons, territory_rules",
+    "TRUNCATE user_notifications, inbound_webhook_events, outbound_conversion_events, lead_stage_events, lead_consents, lead_attribution, leads, persons, territory_rules",
   );
   clock = new FixedClock("2026-03-01T10:00:00Z");
   publisher = new RecordingPublisher();
