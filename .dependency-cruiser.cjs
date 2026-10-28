@@ -10,7 +10,7 @@ module.exports = {
       comment:
         "Kural 1: domain katmanı framework, ORM, HTTP, Meta/Google kütüphanesi veya Node çekirdek modülü import etmez.",
       severity: "error",
-      from: { path: "^src/modules/[^/]+/domain/" },
+      from: { path: "^src/modules/[^/]+/domain/", pathNot: "\\.test\\.ts$" },
       to: { dependencyTypes: ["npm", "npm-dev", "npm-peer", "npm-optional", "npm-bundled", "npm-no-pkg", "core"] },
     },
     {
