@@ -22,7 +22,7 @@ Genel plan altı aşama ister: NEW, CONTACTED, QUALIFIED, PROPOSAL, WON, LOST. �
 
 ## Karar
 
-Verilmedi. Faz 1'de aşama motoru yazılmadan önce aşağıdaki sorular yanıtlanmalı.
+Satış onayı **bekliyor**. Faz 1 (2026-10-28) kodu **seçenek 3 (hibrit)** varsayılanıyla yazıldı: altı kod sabit (`STAGE_CODES`), görünen adlar `stage_definitions` tablosunda; eski 5 kolon taşıma betiğinde (`npm run db:migrate-legacy`) aşağıdaki eşlemeyle çevrilir. Satış farklı karar verirse yalnız seed ve eşleme değişir, motor değişmez.
 
 ## Seçenekler
 

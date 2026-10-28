@@ -41,5 +41,8 @@ jobs:
       - name: Tests (vitest)
         run: npm run test
 
+      - name: Coverage threshold (domain + application ≥ 90%)
+        run: npm run test:coverage
+
       - name: Build (vite)
         run: npm run build:only

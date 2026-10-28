@@ -8,7 +8,7 @@ Genel plan'daki sekiz karar. İlk ikisi verilmeden Faz 1'e başlanmaz. Durum: **
 | 2 | Hacim ölçümü: son 3 ayın aylık Meta ve Google lead sayısı; lead → nitelikli ve lead → teklif medyan süreleri | MarcaDM + Satış | Kısmen | Mevcut CRM verisinden ön sayım aşağıda; MarcaDM kaynak doğrulaması bekliyor |
 | 3 | Hosting ve webhook girişi | Yazılım + IT | Bekliyor | [ADR-0005](adr/0005-hosting-ve-webhook-girisi.md) |
 | 4 | Teknoloji yığını ve secret deposu | Yazılım | Verildi | [ADR-0001](adr/0001-teknoloji-yigini.md), [ADR-0002](adr/0002-veritabani.md), [ADR-0003](adr/0003-kuyruk-ve-outbox.md), [ADR-0004](adr/0004-secret-deposu.md) |
-| 5 | Aşama adları (TR/EN) ve "Nitelikli" için üç soru | Satış + MarcaDM | Bekliyor | [ADR-0006](adr/0006-asama-modeli-gecisi.md); öneri: bütçe onaylı mı, proje yeri belli mi, kurulum 12 ay içinde mi |
+| 5 | Aşama adları (TR/EN) ve "Nitelikli" için üç soru | Satış + MarcaDM | Bekliyor (varsayılanla kodlandı) | [ADR-0006](adr/0006-asama-modeli-gecisi.md); Faz 1 seed'i: `db/migrations/0002_faz1_seed.sql`, sorular `src/modules/sales-pipeline/domain/qualification.ts`. Onay gelince yeni migration ile ad/metin değişir. |
 | 6 | KVKK ve GDPR görüşü: hash'li verinin yurt dışına aktarımı, onay metni, saklama süreleri | Hukuk | Bekliyor | Sorular aşağıda |
 | 7 | Optimizasyon olayı (Meta ve Google'da hangi aşama) | MarcaDM | Bekliyor | 2 numaralı ölçüme bağlı |
 | 8 | Ülke → sorumlu ve yedek satışçı tablosu | Satış | Bekliyor | `territory_rules` tablosunu doldurur; şablon aşağıda |

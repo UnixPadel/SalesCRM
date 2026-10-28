@@ -13,6 +13,7 @@ Durumlar: **Bekliyor** (karar verilmedi, seçenekler listeli) · **Kabul edildi*
 | [0005](0005-hosting-ve-webhook-girisi.md) | Hosting ve webhook giriş yolu | **Bekliyor** |
 | [0006](0006-asama-modeli-gecisi.md) | Mevcut 5 kolondan 6 aşamalı modele geçiş | **Bekliyor** |
 | [0007](0007-kod-kalitesi-araclari.md) | Lint, format, test, mimari test, secret tarayıcı, CI | Kabul edildi |
+| [0008](0008-pglite-ve-tsx.md) | Testlerde ve yerelde PGlite; sunucu çalışma zamanı tsx | Kabul edildi |
 
 Şablon:
 

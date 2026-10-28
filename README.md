@@ -1,7 +1,7 @@
 # Unixpadel Satış Panosu (v2)
 
-Satış ekibinin ortak müşteri panosu. React + Vite arayüz, Node (Express) sunucu; giriş şirket posta
-sunucusuyla (IMAP) yapılır ve müşteriyle yazışılan e-postalar kartın içinde görünür.
+Satış ekibinin ortak müşteri panosu. React + Vite arayüz, Node (Express, tsx) sunucu; giriş şirket
+kullanıcı tablosuyla yapılır.
 
 ```bash
 npm install
@@ -9,6 +9,38 @@ npm run dev        # API sunucusu (8787) + Vite (http://localhost:5173) birlikte
 ```
 
 Üretim: `npm run build` sonra `npm start` (sunucu `dist/` klasörünü de servis eder, tek port: 8787).
+
+## Satış pipeline'ı (Faz 1)
+
+Lead'ler, aşamalar ve aşama geçmişi `src/modules/sales-pipeline` altında, Postgres'te tutulur
+(`DATABASE_URL`; yoksa yerelde PGlite `server/data/pglite`). Arayüz: **Gelen kutusu** (`#/inbox`),
+**lead detayı** (`#/lead/<id>`) ve **Pano** (`#/pipeline`, 6 sütun). Kurallar sunucuda
+(`src/modules/sales-pipeline/domain`):
+
+| Aşama | Kod | Ek bilgi |
+|---|---|---|
+| Yeni lead | `NEW` | otomatik, lead açıldığında |
+| İletişim kuruldu | `CONTACTED` | — |
+| Nitelikli | `QUALIFIED` | üç soru, üçü de "evet" |
+| Teklif gönderildi | `PROPOSAL` | — |
+| Kazanıldı | `WON` | tutar + para birimi; terminal |
+| Kaybedildi | `LOST` | neden (sabit liste); terminal |
+
+- Yalnız ileri; atlanan aşamalar aynı anda `auto_fill` olarak yazılır. Yanlış tık için **10 dakika geri al**
+  (olay silinmez, `undone_at` alır; outbox satırları `skipped` olur).
+- Aşama değişikliği + aşama olayı + etkin platform başına outbox satırı **tek transaction**. Faz 1'de
+  platform yok (`ENABLED_PROVIDERS` boş), outbox satırı yazılmaz.
+- Satışçı kendi lead'lerini ve bölgesindeki (ülke kuralı) havuz lead'lerini görür; havuzdaki lead'i
+  değiştiren onu üstlenir. Admin hepsini görür ve atar; görüntüleyici salt okunur.
+- Mükerrer kişi: aynı normalize e-posta ya da E.164 telefon → aynı kişiye bağlı yeni lead.
+- Görünen adlar ve kayıp nedenleri `stage_definitions` / `lost_reasons` tablolarından (TR/EN); dil
+  kullanıcı menüsünden değişir.
+
+Komutlar: `npm run db:migrate` (şema), `npm run db:migrate-legacy -- --dry-run` (eski JSON veriyi
+taşıma provası; `--dry-run` olmadan yazar; sorumlu adları kullanıcı tablosundan ya da
+`--owners "Ad=ID,..."` ile eşlenir). Bugün / Kişiler / Raporlar sayfaları geçiş süresince eski JSON
+veriyle çalışır.
+
 
 ## Geliştirme kuralları (Faz 0'dan itibaren)
 
@@ -25,7 +57,8 @@ npm run dev        # API sunucusu (8787) + Vite (http://localhost:5173) birlikte
 | `npm run typecheck` | `tsc` arayüz + modüller |
 | `npm run arch` | dependency-cruiser katman ve modül kuralları |
 | `npm run secrets` | secretlint |
-| `npm run test` | Vitest (`src/modules`, `tests`) |
+| `npm run test` / `test:coverage` | Vitest; kapsam eşiği domain + application ≥ %90 |
+| `npm run db:migrate` / `db:migrate-legacy` | Şema migration'ları / eski JSON veriyi taşıma |
 | `npm run verify` | Hepsi sırayla |
 
 ## Giriş ve şifreler
@@ -50,7 +83,8 @@ günlüğe yazar. Yardımcı betikler: `node scripts/list-users.mjs` (kim girebi
 sunucusuna bağlanmaz. Geri açmak için `.env` içinde `MAIL_ENABLED=1`.
 
 Ortam değişkenleri: `API_PORT` (8787), `AUTH_DB_URL`, `AUTH_DB_TABLE` ve `AUTH_DB_*_COL` (bkz. `.env.example`),
-`MAIL_ENABLED`, `IMAP_HOST`, `IMAP_PORT`, `MAIL_DOMAIN`, `CRM_DATA` (veri dosyası, varsayılan `server/data/crm.json`).
+`MAIL_ENABLED`, `IMAP_HOST`, `IMAP_PORT`, `MAIL_DOMAIN`, `CRM_DATA` (eski veri dosyası, varsayılan `server/data/crm.json`),
+`DATABASE_URL` (Postgres; yoksa PGlite), `PGLITE_DIR`, `UNDO_WINDOW_MINUTES` (10), `ENABLED_PROVIDERS` (Faz 4–5).
 
 ## Roller
 
