@@ -1,0 +1,22 @@
+{
+  "id": "555000001",
+  "created_time": "2026-03-01T09:59:00+0000",
+  "form_id": "901000001",
+  "field_data": [
+    { "name": "full_name", "values": ["Ayşe Demir"] },
+    { "name": "email", "values": ["Ayse.Demir@Example.com"] },
+    { "name": "phone_number", "values": ["+905321234567"] },
+    { "name": "country", "values": ["Türkiye"] },
+    { "name": "city", "values": ["İzmir"] },
+    { "name": "company_name", "values": ["Demir Spor Tesisleri"] },
+    { "name": "kaç_kort_düşünüyorsunuz?", "values": ["2"] }
+  ],
+  "ad_id": "238800001",
+  "ad_name": "Panoramik kort - TR",
+  "adset_id": "238700001",
+  "adset_name": "Tesis sahipleri",
+  "campaign_id": "238600001",
+  "campaign_name": "Lead - Türkiye - Mart",
+  "is_organic": false,
+  "platform": "fb"
+}

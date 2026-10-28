@@ -2,7 +2,7 @@
  * Eşlenmiş alanlardan InboundLeadDto üretir; adaptörler ortak işi (ülke çözümü, ek yanıtlar) burada bırakır.
  */
 import type { MappedFields } from "../../integration-settings/application";
-import { resolveCountry } from "./country";
+import { countryCodeFrom, resolveCountry } from "./country";
 import type { InboundAttribution, InboundCampaign, InboundLeadDto, InboundSource } from "./dto";
 
 export interface BuildLeadInput {
@@ -25,7 +25,8 @@ export function buildInboundLead(input: BuildLeadInput): InboundLeadDto {
   const phone = m.phone || null;
   const country = resolveCountry(m.country, phone, input.defaultCountry);
   const extraAnswers: Record<string, unknown> = { ...m.extra, ...(input.extra ?? {}) };
-  if (m.country && !country) extraAnswers["country_raw"] = m.country;
+  // Ülke metni çözülemediyse (telefondan bulunsa bile) ham değer ek yanıtta kalsın: admin görsün.
+  if (m.country && countryCodeFrom(m.country) === null) extraAnswers["country_raw"] = m.country;
   return {
     source: input.source,
     provider: input.provider,
