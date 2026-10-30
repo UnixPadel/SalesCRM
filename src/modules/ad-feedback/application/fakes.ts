@@ -128,6 +128,7 @@ export const sampleContext = (over: Partial<OutboundStageEvent> = {}): OutboundS
     phoneE164: "+905321234567",
     isTest: false,
     country: "TR",
+    createdAt: new Date("2026-02-28T09:00:00Z"),
   },
   attribution: null,
   consents: [],

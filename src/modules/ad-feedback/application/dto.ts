@@ -15,7 +15,9 @@ export type SkipReason =
   | "mapping_disabled"
   | "emergency_stop"
   | "undone"
-  | "no_match_key";
+  | "no_match_key"
+  /** Platformun yükleme penceresi geçti (ör. tıklamadan 90 gün); adaptör `prepare` içinde belirler. */
+  | "expired";
 
 export interface OutboundRow {
   id: string;
