@@ -13,7 +13,7 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
 
   it("dosyaları sırayla uygular, ikinci çalıştırmada atlar", async () => {
     const files = readMigrations(MIGRATIONS_DIR);
-    expect(files.map((f) => f.version)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(files.map((f) => f.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     const first = await migrate(db, files);
     expect(first.applied).toEqual([
       "0001_faz1_core",
@@ -23,10 +23,11 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
       "0005_faz3_web_seed",
       "0006_faz4_meta_seed",
       "0007_faz4_outbox_finished_at",
+      "0008_faz5_google_seed",
     ]);
     const second = await migrate(db, files);
     expect(second.applied).toEqual([]);
-    expect(second.skipped).toHaveLength(7);
+    expect(second.skipped).toHaveLength(8);
   });
 
   it("on dört tablo ve seed verisi var", async () => {
@@ -62,10 +63,13 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
     expect(await db.query("SELECT id FROM form_field_mappings WHERE provider = 'meta'")).toHaveLength(16);
     expect(await db.query("SELECT id FROM form_field_mappings WHERE provider = 'google'")).toHaveLength(14);
     expect(await db.query("SELECT id FROM form_field_mappings WHERE provider = 'web'")).toHaveLength(14);
-    expect(await db.query("SELECT key FROM integration_settings")).toHaveLength(6);
+    expect(await db.query("SELECT key FROM integration_settings")).toHaveLength(9);
     expect(await db.query("SELECT id FROM platform_stage_mappings WHERE provider = 'meta' AND enabled")).toHaveLength(
       6,
     );
+    expect(
+      await db.query("SELECT id FROM platform_stage_mappings WHERE provider = 'google' AND NOT enabled"),
+    ).toHaveLength(2);
   });
 
   it("UNIQUE(source, platform_lead_id) çift kaydı engeller", async () => {
