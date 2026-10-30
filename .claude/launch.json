@@ -31,7 +31,14 @@
     {
       "name": "web-form-relay-smoke",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["integrations/web-form-relay/relay.mjs"],
+      "runtimeArgs": [
+        "integrations/web-form-relay/relay.mjs",
+        "--set=WEB_FORM_HMAC_KEY=smoke-web-form-secret",
+        "--set=CRM_FORM_URL=http://localhost:8787/forms/web",
+        "--set=RELAY_RETRY_SECONDS=10",
+        "--set=RELAY_FORM_ID=contact",
+        "--set=RELAY_CONSENT_TEXT_VERSION=2026-01"
+      ],
       "port": 8790
     }
   ]

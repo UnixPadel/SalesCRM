@@ -12,12 +12,19 @@
  *   RELAY_THANKS_URL         tanımlıysa klasik form POST'u sonrası buraya 303
  *   RELAY_ALLOWED_ORIGIN     tanımlıysa CORS (fetch ile gönderen siteler için), ör. https://www.unixpadel.com
  *   RELAY_COOKIE_MAP         JSON; varsayılan lib.mjs DEFAULT_COOKIE_MAP
+ * Yerel deneme için `--set=KEY=VALUE` argümanı ortam değişkenini ezer (scripts/dev.mjs ile aynı biçim).
  */
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRelay } from "./server.mjs";
 
-const env = process.env;
+const sets = Object.fromEntries(
+  process.argv
+    .filter((a) => a.startsWith("--set="))
+    .map((a) => a.slice("--set=".length))
+    .map((kv) => [kv.slice(0, kv.indexOf("=")), kv.slice(kv.indexOf("=") + 1)]),
+);
+const env = { ...process.env, ...sets };
 const secret = env.WEB_FORM_HMAC_KEY ?? "";
 if (!secret) {
   console.error("WEB_FORM_HMAC_KEY tanımsız; aktarıcı başlatılmadı.");
