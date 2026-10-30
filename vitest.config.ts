@@ -4,6 +4,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/modules/**/*.test.ts", "src/bootstrap/**/*.test.ts", "tests/**/*.test.ts"],
+    // PGlite (WASM) açılışı ve migration'lar yük altında 10 sn'yi aşabiliyor (29 dosya paralel); kancalar için geniş pay.
+    hookTimeout: 60_000,
+    testTimeout: 30_000,
     coverage: {
       provider: "v8",
       reporter: ["text-summary", "text"],
