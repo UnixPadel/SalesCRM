@@ -5,6 +5,8 @@ import {
   type FieldMappingRepository,
   type Setting,
   type SettingsRepository,
+  type StageMapping,
+  type StageMappingRepository,
 } from "../domain";
 
 interface MappingRow extends Record<string, unknown> {
@@ -44,6 +46,34 @@ export function pgFieldMappingRepository(q: Queryable): FieldMappingRepository {
             ]
           : [],
       );
+    },
+  };
+}
+
+interface StageMappingRow extends Record<string, unknown> {
+  id: string;
+  stage_code: string;
+  provider: string;
+  platform_event_name: string;
+  enabled: boolean;
+  is_optimization_target: boolean;
+}
+
+export function pgStageMappingRepository(q: Queryable): StageMappingRepository {
+  return {
+    async forProvider(provider) {
+      const rows = await q.query<StageMappingRow>(
+        "SELECT id, stage_code, provider, platform_event_name, enabled, is_optimization_target FROM platform_stage_mappings WHERE provider = $1 ORDER BY stage_code",
+        [provider],
+      );
+      return rows.map((r): StageMapping => ({
+        id: r.id,
+        stageCode: r.stage_code,
+        provider: r.provider,
+        platformEventName: r.platform_event_name,
+        enabled: r.enabled,
+        isOptimizationTarget: r.is_optimization_target,
+      }));
     },
   };
 }

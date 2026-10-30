@@ -1,4 +1,5 @@
 import type { FieldMapping } from "./mapping";
+import type { StageMapping } from "./stageMapping";
 
 export interface Setting {
   provider: string;
@@ -9,6 +10,10 @@ export interface Setting {
 
 export interface FieldMappingRepository {
   forProvider(provider: string): Promise<FieldMapping[]>;
+}
+
+export interface StageMappingRepository {
+  forProvider(provider: string): Promise<StageMapping[]>;
 }
 
 export interface SettingsRepository {

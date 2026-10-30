@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPgliteDb, migrate, MIGRATIONS_DIR, readMigrations, type Db } from "../../shared/db";
 import { FixedClock } from "../../shared/kernel";
 import { IntegrationSettings } from "../application";
-import { pgFieldMappingRepository, pgSettingsRepository } from "./index";
+import { pgFieldMappingRepository, pgSettingsRepository, pgStageMappingRepository } from "./index";
 
 let db: Db;
 let svc: IntegrationSettings;
@@ -13,6 +13,7 @@ beforeAll(async () => {
   svc = new IntegrationSettings({
     mappings: pgFieldMappingRepository(db),
     settings: pgSettingsRepository(db),
+    stageMappings: pgStageMappingRepository(db),
     clock: new FixedClock("2026-03-01T10:00:00Z"),
   });
 });
@@ -30,6 +31,27 @@ describe("integration-settings (PGlite, seed)", () => {
     expect((await svc.mappingsFor("meta", "f-1")).get("job_title")).toBe("product_interest");
     expect((await svc.mappingsFor("meta", "f-2")).get("job_title")).toBe("extra");
     expect((await svc.listMappings("google")).every((m) => m.provider === "google")).toBe(true);
+  });
+
+  it("aşama eşlemesi (seed 0006): altı Meta satırı, optimizasyon hedefi QUALIFIED; kapalı satır haritada kalır; acil durdurma", async () => {
+    const meta = await svc.stageMappingsFor("meta");
+    expect([...meta.keys()].sort()).toEqual(["CONTACTED", "LOST", "NEW", "PROPOSAL", "QUALIFIED", "WON"]);
+    expect(meta.get("QUALIFIED")).toMatchObject({
+      platformEventName: "Nitelikli Lead",
+      enabled: true,
+      isOptimizationTarget: true,
+    });
+    expect(meta.get("NEW")?.platformEventName).toBe("Yeni Lead");
+    await db.query(
+      "UPDATE platform_stage_mappings SET enabled = false WHERE provider = 'meta' AND stage_code = 'LOST'",
+    );
+    expect((await svc.stageMappingsFor("meta")).get("LOST")?.enabled).toBe(false);
+    expect((await svc.stageMappingsFor("google")).size).toBe(0);
+    expect(await svc.outboundEnabled("meta")).toBe(true);
+    expect(await svc.outboundEnabled("google")).toBe(false);
+    await svc.set("meta", "outbound_enabled", "false");
+    expect(await svc.outboundEnabled("meta")).toBe(false);
+    await svc.set("meta", "outbound_enabled", "true");
   });
 
   it("ayar: seed, set/get, JSON ve boolean", async () => {
