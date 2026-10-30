@@ -1,5 +1,5 @@
 /**
- * Kompozisyon kökü, Faz 2: inbox deposu → adaptörler → lead-intake işleri → webhook router + zamanlayıcı.
+ * Kompozisyon kökü, Faz 2–3: inbox deposu → adaptörler → lead-intake işleri → webhook/form router'ları + zamanlayıcı.
  * Secret'lar burada adıyla okunur ve adaptörlere değer olarak verilir; modüller process.env görmez.
  */
 import type { Router } from "express";
@@ -14,7 +14,8 @@ import {
   metaSourceAdapter,
   type FetchLike,
 } from "../modules/lead-intake/adapters/meta";
-import { createWebhookRouter } from "../modules/lead-intake/api";
+import { webFormSourceAdapter, WEB_SECRET_NAMES } from "../modules/lead-intake/adapters/web-form";
+import { createFormsRouter, createWebhookRouter } from "../modules/lead-intake/api";
 import {
   createLeadIntake,
   type BackfillSource,
@@ -38,11 +39,13 @@ import type { SalesPipelineApp } from "./salesPipeline";
 
 export interface LeadIntakeApp {
   webhooks: Router;
+  /** /forms/web (Faz 3). webhooks gibi genel JSON ayrıştırıcısından önce bağlanır. */
+  forms: Router;
   intake: LeadIntake;
   settings: IntegrationSettings;
   scheduler: Scheduler;
   /** Hangi sağlayıcılar yapılandırıldı (loglar ve sağlık ucu için). */
-  providers: { meta: boolean; google: boolean; encrypted: boolean };
+  providers: { meta: boolean; google: boolean; web: boolean; encrypted: boolean };
 }
 
 export interface BootLeadIntakeOptions {
@@ -71,7 +74,7 @@ export function bootLeadIntake(app: SalesPipelineApp, opts: BootLeadIntakeOption
     clock: systemClock,
   });
 
-  const adapters: SourceAdapter[] = [googleSourceAdapter()];
+  const adapters: SourceAdapter[] = [googleSourceAdapter(), webFormSourceAdapter()];
   const backfillSources: BackfillSource[] = [];
   const meta = metaConfig(read);
   const graph = createGraphClient({
@@ -113,6 +116,9 @@ export function bootLeadIntake(app: SalesPipelineApp, opts: BootLeadIntakeOption
     google: googleKey ? { key: googleKey } : null,
   });
 
+  const webSecret = read(WEB_SECRET_NAMES.hmacKey);
+  const forms = createFormsRouter({ accept: intake.accept, logger, web: webSecret ? { secret: webSecret } : null });
+
   const scheduler = createScheduler(
     [
       {
@@ -140,7 +146,12 @@ export function bootLeadIntake(app: SalesPipelineApp, opts: BootLeadIntakeOption
   );
   if (opts.startScheduler ?? true) scheduler.start();
 
-  const providers = { meta: metaConfigured(meta), google: Boolean(googleKey), encrypted: Boolean(keyB64) };
+  const providers = {
+    meta: metaConfigured(meta),
+    google: Boolean(googleKey),
+    web: Boolean(webSecret),
+    encrypted: Boolean(keyB64),
+  };
   logger.info("lead-intake hazır", { ...providers, backfill: backfillSources.map((s) => s.provider) });
-  return { webhooks, intake, settings, scheduler, providers };
+  return { webhooks, forms, intake, settings, scheduler, providers };
 }
