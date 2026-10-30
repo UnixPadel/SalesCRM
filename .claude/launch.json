@@ -23,9 +23,16 @@
         "--set=META_APP_SECRET=smoke-meta-secret",
         "--set=META_VERIFY_TOKEN=smoke-verify-token",
         "--set=INBOX_ENCRYPTION_KEY=c21va2Utc21va2Utc21va2Utc21va2Utc21va2UtMDE=",
+        "--set=WEB_FORM_HMAC_KEY=smoke-web-form-secret",
         "--set=PUBLIC_BASE_URL=http://localhost:5173"
       ],
       "port": 5173
+    },
+    {
+      "name": "web-form-relay-smoke",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["integrations/web-form-relay/relay.mjs"],
+      "port": 8790
     }
   ]
 }

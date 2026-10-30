@@ -22,6 +22,7 @@ export default tseslint.config(
     files: [
       "server/**/*.{mjs,ts}",
       "scripts/**/*.{mjs,ts}",
+      "integrations/**/*.mjs",
       "src/modules/**/*.ts",
       "src/bootstrap/**/*.ts",
       "tests/**/*.ts",
