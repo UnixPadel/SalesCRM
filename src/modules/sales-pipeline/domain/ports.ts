@@ -36,6 +36,8 @@ export interface PersonRepository {
 
 export interface StageEventRepository {
   listByLead(leadId: string): Promise<StageEvent[]>;
+  /** Kimlik listesiyle (giden olay dağıtıcısı için); bulunamayanlar atlanır. */
+  findByIds(ids: readonly string[]): Promise<StageEvent[]>;
   nextSequence(leadId: string): Promise<number>;
   insert(event: StageEvent): Promise<void>;
   markUndone(eventIds: readonly string[], undoneAt: Date, byUserId: string): Promise<void>;

@@ -5,8 +5,10 @@ import {
   type Lead,
   type LeadAttribution,
   type LeadConsent,
+  type LeadSource,
   type StageCode,
   type StageEvent,
+  type StageEventOrigin,
 } from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
 import { canSee, territoriesOf } from "./visibility";
@@ -27,8 +29,78 @@ export interface ListLeadsInput {
   limit?: number | undefined;
 }
 
+/**
+ * Giden olay dağıtıcısının (ad-feedback) bir aşama olayını platforma çevirmek için gereken her şey.
+ * Modüller arası tek kapı: dağıtıcı sales-pipeline tablolarını okumaz, bu DTO'yu alır.
+ */
+export interface OutboundStageEvent {
+  stageEventId: string;
+  leadId: string;
+  stageCode: StageCode;
+  occurredAt: Date;
+  undoneAt: Date | null;
+  origin: StageEventOrigin;
+  value: { amount: number; currency: string } | null;
+  lead: {
+    source: LeadSource;
+    platformLeadId: string | null;
+    /** Normalize e-posta (küçük harf, boşluksuz) ya da null. */
+    email: string | null;
+    /** E.164 ("+90…") ya da null. */
+    phoneE164: string | null;
+    isTest: boolean;
+    country: string | null;
+  };
+  attribution: LeadAttribution | null;
+  consents: LeadConsent[];
+}
+
 export class LeadQueries {
   constructor(private readonly deps: UseCaseDeps) {}
+
+  /** Aşama olayı kimlikleri → dağıtım bağlamı; bulunamayan olay ya da lead atlanır. */
+  async outboundContext(stageEventIds: readonly string[]): Promise<OutboundStageEvent[]> {
+    if (!stageEventIds.length) return [];
+    return this.deps.uow.run(async (repos) => {
+      const events = await repos.stageEvents.findByIds(stageEventIds);
+      const leadIds = [...new Set(events.map((e) => e.leadId))];
+      const leads = new Map<string, Lead>();
+      const attributions = new Map<string, LeadAttribution | undefined>();
+      const consents = new Map<string, LeadConsent[]>();
+      for (const id of leadIds) {
+        const lead = await repos.leads.findById(id);
+        if (!lead) continue;
+        leads.set(id, lead);
+        attributions.set(id, await repos.leads.findAttribution(id));
+        consents.set(id, await repos.leads.findConsents(id));
+      }
+      const out: OutboundStageEvent[] = [];
+      for (const e of events) {
+        const lead = leads.get(e.leadId);
+        if (!lead) continue;
+        out.push({
+          stageEventId: e.id,
+          leadId: lead.id,
+          stageCode: e.stageCode,
+          occurredAt: e.occurredAt,
+          undoneAt: e.undoneAt,
+          origin: e.origin,
+          value: e.value,
+          lead: {
+            source: lead.source,
+            platformLeadId: lead.platformLeadId,
+            email: lead.email,
+            phoneE164: lead.phoneE164,
+            isTest: lead.isTest,
+            country: lead.country,
+          },
+          attribution: attributions.get(lead.id) ?? null,
+          consents: consents.get(lead.id) ?? [],
+        });
+      }
+      return out;
+    });
+  }
 
   async list(input: ListLeadsInput): Promise<Lead[]> {
     return this.deps.uow.run(async (repos) => {

@@ -135,6 +135,40 @@ describe("CreateLead", () => {
     expect(await sp.queries.consents(none.id)).toEqual([]);
   });
 
+  it("outboundContext: olay + lead + attribution + onaylar tek DTO'da; bilinmeyen kimlik atlanır", async () => {
+    const r = unwrap(
+      await manual({
+        source: "web_form",
+        platformLeadId: "sub-9",
+        actor: null,
+        attribution: { fbclid: "F9", fbc: "fb.1.1.F9" },
+        consents: [{ type: "kvkk", granted: true, textVersion: "2026-01" }],
+      }),
+    );
+    const eventId = h.uow.state.events.find((e) => e.leadId === r.lead.id)!.id;
+    const ctx = await sp.queries.outboundContext([eventId, "yok-boyle-olay"]);
+    expect(ctx).toHaveLength(1);
+    expect(ctx[0]).toMatchObject({
+      stageEventId: eventId,
+      leadId: r.lead.id,
+      stageCode: "NEW",
+      undoneAt: null,
+      origin: "system",
+      value: null,
+      lead: {
+        source: "web_form",
+        platformLeadId: "sub-9",
+        email: "ayse@example.com",
+        phoneE164: "+905321234567",
+        isTest: false,
+        country: "TR",
+      },
+      attribution: { fbclid: "F9", fbc: "fb.1.1.F9", gclid: null },
+    });
+    expect(ctx[0]!.consents.map((c) => [c.type, c.granted])).toEqual([["kvkk", true]]);
+    expect(await sp.queries.outboundContext([])).toEqual([]);
+  });
+
   it("onay türü geçersizse lead açılmaz (consent.type_invalid)", async () => {
     const r = await manual({ consents: [{ type: "KVKK onayı", granted: true }] });
     expect(r.ok).toBe(false);

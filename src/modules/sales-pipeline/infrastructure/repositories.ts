@@ -205,6 +205,15 @@ export function pgStageEventRepository(q: Queryable): StageEventRepository {
         )
       ).map(stageEventFromRow);
     },
+    async findByIds(ids) {
+      if (!ids.length) return [];
+      return (
+        await q.query<StageEventRow>(
+          `SELECT ${EVENT_COLS} FROM lead_stage_events WHERE id = ANY($1::uuid[]) ORDER BY occurred_at, sequence`,
+          [[...ids]],
+        )
+      ).map(stageEventFromRow);
+    },
     async nextSequence(leadId) {
       const r = await queryOne<{ n: number | string }>(
         q,

@@ -138,6 +138,9 @@ function reposFor(s: MemoryState): Repositories {
     async listByLead(leadId) {
       return s.events.filter((e) => e.leadId === leadId).map((e) => ({ ...e }));
     },
+    async findByIds(ids) {
+      return s.events.filter((e) => ids.includes(e.id)).map((e) => ({ ...e }));
+    },
     async nextSequence(leadId) {
       return s.events.filter((e) => e.leadId === leadId).reduce((m, e) => Math.max(m, e.sequence), 0) + 1;
     },

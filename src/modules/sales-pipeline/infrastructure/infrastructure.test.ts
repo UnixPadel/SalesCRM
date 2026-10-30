@@ -119,6 +119,18 @@ describe("Postgres repository'leri + transaction", () => {
     );
     expect(await count("lead_consents")).toBe(2);
     expect(await count("lead_attribution")).toBe(1);
+    const eventId = (
+      await db.query<{ id: string }>("SELECT id FROM lead_stage_events WHERE lead_id = $1", [r.lead.id])
+    )[0]!.id;
+    const ctx = await sp.queries.outboundContext([eventId]);
+    expect(ctx).toHaveLength(1);
+    expect(ctx[0]).toMatchObject({
+      stageEventId: eventId,
+      stageCode: "NEW",
+      lead: { source: "web_form", platformLeadId: "sub-1", email: "ayse@example.com", phoneE164: "+905321234567" },
+      attribution: { gclid: "G1", fbclid: "F1" },
+    });
+    expect(ctx[0]!.consents).toHaveLength(2);
     expect(await sp.queries.attribution(r.lead.id)).toMatchObject({ gclid: "G1", fbclid: "F1", fbc: "fb.1.1.F1" });
     const consents = await sp.queries.consents(r.lead.id);
     expect(consents.map((c) => [c.type, c.granted, c.textVersion, c.grantedAt.toISOString()])).toEqual([
