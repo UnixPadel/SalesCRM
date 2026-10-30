@@ -40,6 +40,8 @@ export interface SalesPipelineApp {
   router: Router;
   pipeline: SalesPipeline;
   notifications: NotificationQueries;
+  /** E-posta gönderici (SMTP ya da log); ad-feedback dead-letter raporu da bunu kullanır. */
+  email: EmailSender;
   db: Db;
   config: AppConfig;
   logger: Logger;
@@ -126,5 +128,5 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
     providers: config.enabledProviders,
     email: opts.email ? "custom" : config.smtp.host ? "smtp" : "log",
   });
-  return { router, pipeline, notifications, db, config, logger, close: () => db.close() };
+  return { router, pipeline, notifications, email, db, config, logger, close: () => db.close() };
 }

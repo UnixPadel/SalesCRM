@@ -24,6 +24,8 @@
         "--set=META_VERIFY_TOKEN=smoke-verify-token",
         "--set=INBOX_ENCRYPTION_KEY=c21va2Utc21va2Utc21va2Utc21va2Utc21va2UtMDE=",
         "--set=WEB_FORM_HMAC_KEY=smoke-web-form-secret",
+        "--set=ENABLED_PROVIDERS=meta",
+        "--set=OUTBOX_REPORT_TO=admin@example.com",
         "--set=PUBLIC_BASE_URL=http://localhost:5173"
       ],
       "port": 5173

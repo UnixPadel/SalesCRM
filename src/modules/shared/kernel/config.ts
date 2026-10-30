@@ -15,6 +15,8 @@ export interface AppConfig {
   enabledProviders: readonly string[];
   /** Gelen lead akışı (Faz 2). */
   intake: IntakeConfig;
+  /** Giden olay dağıtıcısı (Faz 4–5). */
+  outbound: OutboundConfig;
   /** Giden e-posta; host boşsa e-posta bildirimi kapalı, yalnız loglanır. */
   smtp: SmtpConfig;
   /** E-posta ve bildirimlerdeki bağlantıların kökü (ör. https://crm.example.com). */
@@ -33,6 +35,19 @@ export interface IntakeConfig {
   retentionDays: number;
   /** Ülkesiz telefon numaraları için varsayılan ülke (ISO-3166 iki harf). */
   defaultCountry: string;
+}
+
+export interface OutboundConfig {
+  /** Dağıtıcının çalışma aralığı (saniye); Genel plan: her dakika. */
+  dispatchIntervalSeconds: number;
+  /** Geçici hatada yeniden deneme aralıkları (dakika); liste bitince `dead`. Genel plan: 1, 5, 30, 120, 720. */
+  retryMinutes: readonly number[];
+  /** Sağlayıcıya tek istekte gidecek en çok olay. */
+  batchSize: number;
+  /** KVKK onayı aranan tür (lead_consents.consent_type); web formu lead'inde verilmiş onay şart. */
+  consentRequiredType: string;
+  /** Günlük dead-letter raporu alıcıları; boşsa yalnız loglanır. */
+  reportRecipients: readonly string[];
 }
 
 export interface SmtpConfig {
@@ -73,6 +88,13 @@ export function loadConfig(env: Env = process.env): AppConfig {
       backfillLookbackHours: num(env["BACKFILL_LOOKBACK_HOURS"], 2),
       retentionDays: num(env["INBOX_RETENTION_DAYS"], 30),
       defaultCountry: (env["INTAKE_DEFAULT_COUNTRY"] ?? "TR").toUpperCase(),
+    },
+    outbound: {
+      dispatchIntervalSeconds: num(env["OUTBOX_DISPATCH_SECONDS"], 60),
+      retryMinutes: numList(env["OUTBOX_RETRY_MINUTES"], [1, 5, 30, 120, 720]),
+      batchSize: num(env["OUTBOX_BATCH_SIZE"], 100),
+      consentRequiredType: (env["CONSENT_REQUIRED_TYPE"] ?? "kvkk").trim() || "kvkk",
+      reportRecipients: list(env["OUTBOX_REPORT_TO"]),
     },
     smtp: {
       host: env["SMTP_HOST"] ?? "",

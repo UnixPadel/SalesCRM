@@ -18,6 +18,7 @@ import { authDbEnabled, authDbLabel, checkLogin, checkTable, listTeam } from "./
 import { emailsOf, USERS, userFor } from "./users.mjs";
 import { bootSalesPipeline } from "../src/bootstrap/salesPipeline.ts";
 import { bootLeadIntake } from "../src/bootstrap/leadIntake.ts";
+import { bootAdFeedback } from "../src/bootstrap/adFeedback.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // API_PORT (not PORT): dev tooling sets PORT for the Vite dev server.
@@ -260,6 +261,8 @@ const salesPipeline = await bootSalesPipeline({ users: userDirectory() });
 const leadIntake = bootLeadIntake(salesPipeline);
 app.use("/webhooks", leadIntake.webhooks);
 app.use("/forms", leadIntake.forms);
+/* Giden olaylar (Faz 4): dakikalık dağıtıcı ve günlük dead-letter raporu aynı süreçte. */
+bootAdFeedback(salesPipeline, leadIntake.settings);
 
 app.use(express.json({ limit: "25mb" }));
 
