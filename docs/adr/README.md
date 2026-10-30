@@ -15,6 +15,7 @@ Durumlar: **Bekliyor** (karar verilmedi, seçenekler listeli) · **Kabul edildi*
 | [0007](0007-kod-kalitesi-araclari.md) | Lint, format, test, mimari test, secret tarayıcı, CI | Kabul edildi |
 | [0008](0008-pglite-ve-tsx.md) | Testlerde ve yerelde PGlite; sunucu çalışma zamanı tsx | Kabul edildi |
 | [0009](0009-inbox-sifreleme-ve-zamanlayici.md) | Inbox payload şifreleme (AES-GCM) ve kütüphanesiz zamanlayıcı | Kabul edildi |
+| [0010](0010-web-formu-kimlik-ve-aktarici.md) | Web formu kimliği (HMAC + zaman damgası) ve site tarafı aktarıcı | Kabul edildi |
 
 Şablon:
 

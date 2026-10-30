@@ -61,6 +61,22 @@ Meta Lead Ads ve Google Ads lead formları `src/modules/lead-intake` üzerinden 
 - Yerel deneme: `.claude/launch.json` içindeki `crm-webhook-smoke` ayarı sahte secret'larla açar;
   `scripts/dev.mjs --set=KEY=VALUE` ile `.env`'e dokunmadan değişken verilir.
 
+## Web sitesi formu (Faz 3)
+
+unixpadel.com formu aynı inbox'a `web` sağlayıcısıyla düşer; gelen kutusunda "Web" rozetiyle görünür:
+
+- **Uç:** `POST /forms/web` (oturumsuz, genel JSON ayrıştırıcıdan önce). Ham gövde üzerinde
+  `X-Webform-Signature: sha256=<HMAC>` ve `X-Webform-Timestamp` (±300 sn); IP başına dakikada 120, 256 KB.
+  Anahtar `WEB_FORM_HMAC_KEY` yalnız CRM ve site sunucusunda, tarayıcıya inmez.
+- **Gövde:** `submission_id` (site üretir; tekrar → aynı lead), `fields` → `form_field_mappings` (`web`,
+  seed `0005`; eşlenmeyen alan ek yanıt), `attribution` (gclid, gbraid, wbraid, fbclid, fbc, fbp, UTM,
+  landing_url) → `lead_attribution`, `consents` → `lead_consents` (aydınlatma metni sürümüyle),
+  `honeypot` dolu → lead açılmaz ama 200.
+- **Site tarafı:** `integrations/web-form-relay/` bağımlılıksız Node aktarıcısı formu alır, önce diske yazar,
+  imzalayıp CRM'e iletir; CRM kapalıysa kuyrukta tutup yeniden dener (hiçbir gönderim kaybolmaz).
+  Kurulum ve başka dil için sözleşme: `docs/runbooks/web-form.md`, karar: ADR-0010.
+- Yerel deneme: `crm-webhook-smoke` + `web-form-relay-smoke` launch ayarları.
+
 ## Geliştirme kuralları (Faz 0'dan itibaren)
 
 - Mimari kararlar `docs/adr/` altında; açık kararlar ve sahipleri `docs/decisions.md`.

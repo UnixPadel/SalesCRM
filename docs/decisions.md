@@ -22,6 +22,15 @@ Genel plan'daki sekiz karar. İlk ikisi verilmeden Faz 1'e başlanmaz. Durum: **
 | 11 | Bildirim e-postası için SMTP hesabı (gönderen adres, şifre) | IT | Bekliyor | `SMTP_*` değişkenleri; yoksa yalnız uygulama içi bildirim |
 | 12 | `INBOX_ENCRYPTION_KEY` üretimi ve yedeği | IT | Bekliyor | ADR-0009; anahtar kaybolursa eski payload okunamaz |
 
+## Faz 3 ile açılan işler (yazılım dışı)
+
+| # | İş | Sahip | Durum | Not |
+|---|---|---|---|---|
+| 13 | Site teknolojisi ve aktarıcının konuşlandırılması: `integrations/web-form-relay` site sunucusunda çalışır ya da site diline çevrilir | Site ekibi / MarcaDM + Yazılım | Bekliyor | `docs/runbooks/web-form.md` bölüm 2–4; ADR-0010 |
+| 14 | `WEB_FORM_HMAC_KEY` üretimi; CRM hosting'e ve site sunucusuna girilmesi | IT | Bekliyor | `npm run secrets:key`; runbook bölüm 1 ve 6 |
+| 15 | GTM: `gclid`, `fbclid`, `_fbc`, `_fbp`, UTM değerlerinin 90 gün birinci taraf çerezde tutulması ve form gizli alanlarına yazılması; honeypot alanı `website` | MarcaDM | Bekliyor | runbook bölüm 3; çerez adları farklıysa `RELAY_COOKIE_MAP` |
+| 16 | Aydınlatma metni sürümü (`RELAY_CONSENT_TEXT_VERSION`) ve onay kutusu türleri (`consent_kvkk`, `consent_marketing`) | Hukuk + Site ekibi | Bekliyor | madde 6 ile birlikte; `lead_consents.text_version` |
+
 ## 1 — Hesap sahipliği kontrol listesi
 
 - [ ] Unixpadel Business Manager'da "Business" tipi Meta uygulaması; MarcaDM'e yalnız rol bazlı erişim
