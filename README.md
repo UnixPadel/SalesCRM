@@ -77,6 +77,23 @@ unixpadel.com formu aynı inbox'a `web` sağlayıcısıyla düşer; gelen kutusu
   Kurulum ve başka dil için sözleşme: `docs/runbooks/web-form.md`, karar: ADR-0010.
 - Yerel deneme: `crm-webhook-smoke` + `web-form-relay-smoke` launch ayarları.
 
+## Meta geri bildirimi (Faz 4)
+
+Her aşama değişikliği 10 dakika sonra (geri alma hakkı) Meta'ya CRM olayı olarak gider; dağıtıcı platformdan
+bağımsızdır ve Faz 5'te Google için de kullanılır (`src/modules/ad-feedback`):
+
+- **Kuyruk:** aşama değişikliği `outbound_conversion_events`'e aynı transaction'da satır yazar
+  (`ENABLED_PROVIDERS=meta` olmadan yazılmaz). Durumlar: pending → sent | dead | skipped; geçici hata `failed`.
+- **Dağıtıcı** (her dakika, `SKIP LOCKED`): filtreler → `skipped` + neden (acil durdurma, geri alma, test, manuel/
+  import, onay yok, eşleme yok/kapalı, eşleştirme anahtarı yok); sağlayıcı başına toplu gönderim (100); 2xx `sent`,
+  400 `dead` (toplu istekte tek tek yeniden denenir), 429/5xx/zaman aşımı 1, 5, 30, 120, 720 dk sonra, sonra `dead`.
+- **Meta:** `POST /{DATASET_ID}/events`; `event_name` `platform_stage_mappings`'ten (seed `0006`), `lead_id` 64-bit
+  sayı, `em`/`ph` SHA-256, `custom_data.event_source = crm`, `lead_event_source = Unixpadel CRM`, WON'da tutar;
+  web formu lead'leri `action_source: website` + `fbc`/`fbp`. Staging'de `META_TEST_EVENT_CODE`.
+- **Günlük dead-letter raporu** `OUTBOX_REPORT_TO` adreslerine; **acil durdurma** `integration_settings`
+  `meta/outbound_enabled`. Geriye doldurma: `npx tsx scripts/outbox-backfill.ts --provider meta --dry-run`.
+- Kurulum ve işletme: `docs/runbooks/meta-capi.md`; kararlar ADR-0011.
+
 ## Geliştirme kuralları (Faz 0'dan itibaren)
 
 - Mimari kararlar `docs/adr/` altında; açık kararlar ve sahipleri `docs/decisions.md`.

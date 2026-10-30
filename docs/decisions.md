@@ -31,6 +31,28 @@ Genel plan'daki sekiz karar. İlk ikisi verilmeden Faz 1'e başlanmaz. Durum: **
 | 15 | GTM: `gclid`, `fbclid`, `_fbc`, `_fbp`, UTM değerlerinin 90 gün birinci taraf çerezde tutulması ve form gizli alanlarına yazılması; honeypot alanı `website` | MarcaDM | Bekliyor | runbook bölüm 3; çerez adları farklıysa `RELAY_COOKIE_MAP` |
 | 16 | Aydınlatma metni sürümü (`RELAY_CONSENT_TEXT_VERSION`) ve onay kutusu türleri (`consent_kvkk`, `consent_marketing`) | Hukuk + Site ekibi | Bekliyor | madde 6 ile birlikte; `lead_consents.text_version` |
 
+## Faz 4 ile açılan işler (yazılım dışı)
+
+| # | İş | Sahip | Durum | Not |
+|---|---|---|---|---|
+| 17 | CRM veri seti (dataset) kimliği ve Conversions API token'ının teslimi; `ENABLED_PROVIDERS=meta` | MarcaDM + IT | Bekliyor | `docs/runbooks/meta-capi.md` bölüm 1; veri seti Unixpadel Business Manager'da (madde 1) |
+| 18 | Aylık Meta lead hacmi eşiğin altında: MarcaDM'e yazılı bildirim | Yönetim | Bekliyor | Metin aşağıda; akış ölçüm amaçlı açık kalır, kampanya hedefi çevrilmez |
+| 19 | Meta olay adlarının onayı (seed `0006`: Yeni Lead, İletişim Kuruldu, Nitelikli Lead, Teklif Gönderildi, Kazanıldı, Kaybedildi; optimizasyon hedefi Nitelikli Lead) | MarcaDM + Satış | Bekliyor (varsayılanla kodlandı) | Değişiklik migration ya da Faz 6 ekranı ile; madde 5 ve 7 ile birlikte |
+| 20 | Dead-letter raporu alıcıları (`OUTBOX_REPORT_TO`) ve staging Test Olayları kodu (`META_TEST_EVENT_CODE`) | IT + MarcaDM | Bekliyor | Test kodu yalnız staging; canlıda boş |
+
+### Madde 18 — MarcaDM'e bildirim metni (taslak)
+
+> Konu: Meta Dönüşüm Lead'leri optimizasyonu — hacim durumu
+>
+> Mevcut CRM verisine göre son üç tam ayın ortalaması yaklaşık 134 Meta lead/ay (docs/decisions.md bölüm 2, 2026-10-27
+> sayımı). Meta'nın Dönüşüm Lead'leri optimizasyonu için belirttiği eşik aylık 200–250 nitelikli olaydır; mevcut hacim
+> bu eşiğin altındadır. Bu nedenle kampanya hedefinin "Dönüşüm Lead'leri"ne çevrilmesini şimdilik önermiyoruz.
+> CRM → Meta olay akışı (Conversions API, CRM olayları) ölçüm amaçlı açık kalacak; her aşama değişikliği `lead_id`,
+> `event_source = crm` ve `lead_event_source = Unixpadel CRM` ile Events Manager'daki Unixpadel veri setine gidecek.
+> Veri seti CRM kurulum ekranındaki yeterlilik göstergesi eşiğe yaklaştığında hedef değişikliğini birlikte planlayalım.
+> MarcaDM'den beklenen: veri seti kimliği ve sistem kullanıcısı token'ının güvenli kanaldan iletilmesi, olay adlarının
+> onayı (madde 19) ve kendi lead sayımınızla bu rakamın doğrulanması (madde 2).
+
 ## 1 — Hesap sahipliği kontrol listesi
 
 - [ ] Unixpadel Business Manager'da "Business" tipi Meta uygulaması; MarcaDM'e yalnız rol bazlı erişim
