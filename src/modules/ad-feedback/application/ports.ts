@@ -15,6 +15,16 @@ export interface OutboxRepository {
   markSkipped(id: string, reason: SkipReason, now: Date): Promise<void>;
   /** `finished_at >= since` olan dead satırlar (günlük rapor). */
   listDead(since: Date): Promise<DeadRow[]>;
+  /** Geriye doldurma: verilen aşama olayları için satırı olmayanlara `pending` açar; açılan sayı. Mevcut satıra dokunmaz. */
+  enqueueMissing(stageEventIds: readonly string[], provider: string, notBefore: Date): Promise<number>;
+}
+
+/** sales-pipeline: geriye doldurma için aşama olayları (kaynaklara göre, `since` sonrası). */
+export interface BackfillEventSource {
+  stageEventsSince(
+    since: Date,
+    sources: readonly ("meta_form" | "google_form" | "web_form")[],
+  ): Promise<{ stageEventId: string; leadId: string; occurredAt: Date }[]>;
 }
 
 /** sales-pipeline'ın application sorgusu (modüller arası tek kapı). */

@@ -64,6 +64,15 @@ export class InMemoryOutbox implements OutboxRepository {
         finishedAt: r.finishedAt,
       }));
   }
+  async enqueueMissing(stageEventIds: readonly string[], provider: string, notBefore: Date) {
+    let n = 0;
+    for (const id of stageEventIds) {
+      if (this.rows.some((r) => r.stageEventId === id && r.provider === provider)) continue;
+      this.enqueue(id, provider, notBefore);
+      n += 1;
+    }
+    return n;
+  }
   private row(id: string) {
     const r = this.rows.find((x) => x.id === id);
     if (!r) throw new Error(`outbox satırı yok: ${id}`);

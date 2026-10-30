@@ -38,6 +38,8 @@ export interface StageEventRepository {
   listByLead(leadId: string): Promise<StageEvent[]>;
   /** Kimlik listesiyle (giden olay dağıtıcısı için); bulunamayanlar atlanır. */
   findByIds(ids: readonly string[]): Promise<StageEvent[]>;
+  /** Geriye doldurma: verilen kaynaklardaki test olmayan lead'lerin, geri alınmamış, `since` sonrası olayları. */
+  listSince(since: Date, sources: readonly string[]): Promise<StageEvent[]>;
   nextSequence(leadId: string): Promise<number>;
   insert(event: StageEvent): Promise<void>;
   markUndone(eventIds: readonly string[], undoneAt: Date, byUserId: string): Promise<void>;

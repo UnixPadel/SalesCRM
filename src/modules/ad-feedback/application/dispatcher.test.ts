@@ -226,6 +226,42 @@ describe("DispatchOutbox", () => {
   });
 });
 
+describe("BackfillOutbox", () => {
+  it("eksik satırları pending açar; mevcut satıra dokunmaz; dry-run yalnız sayar", async () => {
+    const { BackfillOutbox } = await import("./backfill");
+    const events = [
+      { stageEventId: "e-1", leadId: "l-1", occurredAt: T0 },
+      { stageEventId: "e-2", leadId: "l-1", occurredAt: T0 },
+      { stageEventId: "e-3", leadId: "l-2", occurredAt: T0 },
+    ];
+    const existing = outbox.enqueue("e-1", "meta", T0);
+    await outbox.markSent([existing.id], 200, T0);
+    const bf = new BackfillOutbox({
+      outbox,
+      events: { stageEventsSince: async () => events },
+      clock,
+      logger: silentLogger,
+    });
+    expect(await bf.run({ provider: "meta", since: T0, sources: ["meta_form"], dryRun: true })).toEqual({
+      candidates: 3,
+      enqueued: 0,
+      dryRun: true,
+    });
+    expect(outbox.rows).toHaveLength(1);
+    expect(await bf.run({ provider: "meta", since: T0, sources: ["meta_form"] })).toEqual({
+      candidates: 3,
+      enqueued: 2,
+      dryRun: false,
+    });
+    expect(outbox.rows.map((r) => [r.stageEventId, r.status])).toEqual([
+      ["e-1", "sent"],
+      ["e-2", "pending"],
+      ["e-3", "pending"],
+    ]);
+    expect((await bf.run({ provider: "meta", since: T0, sources: ["meta_form"] })).enqueued).toBe(0);
+  });
+});
+
 describe("DeadLetterReport", () => {
   it("son 24 saatin dead satırlarını alıcılara yollar; satır yoksa e-posta yok; alıcı yoksa yalnız log", async () => {
     const ad = build(new FakeSender("meta"));

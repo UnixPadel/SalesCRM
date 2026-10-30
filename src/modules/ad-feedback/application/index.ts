@@ -3,6 +3,7 @@ export * from "./dto";
 export * from "./ports";
 export { DispatchOutbox, consentAllows, skipReasonFor, type DispatchOutboxDeps } from "./dispatcher";
 export { DeadLetterReport, renderDeadLetterReport, type DeadLetterReportDeps } from "./deadLetterReport";
+export { BackfillOutbox, type BackfillOutboxInput, type BackfillOutboxResult } from "./backfill";
 
 import { DeadLetterReport } from "./deadLetterReport";
 import { DispatchOutbox, type DispatchOutboxDeps } from "./dispatcher";

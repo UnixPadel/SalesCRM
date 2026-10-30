@@ -93,6 +93,18 @@ export function pgOutboxRepository(q: Queryable): OutboxRepository {
       );
     },
 
+    async enqueueMissing(stageEventIds, provider, notBefore) {
+      if (!stageEventIds.length) return 0;
+      const rows = await q.query<{ id: string }>(
+        `INSERT INTO outbound_conversion_events (id, stage_event_id, provider, status, next_attempt_at)
+         SELECT gen_random_uuid(), e.id, $2, 'pending', $3 FROM unnest($1::uuid[]) AS e(id)
+         ON CONFLICT (stage_event_id, provider) DO NOTHING
+         RETURNING id`,
+        [[...stageEventIds], provider, notBefore],
+      );
+      return rows.length;
+    },
+
     async listDead(since) {
       const rows = await q.query<Row>(
         `SELECT ${COLS} FROM outbound_conversion_events WHERE status = 'dead' AND finished_at >= $1 ORDER BY finished_at`,

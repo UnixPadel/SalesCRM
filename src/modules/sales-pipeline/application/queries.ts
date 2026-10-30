@@ -58,6 +58,20 @@ export interface OutboundStageEvent {
 export class LeadQueries {
   constructor(private readonly deps: UseCaseDeps) {}
 
+  /** Geriye doldurma (Faz 4): kaynaklardaki test olmayan lead'lerin geri alınmamış olayları, `since` sonrası. */
+  async stageEventsSince(
+    since: Date,
+    sources: readonly LeadSource[],
+  ): Promise<{ stageEventId: string; leadId: string; occurredAt: Date }[]> {
+    return this.deps.uow.run(async (repos) =>
+      (await repos.stageEvents.listSince(since, sources)).map((e) => ({
+        stageEventId: e.id,
+        leadId: e.leadId,
+        occurredAt: e.occurredAt,
+      })),
+    );
+  }
+
   /** Aşama olayı kimlikleri → dağıtım bağlamı; bulunamayan olay ya da lead atlanır. */
   async outboundContext(stageEventIds: readonly string[]): Promise<OutboundStageEvent[]> {
     if (!stageEventIds.length) return [];

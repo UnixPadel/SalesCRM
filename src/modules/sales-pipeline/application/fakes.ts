@@ -141,6 +141,12 @@ function reposFor(s: MemoryState): Repositories {
     async findByIds(ids) {
       return s.events.filter((e) => ids.includes(e.id)).map((e) => ({ ...e }));
     },
+    async listSince(since, sources) {
+      const leadOk = new Set(s.leads.filter((l) => !l.isTest && sources.includes(l.source)).map((l) => l.id));
+      return s.events
+        .filter((e) => leadOk.has(e.leadId) && !e.undoneAt && e.occurredAt >= since)
+        .map((e) => ({ ...e }));
+    },
     async nextSequence(leadId) {
       return s.events.filter((e) => e.leadId === leadId).reduce((m, e) => Math.max(m, e.sequence), 0) + 1;
     },

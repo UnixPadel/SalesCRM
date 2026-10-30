@@ -118,6 +118,45 @@ describe("outbound_conversion_events (PGlite)", () => {
     });
   });
 
+  it("enqueueMissing + stageEventsSince: eksik satırlar açılır, mevcut/test/geri alınmış dokunulmaz", async () => {
+    const a = unwrap(await newLead("555000001"));
+    unwrap(await app.pipeline.changeLeadStage.execute({ leadId: a.lead.id, target: "CONTACTED", actor: REP }));
+    unwrap(
+      await app.pipeline.createLead.execute({
+        source: "meta_form",
+        platformLeadId: "555000009",
+        fullName: "Test",
+        email: "t@example.com",
+        isTest: true,
+        actor: null,
+      }),
+    );
+    unwrap(
+      await app.pipeline.createLead.execute({ source: "manual", fullName: "Elle", email: "m@example.com", actor: REP }),
+    );
+    // Faz 2'de ENABLED_PROVIDERS boşmuş gibi: mevcut satırları sil, biri hariç.
+    const keep = (await db.query<{ id: string }>("SELECT id FROM outbound_conversion_events LIMIT 1"))[0]!.id;
+    await db.query("DELETE FROM outbound_conversion_events WHERE id <> $1", [keep]);
+    const since = new Date(Date.now() - 60 * MINUTE);
+    const events = await app.pipeline.queries.stageEventsSince(since, ["meta_form"]);
+    expect(events).toHaveLength(2); // a: NEW + CONTACTED; test lead'i ve manuel lead dışarıda
+    const n = await outbox.enqueueMissing(
+      events.map((e) => e.stageEventId),
+      "meta",
+      new Date(),
+    );
+    expect(n).toBe(1);
+    expect(await statuses()).toEqual({ pending: 2 });
+    expect(
+      await outbox.enqueueMissing(
+        events.map((e) => e.stageEventId),
+        "meta",
+        new Date(),
+      ),
+    ).toBe(0);
+    expect(await app.pipeline.queries.stageEventsSince(new Date(Date.now() + MINUTE), ["meta_form"])).toEqual([]);
+  });
+
   it("geri alma, kuyruk satırını skipped (undone) yapar; dağıtıcı onu almaz", async () => {
     const a = unwrap(await newLead("555000001"));
     unwrap(await app.pipeline.changeLeadStage.execute({ leadId: a.lead.id, target: "CONTACTED", actor: REP }));
