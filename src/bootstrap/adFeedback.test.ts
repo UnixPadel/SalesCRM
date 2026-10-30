@@ -52,7 +52,7 @@ afterAll(() => sp.close());
 
 describe("bootAdFeedback", () => {
   it("gönderici ve işler kuruldu; dağıtıcı yalnız token varsa", () => {
-    expect(ad.providers).toEqual({ meta: true });
+    expect(ad.providers).toEqual({ meta: true, google: false });
     expect(ad.scheduler.running()).toBe(false);
   });
 
