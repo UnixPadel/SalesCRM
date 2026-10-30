@@ -254,10 +254,12 @@ const app = express();
 app.disable("x-powered-by");
 
 /* ---- satış pipeline'ı ve gelen lead akışı (src/modules) ----
- * Webhook'lar oturumsuzdur ve imza için ham gövde ister: genel JSON ayrıştırıcıdan ÖNCE bağlanır. */
+ * Webhook'lar ve web formu ucu oturumsuzdur ve imza için ham gövde ister: genel JSON ayrıştırıcıdan
+ * ÖNCE bağlanır. İnternete yalnız /webhooks/* ve /forms/* açılır (ADR-0005). */
 const salesPipeline = await bootSalesPipeline({ users: userDirectory() });
 const leadIntake = bootLeadIntake(salesPipeline);
 app.use("/webhooks", leadIntake.webhooks);
+app.use("/forms", leadIntake.forms);
 
 app.use(express.json({ limit: "25mb" }));
 
