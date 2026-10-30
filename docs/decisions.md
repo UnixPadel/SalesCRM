@@ -40,6 +40,14 @@ Genel plan'daki sekiz karar. İlk ikisi verilmeden Faz 1'e başlanmaz. Durum: **
 | 19 | Meta olay adlarının onayı (seed `0006`: Yeni Lead, İletişim Kuruldu, Nitelikli Lead, Teklif Gönderildi, Kazanıldı, Kaybedildi; optimizasyon hedefi Nitelikli Lead) | MarcaDM + Satış | Bekliyor (varsayılanla kodlandı) | Değişiklik migration ya da Faz 6 ekranı ile; madde 5 ve 7 ile birlikte |
 | 20 | Dead-letter raporu alıcıları (`OUTBOX_REPORT_TO`) ve staging Test Olayları kodu (`META_TEST_EVENT_CODE`) | IT + MarcaDM | Bekliyor | Test kodu yalnız staging; canlıda boş |
 
+## Faz 5 ile açılan işler (yazılım dışı)
+
+| # | İş | Sahip | Durum | Not |
+|---|---|---|---|---|
+| 21 | Google Cloud projesi (Unixpadel hesabında), Data Manager API etkin, servis hesabı ve JSON anahtarı; servis hesabının Google Ads hesabına kullanıcı olarak eklenmesi | IT + MarcaDM | Bekliyor | `docs/runbooks/google-data-manager.md` bölüm 1; anahtar `GOOGLE_DM_SERVICE_ACCOUNT_KEY`; geliştirici token'ı gerekmez (ADR-0012) |
+| 22 | Google Ads müşteri kimliği (ve varsa yönetici hesabı) ile "Nitelikli Lead" ve "Kazanıldı" dönüşüm işlemi kimlikleri; işlemler "tıklamalardan içe aktar" tipinde, enhanced conversions for leads açık | MarcaDM | Bekliyor | seed `0008` kapalı yer tutucu; runbook bölüm 3 SQL'i ile açılır; `ENABLED_PROVIDERS=meta,google` |
+| 23 | Meta formu lead'lerinin Google'a e-posta eşleşmesiyle gönderilip gönderilmeyeceği (atıf kararı); teklif stratejisi ve hangi dönüşüme optimize edileceği | MarcaDM | Bekliyor | varsayılan göndermez (`GOOGLE_SEND_SOURCES=google_form,web_form`); optimizasyon kapsam dışı |
+
 ### Madde 18 — MarcaDM'e bildirim metni (taslak)
 
 > Konu: Meta Dönüşüm Lead'leri optimizasyonu — hacim durumu

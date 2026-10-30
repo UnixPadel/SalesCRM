@@ -94,6 +94,20 @@ bağımsızdır ve Faz 5'te Google için de kullanılır (`src/modules/ad-feedba
   `meta/outbound_enabled`. Geriye doldurma: `npx tsx scripts/outbox-backfill.ts --provider meta --dry-run`.
 - Kurulum ve işletme: `docs/runbooks/meta-capi.md`; kararlar ADR-0011.
 
+## Google geri bildirimi (Faz 5)
+
+"Nitelikli" ve "Kazanıldı" aşamaları Google Ads'e dönüşüm olarak gider; Faz 4'ün dağıtıcısı değişmeden kullanılır,
+Google yalnız bir gönderici ekler (`src/modules/ad-feedback/adapters/google-data-manager`, builder `builders/google`):
+
+- **Data Manager API** `POST /v1/events:ingest`; servis hesabı JWT → OAuth token (kütüphanesiz), yalnız Authorization
+  başlığında; hedef = Google Ads müşteri kimliği + dönüşüm işlemi (`platform_stage_mappings`, seed `0008` kapalı; kimlik
+  gelince açılır). Staging'de `GOOGLE_DM_VALIDATE_ONLY=1` ile doğrulama modu.
+- **Normalleştirme:** e-posta küçük harf, boşluksuz, gmail/googlemail'de nokta ve `+` sonrası silinir; telefon E.164 `+`
+  dahil; SHA-256 hex. Aynı telefon için Meta ve Google hash'leri farklıdır (test bunu doğrular).
+- **Pencere:** tıklama kimliğiyle 90 gün, yalnız e-posta/telefonla 63 gün (config'te); aşımı `skipped: expired`.
+  Meta formu lead'leri varsayılanda Google'a gitmez (`GOOGLE_SEND_SOURCES`).
+- Kurulum ve işletme: `docs/runbooks/google-data-manager.md`; belge doğrulaması ve kararlar ADR-0012.
+
 ## Geliştirme kuralları (Faz 0'dan itibaren)
 
 - Mimari kararlar `docs/adr/` altında; açık kararlar ve sahipleri `docs/decisions.md`.
