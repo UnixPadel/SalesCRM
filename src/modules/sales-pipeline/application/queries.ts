@@ -50,6 +50,11 @@ export interface OutboundStageEvent {
     phoneE164: string | null;
     isTest: boolean;
     country: string | null;
+    /**
+     * Lead'in CRM'e düştüğü an; tıklama zamanı bilinmiyorsa platform pencerelerinin tabanı. İsteğe bağlı:
+     * Faz 5'te eklendi, önceki adaptörlerin test bağlamları alanı taşımaz (Meta koduna dokunulmadı).
+     */
+    createdAt?: Date;
   };
   attribution: LeadAttribution | null;
   consents: LeadConsent[];
@@ -107,6 +112,7 @@ export class LeadQueries {
             phoneE164: lead.phoneE164,
             isTest: lead.isTest,
             country: lead.country,
+            createdAt: lead.createdAt,
           },
           attribution: attributions.get(lead.id) ?? null,
           consents: consents.get(lead.id) ?? [],
