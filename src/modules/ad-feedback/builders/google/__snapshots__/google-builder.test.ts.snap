@@ -1,0 +1,148 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildGoogleEvent / buildGoogleRequest (snapshot) > Kazanıldı: değer ve para birimi; yalnız telefon; gbraid 1`] = `
+{
+  "adIdentifiers": {
+    "gbraid": "gbraid-1",
+  },
+  "consent": {
+    "adPersonalization": "CONSENT_GRANTED",
+    "adUserData": "CONSENT_GRANTED",
+  },
+  "conversionValue": 185000,
+  "currency": "EUR",
+  "destinationReferences": [
+    "987654321",
+  ],
+  "eventSource": "WEB",
+  "eventTimestamp": "2026-03-01T13:00:00.000+03:00",
+  "transactionId": "evt-2",
+  "userData": {
+    "userIdentifiers": [
+      {
+        "phoneNumber": "57c4176feab36c8b2d9536954c377aee3fa760184cbdb9c3a431fbc707817386",
+      },
+    ],
+  },
+}
+`;
+
+exports[`buildGoogleEvent / buildGoogleRequest (snapshot) > Nitelikli: gclid + hash'li e-posta/telefon, Istanbul zamanı, onay verildi 1`] = `
+{
+  "adIdentifiers": {
+    "gclid": "Cj0KCQjw-test",
+  },
+  "consent": {
+    "adPersonalization": "CONSENT_GRANTED",
+    "adUserData": "CONSENT_GRANTED",
+  },
+  "destinationReferences": [
+    "123456789",
+  ],
+  "eventSource": "WEB",
+  "eventTimestamp": "2026-03-01T13:00:00.000+03:00",
+  "transactionId": "evt-1",
+  "userData": {
+    "userIdentifiers": [
+      {
+        "emailAddress": "df39f45dcfee7dd3de7f235d8562bd6559dc7eb96b91d8bed04330c1b45ebb9c",
+      },
+      {
+        "phoneNumber": "57c4176feab36c8b2d9536954c377aee3fa760184cbdb9c3a431fbc707817386",
+      },
+    ],
+  },
+}
+`;
+
+exports[`buildGoogleEvent / buildGoogleRequest (snapshot) > istek: dönüşüm işlemi başına hedef, müşteri kimliği tiresiz, loginAccount isteğe bağlı, validateOnly yalnız verilince 1`] = `
+{
+  "destinations": [
+    {
+      "loginAccount": {
+        "accountId": "9998887777",
+        "accountType": "GOOGLE_ADS",
+      },
+      "operatingAccount": {
+        "accountId": "1234567890",
+        "accountType": "GOOGLE_ADS",
+      },
+      "productDestinationId": "111",
+      "reference": "111",
+    },
+    {
+      "loginAccount": {
+        "accountId": "9998887777",
+        "accountType": "GOOGLE_ADS",
+      },
+      "operatingAccount": {
+        "accountId": "1234567890",
+        "accountType": "GOOGLE_ADS",
+      },
+      "productDestinationId": "222",
+      "reference": "222",
+    },
+  ],
+  "encoding": "HEX",
+  "events": [
+    {
+      "consent": {
+        "adPersonalization": "CONSENT_GRANTED",
+        "adUserData": "CONSENT_GRANTED",
+      },
+      "destinationReferences": [
+        "111",
+      ],
+      "eventSource": "WEB",
+      "eventTimestamp": "2026-03-01T10:00:00.000+00:00",
+      "transactionId": "a",
+      "userData": {
+        "userIdentifiers": [
+          {
+            "emailAddress": "80305c9bb1bb2480e03894350e0a8a366dcbdeb302e69e0817aa0743abd77054",
+          },
+        ],
+      },
+    },
+    {
+      "consent": {
+        "adPersonalization": "CONSENT_GRANTED",
+        "adUserData": "CONSENT_GRANTED",
+      },
+      "destinationReferences": [
+        "222",
+      ],
+      "eventSource": "WEB",
+      "eventTimestamp": "2026-03-01T10:00:00.000+00:00",
+      "transactionId": "b",
+      "userData": {
+        "userIdentifiers": [
+          {
+            "emailAddress": "80305c9bb1bb2480e03894350e0a8a366dcbdeb302e69e0817aa0743abd77054",
+          },
+        ],
+      },
+    },
+    {
+      "consent": {
+        "adPersonalization": "CONSENT_GRANTED",
+        "adUserData": "CONSENT_GRANTED",
+      },
+      "destinationReferences": [
+        "111",
+      ],
+      "eventSource": "WEB",
+      "eventTimestamp": "2026-03-01T10:00:00.000+00:00",
+      "transactionId": "c",
+      "userData": {
+        "userIdentifiers": [
+          {
+            "emailAddress": "80305c9bb1bb2480e03894350e0a8a366dcbdeb302e69e0817aa0743abd77054",
+          },
+        ],
+      },
+    },
+  ],
+  "validateOnly": true,
+}
+`;
