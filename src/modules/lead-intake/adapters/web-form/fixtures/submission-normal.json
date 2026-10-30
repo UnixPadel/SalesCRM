@@ -1,0 +1,36 @@
+{
+  "submission_id": "7f3a9c2e-4b1d-4e8a-9c6f-0a1b2c3d4e5f",
+  "form_id": "contact",
+  "submitted_at": "2026-03-01T09:58:30Z",
+  "page_url": "https://www.example.com/iletisim?gclid=Cj0KCQjw-web-gclid&fbclid=IwAR-web-fbclid",
+  "fields": {
+    "name": "Ayşe Demir",
+    "email": "ayse.demir@example.com",
+    "phone": "+90 532 123 45 67",
+    "country": "Türkiye",
+    "city": "İzmir",
+    "company": "Demir Spor",
+    "product_interest": "Panoramik kort",
+    "message": "2 kort için teklif istiyoruz.",
+    "page_language": "tr"
+  },
+  "attribution": {
+    "gclid": "Cj0KCQjw-web-gclid",
+    "fbclid": "IwAR-web-fbclid",
+    "fbc": "fb.1.1709280000000.IwAR-web-fbclid",
+    "fbp": "fb.1.1709270000000.1234567890",
+    "utm_source": "google",
+    "utm_medium": "cpc",
+    "utm_campaign": "padel-tr-2026",
+    "utm_term": "padel kort",
+    "utm_content": "ad-a",
+    "landing_url": "https://www.example.com/?gclid=Cj0KCQjw-web-gclid&utm_source=google",
+    "click_at": "2026-03-01T09:40:00Z"
+  },
+  "consents": [
+    { "type": "kvkk", "granted": true, "text_version": "2026-01", "granted_at": "2026-03-01T09:58:30Z" },
+    { "type": "marketing", "granted": "on", "text_version": "2026-01" }
+  ],
+  "honeypot": "",
+  "is_test": false
+}

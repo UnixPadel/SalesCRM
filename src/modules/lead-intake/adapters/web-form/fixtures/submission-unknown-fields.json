@@ -1,0 +1,21 @@
+{
+  "submission_id": "7f3a9c2e-0003-4e8a-9c6f-0a1b2c3d4e5f",
+  "form_id": "quote",
+  "page_url": "https://www.example.com/de/angebot",
+  "fields": {
+    "name": "Hans Müller",
+    "email": "hans@mueller.de",
+    "country": "Germany",
+    "court_count": "3",
+    "roof": ["panoramic", "covered"],
+    "address": { "street": "Hauptstr. 1", "zip": "10115" },
+    "honeypot": "should-not-leak-into-fields"
+  },
+  "attribution": {
+    "fbclid": "IwAR-de-fbclid",
+    "utm_source": "facebook",
+    "utm_medium": "paid_social",
+    "click_at": "not-a-date"
+  },
+  "consents": "not-an-array"
+}
