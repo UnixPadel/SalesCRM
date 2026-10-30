@@ -118,6 +118,52 @@ export const EMPTY_ATTRIBUTION: LeadAttribution = {
 export const hasAttribution = (a: Partial<LeadAttribution>): boolean =>
   Object.values(a).some((v) => v !== null && v !== undefined && v !== "");
 
+/**
+ * KVKK / iletişim onayı (lead_consents). `type` kısıtlı bir koddur (ör. "kvkk", "marketing");
+ * `textVersion` onay anındaki aydınlatma metninin sürümüdür; metnin kendisi saklanmaz.
+ */
+export interface LeadConsent {
+  id: string;
+  leadId: string;
+  type: string;
+  granted: boolean;
+  textVersion: string;
+  grantedAt: Date;
+}
+
+export interface ConsentInput {
+  type: string;
+  granted: boolean;
+  textVersion?: string | null;
+  /** Onayın formda verildiği an; yoksa lead'in oluşturulma anı. */
+  grantedAt?: Date | null;
+}
+
+const CONSENT_TYPE_RE = /^[a-z][a-z0-9_]{0,63}$/;
+
+/** Onay girdilerini doğrular; tipi geçersiz olan ilk kayıt için RuleError döner. */
+export function parseConsents(inputs: readonly ConsentInput[]): Result<ConsentInput[], RuleError> {
+  const out: ConsentInput[] = [];
+  for (const c of inputs) {
+    const type = String(c.type ?? "").trim();
+    if (!CONSENT_TYPE_RE.test(type)) {
+      return err(new RuleError("consent.type_invalid", "Onay türü geçersiz.", { type: c.type }));
+    }
+    if (typeof c.granted !== "boolean") {
+      return err(new RuleError("consent.granted_invalid", "Onay değeri true/false olmalı.", { type }));
+    }
+    out.push({
+      type,
+      granted: c.granted,
+      textVersion: String(c.textVersion ?? "")
+        .trim()
+        .slice(0, 64),
+      grantedAt: c.grantedAt ?? null,
+    });
+  }
+  return ok(out);
+}
+
 export const EMPTY_CAMPAIGN: CampaignInfo = {
   campaignId: null,
   campaignName: null,

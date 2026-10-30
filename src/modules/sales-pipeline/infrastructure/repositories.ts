@@ -16,10 +16,12 @@ import type {
 } from "../domain";
 import {
   attributionFromRow,
+  consentFromRow,
   leadFromRow,
   personFromRow,
   stageEventFromRow,
   type AttributionRow,
+  type ConsentRow,
   type LeadRow,
   type PersonRow,
   type StageEventRow,
@@ -140,8 +142,30 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
       ]);
       return r && attributionFromRow(r);
     },
+    async saveConsents(rows) {
+      for (const c of rows) {
+        await q.query(`INSERT INTO lead_consents (${CONSENT_COLS}) VALUES ($1,$2,$3,$4,$5,$6)`, [
+          c.id,
+          c.leadId,
+          c.type,
+          c.granted,
+          c.textVersion,
+          c.grantedAt,
+        ]);
+      }
+    },
+    async findConsents(leadId) {
+      return (
+        await q.query<ConsentRow>(
+          `SELECT ${CONSENT_COLS} FROM lead_consents WHERE lead_id = $1 ORDER BY granted_at, consent_type`,
+          [leadId],
+        )
+      ).map(consentFromRow);
+    },
   };
 }
+
+const CONSENT_COLS = "id, lead_id, consent_type, granted, text_version, granted_at";
 
 const ATTR_COLS =
   "lead_id, gclid, gbraid, wbraid, fbclid, fbc, fbp, utm_source, utm_medium, utm_campaign, utm_term, utm_content, landing_url, click_at";

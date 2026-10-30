@@ -4,6 +4,7 @@ import {
   planUndo,
   type Lead,
   type LeadAttribution,
+  type LeadConsent,
   type StageCode,
   type StageEvent,
 } from "../domain";
@@ -47,6 +48,11 @@ export class LeadQueries {
   /** Tıklama kimlikleri; yoksa undefined. Yalnız iç kullanım ve testler (erişim denetimi `get` ile). */
   async attribution(leadId: string): Promise<LeadAttribution | undefined> {
     return this.deps.uow.run((repos) => repos.leads.findAttribution(leadId));
+  }
+
+  /** Onay kayıtları; iç kullanım ve testler. */
+  async consents(leadId: string): Promise<LeadConsent[]> {
+    return this.deps.uow.run((repos) => repos.leads.findConsents(leadId));
   }
 
   async get(leadId: string, actor: Actor): Promise<Result<LeadDetail, RuleError>> {

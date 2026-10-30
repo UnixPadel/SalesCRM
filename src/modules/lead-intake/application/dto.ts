@@ -2,7 +2,7 @@
  * InboundLeadDto: her kaynak adaptörünün ürettiği ortak biçim. Faz 1'in CreateLead arayüzüne
  * birebir çevrilir (createLeadFromAd). Platforma özel hiçbir şey taşımaz; platform kimliği metindir.
  */
-export type InboundSource = "meta_form" | "google_form";
+export type InboundSource = "meta_form" | "google_form" | "web_form";
 
 export interface InboundCampaign {
   campaignId?: string | null;
@@ -18,7 +18,23 @@ export interface InboundAttribution {
   gbraid?: string | null;
   wbraid?: string | null;
   fbclid?: string | null;
+  fbc?: string | null;
+  fbp?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  utmTerm?: string | null;
+  utmContent?: string | null;
+  landingUrl?: string | null;
   clickAt?: Date | null;
+}
+
+/** Onay kutusu (Faz 3: web formu); sales-pipeline'ın ConsentInput'una birebir çevrilir. */
+export interface InboundConsent {
+  type: string;
+  granted: boolean;
+  textVersion?: string | null;
+  grantedAt?: Date | null;
 }
 
 export interface InboundLeadDto {
@@ -38,6 +54,8 @@ export interface InboundLeadDto {
   notes: string;
   campaign: InboundCampaign;
   attribution: InboundAttribution;
+  /** Onaylar; reklam platformu formlarında boş. */
+  consents: InboundConsent[];
   isTest: boolean;
   /** Eşlenmeyen / "ek yanıt" alanları. */
   extraAnswers: Record<string, unknown>;

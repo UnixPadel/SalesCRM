@@ -1,4 +1,13 @@
-import type { Lead, LeadAttribution, LeadSource, Person, StageCode, StageEvent, StageEventOrigin } from "../domain";
+import type {
+  Lead,
+  LeadAttribution,
+  LeadConsent,
+  LeadSource,
+  Person,
+  StageCode,
+  StageEvent,
+  StageEventOrigin,
+} from "../domain";
 
 /** Satır ↔ domain nesnesi çevirisi. Sütun adları db/migrations/0001 ile birebir. */
 
@@ -95,6 +104,24 @@ export const attributionFromRow = (r: AttributionRow): LeadAttribution => ({
   utmContent: r.utm_content,
   landingUrl: r.landing_url,
   clickAt: r.click_at === null ? null : date(r.click_at),
+});
+
+export interface ConsentRow extends Record<string, unknown> {
+  id: string;
+  lead_id: string;
+  consent_type: string;
+  granted: boolean;
+  text_version: string;
+  granted_at: Date | string;
+}
+
+export const consentFromRow = (r: ConsentRow): LeadConsent => ({
+  id: r.id,
+  leadId: r.lead_id,
+  type: r.consent_type,
+  granted: r.granted,
+  textVersion: r.text_version,
+  grantedAt: date(r.granted_at),
 });
 
 export interface PersonRow extends Record<string, unknown> {

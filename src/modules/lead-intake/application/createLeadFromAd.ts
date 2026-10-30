@@ -34,6 +34,7 @@ export class CreateLeadFromAd {
       notes: dto.notes,
       campaign: dto.campaign,
       attribution: dto.attribution,
+      consents: dto.consents,
       isTest: dto.isTest,
       extraAnswers: dto.extraAnswers,
       actor: null,

@@ -115,6 +115,32 @@ describe("CreateLead", () => {
     unwrap(await manual({ isTest: true }));
     expect(h.uow.state.outbox).toHaveLength(0);
   });
+
+  it("onaylar: lead ile birlikte lead_consents'e yazılır; zaman verilmezse oluşturulma anı", async () => {
+    const at = new Date("2026-02-28T09:00:00Z");
+    const r = unwrap(
+      await manual({
+        consents: [
+          { type: "kvkk", granted: true, textVersion: "2026-01", grantedAt: at },
+          { type: "marketing", granted: false },
+        ],
+      }),
+    );
+    const rows = await sp.queries.consents(r.lead.id);
+    expect(rows.map((c) => [c.type, c.granted, c.textVersion, c.grantedAt.toISOString()])).toEqual([
+      ["kvkk", true, "2026-01", at.toISOString()],
+      ["marketing", false, "", h.clock.now().toISOString()],
+    ]);
+    const none = unwrap(await manual({ email: "c@a.com", phone: "", consents: [] })).lead;
+    expect(await sp.queries.consents(none.id)).toEqual([]);
+  });
+
+  it("onay türü geçersizse lead açılmaz (consent.type_invalid)", async () => {
+    const r = await manual({ consents: [{ type: "KVKK onayı", granted: true }] });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.code).toBe("consent.type_invalid");
+    expect(h.uow.state.leads).toHaveLength(0);
+  });
 });
 
 describe("ChangeLeadStage", () => {

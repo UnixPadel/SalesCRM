@@ -122,6 +122,7 @@ export const sampleDto = (over: Partial<InboundLeadDto> = {}): InboundLeadDto =>
   notes: "",
   campaign: { campaignId: "c1" },
   attribution: {},
+  consents: [],
   isTest: false,
   extraAnswers: {},
   submittedAt: new Date("2026-03-01T09:59:00Z"),

@@ -103,6 +103,30 @@ describe("Postgres repository'leri + transaction", () => {
     expect(await count("leads")).toBe(3);
   });
 
+  it("onaylar ve tıklama kimlikleri lead ile aynı transaction'da yazılır ve geri okunur", async () => {
+    const at = new Date("2026-02-28T09:00:00Z");
+    const r = unwrap(
+      await manual({
+        source: "web_form",
+        platformLeadId: "sub-1",
+        actor: null,
+        attribution: { gclid: "G1", fbclid: "F1", fbc: "fb.1.1.F1", utmSource: "google", landingUrl: "https://x/y" },
+        consents: [
+          { type: "kvkk", granted: true, textVersion: "2026-01", grantedAt: at },
+          { type: "marketing", granted: false },
+        ],
+      }),
+    );
+    expect(await count("lead_consents")).toBe(2);
+    expect(await count("lead_attribution")).toBe(1);
+    expect(await sp.queries.attribution(r.lead.id)).toMatchObject({ gclid: "G1", fbclid: "F1", fbc: "fb.1.1.F1" });
+    const consents = await sp.queries.consents(r.lead.id);
+    expect(consents.map((c) => [c.type, c.granted, c.textVersion, c.grantedAt.toISOString()])).toEqual([
+      ["kvkk", true, "2026-01", at.toISOString()],
+      ["marketing", false, "", clock.now().toISOString()],
+    ]);
+  });
+
   it("aşama değişikliği: olaylar, outbox ve current_stage tek transaction'da; dağıtım 10 dk sonra", async () => {
     const lead = unwrap(await manual()).lead;
     clock.advance(3 * MINUTE);

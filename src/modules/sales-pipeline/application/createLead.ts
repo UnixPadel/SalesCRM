@@ -5,11 +5,14 @@ import {
   EMPTY_CAMPAIGN,
   PlatformLeadId,
   hasAttribution,
+  parseConsents,
   resolveAssignee,
   type CampaignInfo,
+  type ConsentInput,
   type DomainEvent,
   type Lead,
   type LeadAttribution,
+  type LeadConsent,
   type LeadSource,
   type Person,
   type Repositories,
@@ -33,6 +36,8 @@ export interface CreateLeadInput {
   campaign?: Partial<CampaignInfo>;
   /** Tıklama kimlikleri (Faz 2: reklam platformlarından). Hepsi boşsa satır yazılmaz. */
   attribution?: Partial<LeadAttribution>;
+  /** Onay kutuları (Faz 3: web formu). Boşsa satır yazılmaz. */
+  consents?: ConsentInput[];
   isTest?: boolean;
   extraAnswers?: Record<string, unknown>;
   /** Açıkça verilirse ülke kuralı atlanır (admin elle atar). */
@@ -95,6 +100,9 @@ export class CreateLead {
         }),
       );
     }
+    const consentsR = parseConsents(input.consents ?? []);
+    if (!consentsR.ok) return consentsR;
+    const consentInputs = consentsR.value;
 
     const { clock, ids, platforms, uow } = this.deps;
     const outcome = await uow.run(async (repos): Promise<CreateLeadResult & { domainEvents: DomainEvent[] }> => {
@@ -139,6 +147,17 @@ export class CreateLead {
       await repos.leads.insert(lead);
       if (input.attribution && hasAttribution(input.attribution)) {
         await repos.leads.saveAttribution(lead.id, { ...EMPTY_ATTRIBUTION, ...input.attribution });
+      }
+      if (consentInputs.length) {
+        const rows: LeadConsent[] = consentInputs.map((c) => ({
+          id: ids.next(),
+          leadId: lead.id,
+          type: c.type,
+          granted: c.granted,
+          textVersion: c.textVersion ?? "",
+          grantedAt: c.grantedAt ?? now,
+        }));
+        await repos.leads.saveConsents(rows);
       }
 
       const event: StageEvent = {

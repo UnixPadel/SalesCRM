@@ -3,7 +3,7 @@
  */
 import type { MappedFields } from "../../integration-settings/application";
 import { countryCodeFrom, resolveCountry } from "./country";
-import type { InboundAttribution, InboundCampaign, InboundLeadDto, InboundSource } from "./dto";
+import type { InboundAttribution, InboundCampaign, InboundConsent, InboundLeadDto, InboundSource } from "./dto";
 
 export interface BuildLeadInput {
   source: InboundSource;
@@ -13,6 +13,7 @@ export interface BuildLeadInput {
   mapped: MappedFields;
   campaign?: InboundCampaign;
   attribution?: InboundAttribution;
+  consents?: InboundConsent[];
   isTest: boolean;
   submittedAt: Date | null;
   defaultCountry: string;
@@ -42,6 +43,7 @@ export function buildInboundLead(input: BuildLeadInput): InboundLeadDto {
     notes: m.notes,
     campaign: input.campaign ?? {},
     attribution: input.attribution ?? {},
+    consents: input.consents ?? [],
     isTest: input.isTest,
     extraAnswers,
     submittedAt: input.submittedAt,
