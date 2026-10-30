@@ -13,14 +13,14 @@ için depoda referans aktarıcı (`integrations/web-form-relay`).
 
 | Görev | Commit | Durum |
 |---|---|---|
-| `/forms/web` ucu: HMAC imza doğrulama, IP başına hız sınırı | `lead-intake api:` 7dd6c1d, `server:` abbf86a | Tamam — `lead-intake/api/forms.ts`; 120/dk, 256 KB, 401/400/413/429/503 |
-| Web formu adaptörü: form alanları → `InboundLeadDto` | `lead-intake:` 676220f, `db:` 62fb950 | Tamam — `adapters/web-form/adapter.ts`; `form_field_mappings` sağlayıcı `web` (seed `0005`, 14 satır); eşlenmeyen alan ek yanıt |
-| Tıklama kimlikleri ve UTM → `lead_attribution` | `sales-pipeline:` 4365759, `lead-intake:` 676220f | Tamam — gclid, gbraid, wbraid, fbclid, fbc, fbp, utm_*, landing_url, click_at; DTO genişletildi |
-| Onay kutuları → `lead_consents`, aydınlatma metni sürümüyle | `sales-pipeline:` 4365759 | Tamam — `ConsentInput`, `parseConsents`, `saveConsents` (bellek içi + Postgres), lead ile aynı transaction |
-| Site: form gizli alanlarla doldurulur, sunucudan gönderilir, anahtar tarayıcıya inmez | `integrations:` e7b12ce | Tamam (referans uygulama) — `relay.mjs`/`server.mjs`/`lib.mjs`; çerez okuma (`_gcl_aw`, `_fbc`, `_fbp`, UTM); gerçek siteye konuşlandırma **yazılım dışı** (`docs/decisions.md` madde 13) |
-| Site: honeypot alanı | aynı + `api:` 7dd6c1d | Tamam — aktarıcı `website` alanını eler; CRM `honeypot` doluysa 200 `ignored`, lead yok |
-| Site: CRM'e ulaşılamazsa geçici kuyruk ve yeniden deneme | `integrations:` e7b12ce | Tamam — önce diske (`queue/`), `RELAY_RETRY_SECONDS` ile yeniden deneme; 400/401/413 `failed/` |
-| Runbook, ADR, açık işler | `docs:` c6e2531 | Tamam — `docs/runbooks/web-form.md`, ADR-0010, `docs/decisions.md` madde 13–16, README |
+| `/forms/web` ucu: HMAC imza doğrulama, IP başına hız sınırı | `lead-intake api:` d19eb6e, `server:` 6b12872 | Tamam — `lead-intake/api/forms.ts`; 120/dk, 256 KB, 401/400/413/429/503 |
+| Web formu adaptörü: form alanları → `InboundLeadDto` | `lead-intake:` bf9fc65, `db:` 1e1bced | Tamam — `adapters/web-form/adapter.ts`; `form_field_mappings` sağlayıcı `web` (seed `0005`, 14 satır); eşlenmeyen alan ek yanıt |
+| Tıklama kimlikleri ve UTM → `lead_attribution` | `sales-pipeline:` 72222d1, `lead-intake:` bf9fc65 | Tamam — gclid, gbraid, wbraid, fbclid, fbc, fbp, utm_*, landing_url, click_at; DTO genişletildi |
+| Onay kutuları → `lead_consents`, aydınlatma metni sürümüyle | `sales-pipeline:` 72222d1 | Tamam — `ConsentInput`, `parseConsents`, `saveConsents` (bellek içi + Postgres), lead ile aynı transaction |
+| Site: form gizli alanlarla doldurulur, sunucudan gönderilir, anahtar tarayıcıya inmez | `integrations:` fa5e969 | Tamam (referans uygulama) — `relay.mjs`/`server.mjs`/`lib.mjs`; çerez okuma (`_gcl_aw`, `_fbc`, `_fbp`, UTM); gerçek siteye konuşlandırma **yazılım dışı** (`docs/decisions.md` madde 13) |
+| Site: honeypot alanı | aynı + `api:` d19eb6e | Tamam — aktarıcı `website` alanını eler; CRM `honeypot` doluysa 200 `ignored`, lead yok |
+| Site: CRM'e ulaşılamazsa geçici kuyruk ve yeniden deneme | `integrations:` fa5e969 | Tamam — önce diske (`queue/`), `RELAY_RETRY_SECONDS` ile yeniden deneme; 400/401/413 `failed/` |
+| Runbook, ADR, açık işler | `docs:` 7c73cb3 | Tamam — `docs/runbooks/web-form.md`, ADR-0010, `docs/decisions.md` madde 13–16, README |
 
 ## Test planı
 
