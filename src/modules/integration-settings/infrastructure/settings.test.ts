@@ -46,9 +46,13 @@ describe("integration-settings (PGlite, seed)", () => {
       "UPDATE platform_stage_mappings SET enabled = false WHERE provider = 'meta' AND stage_code = 'LOST'",
     );
     expect((await svc.stageMappingsFor("meta")).get("LOST")?.enabled).toBe(false);
-    expect((await svc.stageMappingsFor("google")).size).toBe(0);
+    // Seed 0008 (Faz 5): Google satırları kapalı yer tutucu; kimlik gelince açılır.
+    const google = await svc.stageMappingsFor("google");
+    expect([...google.keys()].sort()).toEqual(["QUALIFIED", "WON"]);
+    expect([...google.values()].every((m) => !m.enabled)).toBe(true);
     expect(await svc.outboundEnabled("meta")).toBe(true);
-    expect(await svc.outboundEnabled("google")).toBe(false);
+    expect(await svc.outboundEnabled("google")).toBe(true);
+    expect(await svc.outboundEnabled("yok")).toBe(false);
     await svc.set("meta", "outbound_enabled", "false");
     expect(await svc.outboundEnabled("meta")).toBe(false);
     await svc.set("meta", "outbound_enabled", "true");
