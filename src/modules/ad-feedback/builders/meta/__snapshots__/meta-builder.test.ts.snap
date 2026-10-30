@@ -1,0 +1,65 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildMetaEvent (snapshot) > Meta formu lead'i, NEW: system_generated, lead_id, em+ph hash, custom_data zorunlu alanlar 1`] = `
+{
+  "action_source": "system_generated",
+  "custom_data": {
+    "event_source": "crm",
+    "lead_event_source": "Unixpadel CRM",
+  },
+  "event_id": "evt-1",
+  "event_name": "Yeni Lead",
+  "event_time": 1772359200,
+  "user_data": {
+    "em": [
+      "9b00b0b820caf9556ca074ae455f87d32be94b9543993df0b71176d755f720f7",
+    ],
+    "lead_id": "1234567890123456",
+    "ph": [
+      "7e3308159fc7cca243cef8a01acc25f18cd62d0d1ad92a6d38c3107d9aa3d8cc",
+    ],
+  },
+}
+`;
+
+exports[`buildMetaEvent (snapshot) > WON: value ve currency (büyük harf) custom_data'da 1`] = `
+{
+  "action_source": "system_generated",
+  "custom_data": {
+    "currency": "EUR",
+    "event_source": "crm",
+    "lead_event_source": "Unixpadel CRM",
+    "value": 185000,
+  },
+  "event_name": "Kazanıldı",
+  "event_time": 1772359200,
+  "user_data": {
+    "lead_id": "1234567890123456",
+    "ph": [
+      "7e3308159fc7cca243cef8a01acc25f18cd62d0d1ad92a6d38c3107d9aa3d8cc",
+    ],
+  },
+}
+`;
+
+exports[`buildMetaEvent (snapshot) > web formu lead'i: website, lead_id yok, fbc/fbp ve event_source_url 1`] = `
+{
+  "action_source": "website",
+  "custom_data": {
+    "event_source": "crm",
+    "lead_event_source": "Unixpadel CRM",
+  },
+  "event_name": "Nitelikli Lead",
+  "event_source_url": "https://www.example.com/iletisim",
+  "event_time": 1772359200,
+  "user_data": {
+    "em": [
+      "5e208da0e1ea3ca36ac3adc159681fb3502f40d7e19d982645561639abd91632",
+    ],
+    "fbc": "fb.1.1709280000000.IwAR-x",
+    "fbp": "fb.1.1709270000000.1234567890",
+  },
+}
+`;
+
+exports[`serializeMetaBatch: 64-bit lead_id sayı olarak, hassasiyet kaybı yok > snapshot: iki olaylık gövde 1`] = `"{"data":[{"event_name":"Yeni Lead","event_time":1772359200,"action_source":"system_generated","user_data":{"lead_id":18446744073709551615,"em":["80305c9bb1bb2480e03894350e0a8a366dcbdeb302e69e0817aa0743abd77054"]},"custom_data":{"event_source":"crm","lead_event_source":"Unixpadel CRM"}},{"event_name":"Yeni Lead","event_time":1772359200,"action_source":"website","user_data":{"em":["80305c9bb1bb2480e03894350e0a8a366dcbdeb302e69e0817aa0743abd77054"],"fbp":"fb.1.2.3"},"custom_data":{"event_source":"crm","lead_event_source":"Unixpadel CRM"}}],"test_event_code":"TEST123"}"`;
