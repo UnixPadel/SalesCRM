@@ -61,6 +61,12 @@ Genel plan'daki sekiz karar. İlk ikisi verilmeden Faz 1'e başlanmaz. Durum: **
 > MarcaDM'den beklenen: veri seti kimliği ve sistem kullanıcısı token'ının güvenli kanaldan iletilmesi, olay adlarının
 > onayı (madde 19) ve kendi lead sayımınızla bu rakamın doğrulanması (madde 2).
 
+## Faz 6b ile açılan işler
+
+| # | İş | Sahip | Durum | Not |
+|---|---|---|---|---|
+| 24 | Pano toplamları için EUR kurları (`EUR_RATES`, JSON) canlı ortamda tanımlanır ve kur belirgin değişince güncellenir; Faz 7 yönetim panelinde ekrandan düzenlenecek | IT + Satış | Bekliyor | Boşsa varsayılan USD 0,92 · GBP 1,17 · TRY 0,027 (eski panodaki sabit tablo); kuru bilinmeyen para birimi toplama girmez, kolon başlığında `*` ile sayılır |
+
 ## 1 — Hesap sahipliği kontrol listesi
 
 - [ ] Unixpadel Business Manager'da "Business" tipi Meta uygulaması; MarcaDM'e yalnız rol bazlı erişim

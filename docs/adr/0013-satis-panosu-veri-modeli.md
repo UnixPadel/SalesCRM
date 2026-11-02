@@ -27,7 +27,9 @@ getirmek; Lead → CRM entegrasyonunu bozmadan. Kararlar `docs/yol-haritasi.md` 
 4. **`organizations` tablosu** (Faz 6d): kulüp / yatırımcı / distribütör / müteahhit; `persons.organization_id`
    ve `leads.organization_id`. Mevcut `company` metni geçiş süresince kalır, kuruluş eşleşince doldurulur.
 5. **Fırsat alanları lead'de** (Faz 6b): `court_count`, `court_model`, `expected_close_date`; tutar aşama
-   olayında kalır (Teklif ve Kazanıldı), ayrı sütun açılmaz.
+   olayında kalır (Teklif ve Kazanıldı), ayrı sütun açılmaz. Kolon toplamı için kurlar **uygulama ayarıdır**
+   (`UseCaseDeps.eurRates`, `EUR_RATES` ortam değişkeni; varsayılan USD 0,92 · GBP 1,17 · TRY 0,027), Faz 7'de
+   ekrandan düzenlenir. `organization_id` bu fazda değil, 6d'de `organizations` tablosuyla birlikte gelir (ek, 2026-11-02).
 6. **Saat dilimi** uygulama ayarıdır (`UseCaseDeps.timeZone`, varsayılan Europe/Istanbul): "bugün" ve "09:00"
    satış ekibinin takvimine göredir, sunucununkine değil.
 7. Eski sayfalar ve `/api/db/*` yeni sayfalar yerine geçince kaldırılır (6d); eski aktiviteler ve kuruluşlar
@@ -50,4 +52,7 @@ getirmek; Lead → CRM entegrasyonunu bozmadan. Kararlar `docs/yol-haritasi.md` 
   `LeadListDto` özet alanları, `LeadDetailDto.activities`, aşama yanıtında `followUp`.
 - Arayüz: "Bugün" yeni veriyle; Kanban kartında sonraki aktivite ya da "Takipsiz"; lead detayında aktivite paneli.
 - Eski `src/pages/ActivitiesPage.tsx` kaldırıldı; `Header` rozeti yeni uçtan.
-- 6b–6d bu ADR'nin 4–5 ve 7. maddelerini uygular.
+- **6b (2026-11-02):** migration `0010_faz6b_lead_fields.sql`; `domain/opportunity.ts` (`parseLeadFields`, `stageSummary`,
+  `columnStats`, `parseEurRates`); `UpdateLeadFields`, `LeadQueries.board`; `GET /board`, `PATCH /leads/:id`,
+  `reference.eurRates`; pano filtreleri URL'de ve hatırlanır. Rapor: `docs/faz6b-kabul-raporu.md`.
+- 6c–6d bu ADR'nin 4 ve 7. maddelerini uygular.

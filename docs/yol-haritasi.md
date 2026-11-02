@@ -46,15 +46,15 @@ Deals" akışıyla aynı mantık, kopyasız.
 
 | Alan | Eski uygulama (JSON) | Bugün (Postgres, 6 aşama) | Eksik |
 |---|---|---|---|
-| Gelen kutusu, lead detayı, Kanban | — / 5 kolon | ✔ Faz 1 | Kartta tutar, kort sayısı, sonraki aktivite yok |
+| Gelen kutusu, lead detayı, Kanban | — / 5 kolon | ✔ Faz 1; kartta tutar, kort sayısı, kapanış, sonraki aktivite (6a–6b) | — |
 | Aşama kuralları | Kırmızı hat neden, proforma takibi | İleri yönlü, 10 dk geri al, Nitelikli 3 soru, Kaybedildi neden kodu, Kazanıldı tutar, Teklif tutarı (2026-11-02) | Teklif → otomatik takip aktivitesi |
 | Aktiviteler ("Bugün") | ✔ arama/e-posta/toplantı/proforma/saha, gecikmiş/bugün/yaklaşan | Eski JSON ile çalışıyor, yeni lead'lere bağlı değil | Yeni modelde aktivite yok |
 | Takipsiz (rotting) rozeti | ✔ | — | Yok |
-| Kolon istatistikleri | adet, toplam EUR, ort. gün | adet | Toplam tutar, ortalama bekleme |
-| Filtreler | ülke, sorumlu, takipsiz | — | Yok |
+| Kolon istatistikleri | adet, toplam EUR, ort. gün | ✔ 6b (`GET /board`, kurlar `EUR_RATES`) | Kurların ekrandan düzenlenmesi (Faz 7) |
+| Filtreler | ülke, sorumlu, takipsiz | ✔ 6b, URL'de ve hatırlanır | — |
 | Kişiler | ✔ eski kişi/kuruluş listesi | Eski JSON | Yeni `persons` tablosundan liste yok |
 | Raporlar | aylık satış, kolona göre dönüşüm, ülkeye göre hat, kayıp nedenleri | Eski JSON | Yeni aşama olaylarından rapor yok |
-| Fırsat alanları | tutar, para birimi, kort sayısı, kort modeli, tahmini kapanış | tutar (Teklif/Kazanıldı olayında) | kort sayısı, kort modeli, tahmini kapanış, kuruluş |
+| Fırsat alanları | tutar, para birimi, kort sayısı, kort modeli, tahmini kapanış | tutar (Teklif/Kazanıldı olayında); kort sayısı, kort modeli, beklenen kapanış (6b) | kuruluş (6d) |
 | Reklam platformlarına geri bildirim | — | ✔ Faz 4–5 | Gerçek platform testi bekliyor |
 
 Eski sayfalar (`src/pages/*`, `/api/db/*`, `server/data/crm.json`) yeni sayfalar yerine geçince kaldırılır.
@@ -92,10 +92,10 @@ erDiagram
     text source
     text current_stage "NEW..LOST"
     text assigned_user_id
-    uuid organization_id "yeni"
-    int court_count "yeni"
-    text court_model "yeni"
-    date expected_close_date "yeni"
+    uuid organization_id "6d, organizations ile"
+    int court_count "6b"
+    text court_model "6b"
+    date expected_close_date "6b"
     timestamptz created_at "platformdaki gönderim anı"
   }
   activities {
@@ -110,8 +110,9 @@ erDiagram
   }
 ```
 
-Yeni tablolar ve sütunlar tek migration'la gelir (`0009_faz6_sales_board.sql`); mevcut tablolar bozulmaz. Eski 28
-aktivite `npm run db:migrate-legacy` betiğine eklenerek taşınır (betik bugün fırsatları taşıyor, aktiviteleri değil).
+Her parça kendi migration'ıyla gelir (`0009_faz6a_activities.sql`, `0010_faz6b_lead_fields.sql`, 6d: `organizations`
+ve `organization_id`); mevcut tablolar bozulmaz. Eski 28 aktivite ve 15 kuruluş 6d'de `npm run db:migrate-legacy`
+betiğine eklenerek taşınır (betik bugün fırsatları ve 6b alanlarını taşıyor).
 
 ## 4. Davranış kuralları (Pipedrive benzeri)
 
@@ -189,15 +190,16 @@ gantt
 | Faz | Kapsam | Bitti tanımı (Genel plan'a ek) |
 |---|---|---|
 | **6a** | `activities` tablosu, `AddActivity` / `CompleteActivity` komutları, PROPOSAL'da otomatik takip (geri al ile silinir), takipsiz kuralı saf ve testli, "Bugün" sayfası yeni veriyle, karttaki sonraki aktivite ve rozet | Seed verisinde en az bir takipsiz lead görünür; kural testleri; API testi |
-| **6b** | `organization_id`, `court_count`, `court_model`, `expected_close_date` sütunları; lead formu ve detayda düzenleme; kolon başlığında adet / toplam EUR / ort. gün; sorumlu · ülke · takipsiz filtreleri (yerelde hatırlanır) | Kolon istatistikleri saf fonksiyon + test; filtre URL'de |
+| **6b** | `court_count`, `court_model`, `expected_close_date` sütunları (`organization_id` 6d'ye alındı); lead formu ve detayda düzenleme; kolon başlığında adet / toplam EUR / ort. gün (kurlar `EUR_RATES`); sorumlu · ülke · takipsiz filtreleri URL'de ve yerelde hatırlanır | Kolon istatistikleri saf fonksiyon + test; filtre URL'de |
 | **6c** | Raporlar: aya göre kazanılan (adet, tutar), aşamaya göre dönüşüm (`lead_stage_events`), ülkeye göre açık hat, kayıp nedenleri, kaynağa göre lead sayısı | Sorgular testli; sayfa boş veride de çalışır |
-| **6d** | `organizations` tablosu ve Kişiler/Kuruluşlar sayfası (`persons` + fırsatları), arama; eski `src/pages`, `/api/db/*`, `crm.json` kaldırılır; `db:migrate-legacy` aktiviteleri ve kuruluşları taşır | Eski JSON'a hiçbir ekran bağlı değil; taşıma betiği testli |
+| **6d** | `organizations` tablosu ve `persons.organization_id` / `leads.organization_id`; Kişiler/Kuruluşlar sayfası (`persons` + fırsatları), arama; e-posta/telefon düzenleme; eski `src/pages`, `/api/db/*`, `crm.json` kaldırılır; `db:migrate-legacy` aktiviteleri ve kuruluşları taşır | Eski JSON'a hiçbir ekran bağlı değil; taşıma betiği testli |
 | **7** | Genel plan Faz 6: alan eşleme ve ayar ekranları, outbox/inbox sağlık paneli, dead satırları yeniden kuyruğa alma, Google `requestStatus` | Admin SQL'siz ayar değiştirir |
 | **8** | Bölüm 7'deki canlıya alma listesi | Rehberin kontrol listesi işaretli |
 
 Faz 6 dört parçaya bölündü; her parça ayrı iş emri ve ayrı kabul raporu olur, önceki fazlarla aynı yöntem.
 
-**Durum (2026-11-02):** 6a tamamlandı (ADR-0013, `docs/faz6a-kabul-raporu.md`). Sıradaki: 6b.
+**Durum (2026-11-02):** 6a ve 6b tamamlandı (ADR-0013, `docs/faz6a-kabul-raporu.md`, `docs/faz6b-kabul-raporu.md`).
+Sıradaki: 6c.
 
 ## 7. Canlıya alma ve veritabanı
 
@@ -235,3 +237,5 @@ canlıda prova çalıştırması. Hesap açma, alan adı ve ödeme kullanıcı t
 | 2 | "Negotiation" (pazarlık) ayrı aşama mı? | **Hayır, 6 aşama kalır.** Teklif sonrası görüşmeler aktivite olarak izlenir |
 | 3 | Kuruluş ayrı kayıt mı? | **Evet.** `organizations` tablosu (6d); kişiler ve fırsatlar kuruluşa bağlanır |
 | 4 | Faz 6a hemen başlasın mı? | **Evet.** Varsayılanlarla kodlanır; ADR-0013 satış panosu veri modelini yazar |
+| 5 | `organization_id` 6b'de mi? (6b, 2026-11-02) | **Hayır, 6d'de.** `organizations` tablosuyla birlikte, FK ile gelir |
+| 6 | EUR kurları nerede tutulur? (6b, 2026-11-02) | **Uygulama ayarı.** `EUR_RATES` ortam değişkeni (JSON), varsayılan eski sabit tablo; Faz 7'de ekrandan düzenlenir, `decisions.md` 24 |

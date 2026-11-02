@@ -123,8 +123,20 @@ ADR-0013). Lead = fırsat; ayrı "deal" kaydı yok. Faz 6a:
 - **Bugün** sayfası: gecikmiş / bugün / yaklaşan; satışçı kendi ve havuzdaki lead'lerin işlerini, admin hepsini görür.
   Üst menüdeki rozet gecikmiş + bugün sayısıdır.
 
-Sonraki parçalar: 6b fırsat alanları ve kolon istatistikleri, 6c raporlar, 6d kişiler/kuruluşlar ve eski sayfaların
-kaldırılması.
+## Satış panosu: fırsat alanları, filtreler, kolon istatistikleri (Faz 6b)
+
+- **Fırsat alanları lead'de:** kort sayısı, kort modeli, beklenen kapanış (`court_count`, `court_model`,
+  `expected_close_date`). Yeni lead formunda ve lead detayında "Düzenle" ile; firma, şehir, ürün ilgisi ve not da
+  oradan düzenlenir. API: `PATCH /api/pipeline/leads/:id` (yalnız gönderilen alanlar değişir; boş değer temizler).
+  Tutar aşama olayında kalır (Teklif / Kazanıldı); e-posta ve telefon 6d'de.
+- **Kural 4, kolon istatistikleri:** her kolon başlığında adet, toplam tutar (EUR'a çevrilmiş) ve ortalama bekleme
+  günü; `GET /api/pipeline/board` filtrelenmiş kümeyle birlikte döner. Kurlar `EUR_RATES` ortam değişkeni
+  (`{"USD":0.92,"GBP":1.17,"TRY":0.027}`), yoksa bu varsayılan; Faz 7'de ekrandan düzenlenecek.
+- **Filtreler:** sorumlu (ben / ortak havuz / kişi) · ülke · takipsiz. URL'de taşınır
+  (`#/pipeline?owner=me&country=TR&rotting=1`), tarayıcıda hatırlanır; panoya parametresiz girince son filtre uygulanır.
+- **Kart:** kort sayısı, son tutar, beklenen kapanış (geçmişse turuncu) ve aşamada geçen gün.
+
+Sonraki parçalar: 6c raporlar, 6d kişiler/kuruluşlar (`organization_id` o zaman gelir) ve eski sayfaların kaldırılması.
 
 ## Geliştirme kuralları (Faz 0'dan itibaren)
 
@@ -168,7 +180,7 @@ sunucusuna bağlanmaz. Geri açmak için `.env` içinde `MAIL_ENABLED=1`.
 
 Ortam değişkenleri: `API_PORT` (8787), `AUTH_DB_URL`, `AUTH_DB_TABLE` ve `AUTH_DB_*_COL` (bkz. `.env.example`),
 `MAIL_ENABLED`, `IMAP_HOST`, `IMAP_PORT`, `MAIL_DOMAIN`, `CRM_DATA` (eski veri dosyası, varsayılan `server/data/crm.json`),
-`DATABASE_URL` (Postgres; yoksa PGlite), `PGLITE_DIR`, `UNDO_WINDOW_MINUTES` (10), `ENABLED_PROVIDERS` (Faz 4–5),
+`DATABASE_URL` (Postgres; yoksa PGlite), `PGLITE_DIR`, `UNDO_WINDOW_MINUTES` (10), `ENABLED_PROVIDERS` (Faz 4–5), `EUR_RATES` (Faz 6b),
 Faz 2: `INBOX_ENCRYPTION_KEY`, `META_*`, `GOOGLE_LEAD_FORM_KEY`, `SMTP_*`, `PUBLIC_BASE_URL`, `INTAKE_*`, `BACKFILL_*` (hepsi `.env.example` içinde).
 
 ## Roller
