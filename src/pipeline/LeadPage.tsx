@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Empty, Icon, Skeleton, StatusTag, fmtDate, money } from "../components/ui";
+import { Button, Empty, Icon, Skeleton, StatusTag, fmtDate, money, relDays } from "../components/ui";
 import type { Currency } from "../domain/types";
 import { useLang } from "../i18n";
 import type { LeadDto, StageCodeDto, StageEventDto } from "../modules/sales-pipeline/api/dto";
@@ -8,6 +8,7 @@ import { useCrm } from "../state/CrmContext";
 import { ActivityItem, AddActivityForm } from "./activityBits";
 import { pipelineApi } from "./api";
 import { Age, Country, SourceBadge, StageTag } from "./bits";
+import { LeadFieldsForm } from "./LeadFieldsForm";
 import { useErrorText, useLeadDetail, useNow, useReference, useTeamNames } from "./hooks";
 import { useStageMove } from "./useStageMove";
 
@@ -38,6 +39,7 @@ export function LeadPage({ id }: { id: string }) {
   );
   const { move, dialog, saving } = useStageMove(ref, onChanged, { lastValue });
   const [moreOpen, setMoreOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const moreRef = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const away = (e: MouseEvent) => {
@@ -209,41 +211,79 @@ export function LeadPage({ id }: { id: string }) {
             </dl>
           </div>
           <div className="panel">
-            <h2 className="sec-h">{t("lead.project")}</h2>
-            <dl className="facts-dl">
-              <Fact label={t("lead.product")}>{lead.productInterest || "—"}</Fact>
-              <Fact label={t("lead.created")}>{fmtDate(lead.createdAt, true)}</Fact>
-              <Fact label={t("lead.owner")}>
-                <span className="pl-owner-ctl">
-                  <b>{nameOf(lead.assignedUserId)}</b>
-                  {!isViewer && !lead.assignedUserId && user && (
-                    <Button size="sm" icon="hand" onClick={() => assign(user.id, t("lead.taken"))}>
-                      {t("lead.take")}
-                    </Button>
-                  )}
-                  {!isViewer && !isAdmin && lead.assignedUserId === user?.id && (
-                    <Button size="sm" onClick={() => assign(null, t("lead.released"))}>
-                      {t("lead.release")}
-                    </Button>
-                  )}
-                  {isAdmin && (
-                    <select
-                      aria-label={t("lead.assignTo")}
-                      value={lead.assignedUserId ?? ""}
-                      onChange={(e) => assign(e.target.value || null, t("lead.assigned"))}
-                    >
-                      <option value="">{t("common.pool")}</option>
-                      {team.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+            <h2 className="sec-h">
+              {t("lead.project")}
+              {canAct && !editing && (
+                <span className="end">
+                  <Button size="sm" icon="edit" onClick={() => setEditing(true)}>
+                    {t("lead.edit")}
+                  </Button>
                 </span>
-              </Fact>
-              {lead.notes && <Fact label={t("lead.notes")}>{lead.notes}</Fact>}
-            </dl>
+              )}
+            </h2>
+            {editing ? (
+              <LeadFieldsForm
+                lead={lead}
+                onCancel={() => setEditing(false)}
+                onSaved={(l) => {
+                  setEditing(false);
+                  onChanged(l);
+                }}
+              />
+            ) : (
+              <dl className="facts-dl">
+                <Fact label={t("lead.product")}>{lead.productInterest || "—"}</Fact>
+                <Fact label={t("lead.courtCount")}>
+                  {lead.courtCount === null ? "—" : t("board.courts", { n: lead.courtCount })}
+                </Fact>
+                <Fact label={t("lead.courtModel")}>{lead.courtModel || "—"}</Fact>
+                <Fact label={t("lead.expectedClose")}>
+                  {lead.expectedCloseDate
+                    ? `${fmtDate(lead.expectedCloseDate)} · ${relDays(lead.expectedCloseDate)}`
+                    : "—"}
+                </Fact>
+                <Fact label={t("lead.value")}>
+                  {lead.value ? money(lead.value.amount, lead.value.currency as Currency) : "—"}
+                </Fact>
+                <Fact label={t("lead.inStage")}>
+                  {t("board.inStage", {
+                    n: Math.max(0, Math.floor((now - new Date(lead.stageEnteredAt).getTime()) / 86_400_000)),
+                  })}
+                  <span className="muted"> · {fmtDate(lead.stageEnteredAt, true)}</span>
+                </Fact>
+                <Fact label={t("lead.created")}>{fmtDate(lead.createdAt, true)}</Fact>
+                <Fact label={t("lead.owner")}>
+                  <span className="pl-owner-ctl">
+                    <b>{nameOf(lead.assignedUserId)}</b>
+                    {!isViewer && !lead.assignedUserId && user && (
+                      <Button size="sm" icon="hand" onClick={() => assign(user.id, t("lead.taken"))}>
+                        {t("lead.take")}
+                      </Button>
+                    )}
+                    {!isViewer && !isAdmin && lead.assignedUserId === user?.id && (
+                      <Button size="sm" onClick={() => assign(null, t("lead.released"))}>
+                        {t("lead.release")}
+                      </Button>
+                    )}
+                    {isAdmin && (
+                      <select
+                        aria-label={t("lead.assignTo")}
+                        value={lead.assignedUserId ?? ""}
+                        onChange={(e) => assign(e.target.value || null, t("lead.assigned"))}
+                      >
+                        <option value="">{t("common.pool")}</option>
+                        {team.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </span>
+                </Fact>
+                {lead.notes && <Fact label={t("lead.notes")}>{lead.notes}</Fact>}
+              </dl>
+            )}
           </div>
           <div className="panel" aria-labelledby="act-h">
             <h2 className="sec-h" id="act-h">

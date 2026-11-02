@@ -4,6 +4,7 @@ import type {
   AddActivityBody,
   ApiErrorDto,
   AssignBody,
+  BoardDto,
   ChangeStageBody,
   CreateLeadBody,
   LeadDetailDto,
@@ -13,6 +14,7 @@ import type {
   ReferenceDto,
   StageCodeDto,
   TodayDto,
+  UpdateLeadBody,
 } from "../modules/sales-pipeline/api/dto";
 
 const BASE = "/api/pipeline";
@@ -55,7 +57,18 @@ export const pipelineApi = {
     const s = qs.toString();
     return call<LeadListDto[]>("GET", "/leads" + (s ? "?" + s : ""));
   },
+  /** Pano (Faz 6b): filtreler sunucuda, kolon istatistikleri aynı kümeden. */
+  board: (p: { owner?: string; country?: string; rotting?: boolean; includeTest?: boolean } = {}) => {
+    const qs = new URLSearchParams();
+    if (p.owner) qs.set("owner", p.owner);
+    if (p.country) qs.set("country", p.country);
+    if (p.rotting) qs.set("rotting", "1");
+    if (p.includeTest) qs.set("includeTest", "1");
+    const s = qs.toString();
+    return call<BoardDto>("GET", "/board" + (s ? "?" + s : ""));
+  },
   get: (id: string) => call<LeadDetailDto>("GET", `/leads/${encodeURIComponent(id)}`),
+  update: (id: string, body: UpdateLeadBody) => call<LeadDto>("PATCH", `/leads/${encodeURIComponent(id)}`, body),
   create: (body: CreateLeadBody) =>
     call<{ lead: LeadDto; created: boolean; personMatched: boolean }>("POST", "/leads", body),
   changeStage: (id: string, body: ChangeStageBody) =>

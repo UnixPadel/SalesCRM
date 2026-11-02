@@ -23,6 +23,9 @@ export function NewLeadDialog({ onClose }: { onClose: () => void }) {
     city: "",
     company: "",
     productInterest: "",
+    courtCount: "",
+    courtModel: "",
+    expectedCloseDate: "",
     notes: "",
     assignedUserId: "",
     isTest: false,
@@ -52,6 +55,9 @@ export function NewLeadDialog({ onClose }: { onClose: () => void }) {
         city: f.city,
         company: f.company,
         productInterest: f.productInterest,
+        courtCount: f.courtCount.trim() === "" ? null : f.courtCount.trim(),
+        courtModel: f.courtModel,
+        expectedCloseDate: f.expectedCloseDate || null,
         notes: f.notes,
         isTest: f.isTest,
         ...(isAdmin ? { assignedUserId: f.assignedUserId || null } : {}),
@@ -70,7 +76,11 @@ export function NewLeadDialog({ onClose }: { onClose: () => void }) {
                 ? "country"
                 : ex.code.includes("name")
                   ? "fullName"
-                  : ""
+                  : ex.code.includes("court_count")
+                    ? "courtCount"
+                    : ex.code.includes("expected_close")
+                      ? "expectedCloseDate"
+                      : ""
           : "";
       if (field) setErr({ field, text: errText(ex) });
       else toast(errText(ex), { bad: true });
@@ -113,12 +123,31 @@ export function NewLeadDialog({ onClose }: { onClose: () => void }) {
             <input value={f.company} onChange={set("company")} />
           </Field>
           <Field label={t("new.product")}>
-            <input list="court-models" value={f.productInterest} onChange={set("productInterest")} />
+            <input value={f.productInterest} onChange={set("productInterest")} maxLength={200} />
+          </Field>
+        </div>
+        <div className="form-3">
+          <Field label={t("lead.courtCount")} error={fieldErr("courtCount")}>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={999}
+              step={1}
+              value={f.courtCount}
+              onChange={set("courtCount")}
+            />
+          </Field>
+          <Field label={t("lead.courtModel")}>
+            <input list="court-models" value={f.courtModel} onChange={set("courtModel")} maxLength={64} />
             <datalist id="court-models">
               {COURT_MODELS.map((m) => (
                 <option key={m} value={m} />
               ))}
             </datalist>
+          </Field>
+          <Field label={t("lead.expectedClose")} error={fieldErr("expectedCloseDate")}>
+            <input type="date" value={f.expectedCloseDate} onChange={set("expectedCloseDate")} />
           </Field>
         </div>
         <Field label={t("new.notes")}>

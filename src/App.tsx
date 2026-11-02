@@ -21,7 +21,7 @@ import { useCrm } from "./state/CrmContext";
  */
 export default function App() {
   const { ready, authChecked, user, openDealId } = useCrm();
-  const [{ route, q, id }, setLoc] = useState(parseHash);
+  const [{ route, q, id, params }, setLoc] = useState(parseHash);
   const [newLead, setNewLead] = useState(false);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function App() {
         ) : route === "lead" ? (
           <LeadPage id={id} key={id} />
         ) : route === "pipeline" ? (
-          <KanbanPage />
+          <KanbanPage params={params} />
         ) : route === "activities" ? (
           <ActivitiesPage />
         ) : legacy && !ready ? (

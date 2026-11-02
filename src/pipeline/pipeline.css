@@ -653,3 +653,65 @@ a.pl-row:focus-visible {
   gap: var(--s-3);
   margin-block-end: var(--s-4);
 }
+
+/* ---- pano filtreleri ve istatistikler (Faz 6b) ---- */
+.board-bar {
+  flex: 0 0 auto;
+}
+.board-bar .pl-title {
+  margin: 0;
+}
+.col-head .col-stats {
+  grid-column: 2 / 4;
+  display: flex;
+  gap: var(--s-2);
+  align-items: baseline;
+  font-size: var(--t-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.col-head .col-stats b {
+  color: var(--text-2);
+}
+.kb-opp {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-2);
+  margin-block-start: var(--s-1);
+}
+.kb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--t-xs);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.kb-chip-money {
+  font-weight: 700;
+  color: var(--text-1);
+}
+.kb-chip-days {
+  color: var(--text-3);
+}
+.kb-chip.is-late {
+  color: var(--warn-ink);
+  font-weight: 600;
+}
+.lead-edit input[type="number"] {
+  inline-size: 100%;
+}
+.form-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+@media (max-width: 768px) {
+  .form-3 {
+    grid-template-columns: 1fr;
+  }
+  .board-bar .filters select {
+    max-inline-size: 46vw;
+  }
+}

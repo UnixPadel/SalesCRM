@@ -3,6 +3,7 @@ import { api } from "../data/api";
 import type { TeamMember } from "../domain/types";
 import { useLang } from "../i18n";
 import type {
+  BoardDto,
   LeadDetailDto,
   LeadDto,
   LeadListDto,
@@ -88,6 +89,28 @@ export function useLeads(filter: LeadFilter) {
   }, [key]);
   useEffect(reload, [reload]);
   return { leads, error, reload };
+}
+
+/** Pano verisi (Faz 6b): filtre değişince yeniden yüklenir; eski yanıt yenisinin üstüne yazmaz. */
+export function useBoard(filter: { owner?: string; country?: string; rotting?: boolean }) {
+  const [board, setBoard] = useState<BoardDto | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const key = `${filter.owner ?? ""}|${filter.country ?? ""}|${filter.rotting ? 1 : 0}`;
+  const seq = useRef(0);
+  const reload = useCallback(() => {
+    const n = ++seq.current;
+    pipelineApi
+      .board({ owner: filter.owner, country: filter.country, rotting: filter.rotting })
+      .then((r) => {
+        if (n !== seq.current) return;
+        setBoard(r);
+        setError(null);
+      })
+      .catch((e) => n === seq.current && setError(e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  useEffect(reload, [reload]);
+  return { board, error, reload };
 }
 
 export function useLeadDetail(id: string | null) {
