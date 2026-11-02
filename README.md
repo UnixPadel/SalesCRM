@@ -108,6 +108,24 @@ Google yalnız bir gönderici ekler (`src/modules/ad-feedback/adapters/google-da
   Meta formu lead'leri varsayılanda Google'a gitmez (`GOOGLE_SEND_SOURCES`).
 - Kurulum ve işletme: `docs/runbooks/google-data-manager.md`; belge doğrulaması ve kararlar ADR-0012.
 
+## Satış panosu: aktiviteler (Faz 6a)
+
+Pipedrive benzeri fırsat yönetimi yeni veri modeli üzerinde geri geliyor (plan: `docs/yol-haritasi.md`, karar:
+ADR-0013). Lead = fırsat; ayrı "deal" kaydı yok. Faz 6a:
+
+- **Aktiviteler** (`activities`): arama, e-posta, toplantı, teklif gönderimi, saha ziyareti; lead detayında eklenir,
+  tamamlanır, silinir. API: `POST /api/pipeline/leads/:id/activities`, `POST /activities/:id/done`,
+  `DELETE /activities/:id`, `GET /activities/today`.
+- **Kural 1, takipsiz:** açık aşamadaki lead'in açık aktivitesi yoksa kartta kırmızı "Takipsiz" rozeti; aksi halde
+  sonraki aktivitenin vadesi görünür (`openActivities`, `nextActivity`, `rotting` liste ve detayda).
+- **Kural 2, teklif takibi:** "Teklif gönderildi"ye giriş 3 gün sonra 09:00 (Europe/Istanbul) için arama açar;
+  10 dakikalık geri al onu da siler.
+- **Bugün** sayfası: gecikmiş / bugün / yaklaşan; satışçı kendi ve havuzdaki lead'lerin işlerini, admin hepsini görür.
+  Üst menüdeki rozet gecikmiş + bugün sayısıdır.
+
+Sonraki parçalar: 6b fırsat alanları ve kolon istatistikleri, 6c raporlar, 6d kişiler/kuruluşlar ve eski sayfaların
+kaldırılması.
+
 ## Geliştirme kuralları (Faz 0'dan itibaren)
 
 - Mimari kararlar `docs/adr/` altında; açık kararlar ve sahipleri `docs/decisions.md`.

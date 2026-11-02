@@ -18,6 +18,7 @@ Durumlar: **Bekliyor** (karar verilmedi, seçenekler listeli) · **Kabul edildi*
 | [0010](0010-web-formu-kimlik-ve-aktarici.md) | Web formu kimliği (HMAC + zaman damgası) ve site tarafı aktarıcı | Kabul edildi |
 | [0011](0011-giden-olay-dagiticisi.md) | Giden olay dağıtıcısı: durumlar, filtreler, toplu gönderim, onay kuralı | Kabul edildi |
 | [0012](0012-google-data-manager-api.md) | Google geri bildirimi: Data Manager API kimlik doğrulama ve istek biçimi | Kabul edildi |
+| [0013](0013-satis-panosu-veri-modeli.md) | Satış panosu veri modeli: Lead = fırsat, aktiviteler, kuruluşlar, altı aşama kalır | Kabul edildi |
 
 Şablon:
 

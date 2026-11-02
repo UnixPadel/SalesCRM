@@ -197,6 +197,8 @@ gantt
 
 Faz 6 dört parçaya bölündü; her parça ayrı iş emri ve ayrı kabul raporu olur, önceki fazlarla aynı yöntem.
 
+**Durum (2026-11-02):** 6a tamamlandı (ADR-0013, `docs/faz6a-kabul-raporu.md`). Sıradaki: 6b.
+
 ## 7. Canlıya alma ve veritabanı
 
 ```mermaid
