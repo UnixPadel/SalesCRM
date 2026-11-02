@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Empty, Icon, Skeleton, fmtDate, money } from "../components/ui";
+import { Button, Empty, Icon, Skeleton, StatusTag, fmtDate, money } from "../components/ui";
 import type { Currency } from "../domain/types";
 import { useLang } from "../i18n";
 import type { LeadDto, StageCodeDto, StageEventDto } from "../modules/sales-pipeline/api/dto";
 import { navigate } from "../router";
 import { useCrm } from "../state/CrmContext";
+import { ActivityItem, AddActivityForm } from "./activityBits";
 import { pipelineApi } from "./api";
 import { Age, Country, SourceBadge, StageTag } from "./bits";
 import { useErrorText, useLeadDetail, useNow, useReference, useTeamNames } from "./hooks";
@@ -22,7 +23,8 @@ export function LeadPage({ id }: { id: string }) {
 
   const onChanged = useCallback(
     (lead: LeadDto) => {
-      setDetail((d) => (d ? { ...d, lead } : d));
+      // Komut yanıtı yalın lead döner; aktivite özeti yeniden yüklemeye kadar eski değerle kalır.
+      setDetail((d) => (d ? { ...d, lead: { ...d.lead, ...lead } } : d));
       reload();
     },
     [setDetail, reload],
@@ -63,7 +65,29 @@ export function LeadPage({ id }: { id: string }) {
     );
   }
 
-  const { lead, events, allowedTransitions, undo } = detail;
+  const { lead, events, activities, allowedTransitions, undo } = detail;
+  const openActs = activities.filter((a) => a.doneAt === null);
+  const doneActs = activities
+    .filter((a) => a.doneAt !== null)
+    .sort((a, b) => (b.doneAt ?? "").localeCompare(a.doneAt ?? ""));
+  const toggleActivity = async (id: string, done: boolean) => {
+    try {
+      await pipelineApi.setActivityDone(id, done);
+      toast(done ? t("activity.done") : t("activity.reopened"));
+      reload();
+    } catch (e) {
+      toast(errText(e), { bad: true });
+    }
+  };
+  const deleteActivity = async (id: string) => {
+    try {
+      await pipelineApi.deleteActivity(id);
+      toast(t("activity.deleted"));
+      reload();
+    } catch (e) {
+      toast(errText(e), { bad: true });
+    }
+  };
   const forward = allowedTransitions.filter((s) => s !== "LOST");
   const next = forward[0];
   const canAct = !isViewer && (isAdmin || !lead.assignedUserId || lead.assignedUserId === user?.id);
@@ -220,6 +244,52 @@ export function LeadPage({ id }: { id: string }) {
               </Fact>
               {lead.notes && <Fact label={t("lead.notes")}>{lead.notes}</Fact>}
             </dl>
+          </div>
+          <div className="panel" aria-labelledby="act-h">
+            <h2 className="sec-h" id="act-h">
+              {t("activity.title")} <span className="count">{openActs.length}</span>
+              {lead.rotting && (
+                <span className="end">
+                  <StatusTag tone="bad" icon="flame">
+                    {t("activity.rotting")}
+                  </StatusTag>
+                </span>
+              )}
+            </h2>
+            {lead.rotting && <p className="muted">{t("activity.rottingHint")}</p>}
+            {openActs.length > 0 && (
+              <div className="alist">
+                {openActs.map((a) => (
+                  <ActivityItem
+                    key={a.id}
+                    a={a}
+                    canEdit={canAct}
+                    onToggle={(done) => toggleActivity(a.id, done)}
+                    onDelete={() => deleteActivity(a.id)}
+                    now={now}
+                  />
+                ))}
+              </div>
+            )}
+            {openActs.length === 0 && !lead.rotting && <p className="muted">{t("activity.none")}</p>}
+            {canAct && <AddActivityForm leadId={lead.id} onAdded={() => reload()} />}
+            {doneActs.length > 0 && (
+              <details className="act-done">
+                <summary>{t("activity.doneList", { n: doneActs.length })}</summary>
+                <div className="alist">
+                  {doneActs.map((a) => (
+                    <ActivityItem
+                      key={a.id}
+                      a={a}
+                      canEdit={canAct}
+                      onToggle={(done) => toggleActivity(a.id, done)}
+                      onDelete={() => deleteActivity(a.id)}
+                      now={now}
+                    />
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
           {(lead.platformLeadId || lead.campaign.campaignName || Object.keys(lead.extraAnswers).length > 0) && (
             <details className="panel">

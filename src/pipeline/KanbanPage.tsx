@@ -1,9 +1,10 @@
 import { useCallback, useState } from "react";
-import { Button, Empty, Skeleton } from "../components/ui";
+import { Button, Empty, Icon, Skeleton, StatusTag, relDays } from "../components/ui";
 import { useLang } from "../i18n";
-import type { LeadDto, StageCodeDto } from "../modules/sales-pipeline/api/dto";
+import type { LeadListDto, StageCodeDto } from "../modules/sales-pipeline/api/dto";
 import { navigate } from "../router";
 import { useCrm } from "../state/CrmContext";
+import { ACTIVITY_ICON, dueState } from "./activityBits";
 import { Age, Country, SourceBadge, STAGE_TONE } from "./bits";
 import { useErrorText, useLeads, useNow, useReference, useTeamNames } from "./hooks";
 import { useStageMove } from "./useStageMove";
@@ -21,7 +22,7 @@ export function KanbanPage() {
   const { nameOf } = useTeamNames();
   const now = useNow(30_000);
   const errText = useErrorText();
-  const [dragging, setDragging] = useState<LeadDto | null>(null);
+  const [dragging, setDragging] = useState<LeadListDto | null>(null);
   const [over, setOver] = useState<StageCodeDto | null>(null);
 
   const onChanged = useCallback(() => reload(), [reload]);
@@ -132,7 +133,24 @@ export function KanbanPage() {
                       <Country code={l.country} />
                       <Age lead={l} now={now} />
                     </div>
-                    <div className="kb-owner">{nameOf(l.assignedUserId)}</div>
+                    <div className="kb-foot">
+                      {l.rotting ? (
+                        <StatusTag tone="bad" icon="flame" title={t("activity.rottingHint")}>
+                          {t("activity.rotting")}
+                        </StatusTag>
+                      ) : l.nextActivity ? (
+                        <span
+                          className={"kb-next is-" + dueState(l.nextActivity.dueAt, now)}
+                          title={`${l.nextActivity.subject} · ${l.nextActivity.dueAt.slice(0, 16).replace("T", " ")}`}
+                        >
+                          <Icon name={ACTIVITY_ICON[l.nextActivity.type]} size={13} />
+                          {relDays(l.nextActivity.dueAt)}
+                        </span>
+                      ) : (
+                        <span />
+                      )}
+                      <span className="kb-owner">{nameOf(l.assignedUserId)}</span>
+                    </div>
                   </article>
                 ))}
               </div>

@@ -1,14 +1,18 @@
 import { api, ApiError } from "../data/api";
 import type {
+  ActivityDto,
+  AddActivityBody,
   ApiErrorDto,
   AssignBody,
   ChangeStageBody,
   CreateLeadBody,
   LeadDetailDto,
   LeadDto,
+  LeadListDto,
   NotificationsDto,
   ReferenceDto,
   StageCodeDto,
+  TodayDto,
 } from "../modules/sales-pipeline/api/dto";
 
 const BASE = "/api/pipeline";
@@ -49,13 +53,24 @@ export const pipelineApi = {
     if (p.q) qs.set("q", p.q);
     if (p.includeTest) qs.set("includeTest", "1");
     const s = qs.toString();
-    return call<LeadDto[]>("GET", "/leads" + (s ? "?" + s : ""));
+    return call<LeadListDto[]>("GET", "/leads" + (s ? "?" + s : ""));
   },
   get: (id: string) => call<LeadDetailDto>("GET", `/leads/${encodeURIComponent(id)}`),
   create: (body: CreateLeadBody) =>
     call<{ lead: LeadDto; created: boolean; personMatched: boolean }>("POST", "/leads", body),
   changeStage: (id: string, body: ChangeStageBody) =>
-    call<{ lead: LeadDto; changeId: string }>("POST", `/leads/${encodeURIComponent(id)}/stage`, body),
+    call<{ lead: LeadDto; changeId: string; followUp: ActivityDto | null }>(
+      "POST",
+      `/leads/${encodeURIComponent(id)}/stage`,
+      body,
+    ),
+  // Aktiviteler (Faz 6a)
+  today: () => call<TodayDto>("GET", "/activities/today"),
+  addActivity: (leadId: string, body: AddActivityBody) =>
+    call<ActivityDto>("POST", `/leads/${encodeURIComponent(leadId)}/activities`, body),
+  setActivityDone: (id: string, done: boolean) =>
+    call<ActivityDto>("POST", `/activities/${encodeURIComponent(id)}/done`, { done }),
+  deleteActivity: (id: string) => call<void>("DELETE", `/activities/${encodeURIComponent(id)}`),
   undo: (id: string) =>
     call<{ lead: LeadDto; revertedTo: StageCodeDto }>("POST", `/leads/${encodeURIComponent(id)}/undo`),
   assign: (id: string, body: AssignBody) => call<LeadDto>("POST", `/leads/${encodeURIComponent(id)}/assign`, body),

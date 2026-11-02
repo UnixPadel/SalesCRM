@@ -3,11 +3,11 @@ import { DealPanel } from "./components/DealPanel";
 import { Header } from "./components/Header";
 import { Toasts } from "./components/Toasts";
 import { Skeleton } from "./components/ui";
-import { ActivitiesPage } from "./pages/ActivitiesPage";
 import { ContactsPage } from "./pages/ContactsPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ReportsPage } from "./pages/ReportsPage";
+import { ActivitiesPage } from "./pipeline/ActivitiesPage";
 import { InboxPage } from "./pipeline/InboxPage";
 import { KanbanPage } from "./pipeline/KanbanPage";
 import { LeadPage } from "./pipeline/LeadPage";
@@ -16,8 +16,8 @@ import { parseHash } from "./router";
 import { useCrm } from "./state/CrmContext";
 
 /**
- * Yönlendirme. Faz 1: gelen kutusu, lead detayı ve pano yeni satış pipeline'ından (Postgres) gelir;
- * "Bugün", "Raporlar", "Kişiler" ve eski form listesi geçiş süresince eski JSON verisiyle çalışır.
+ * Yönlendirme. Gelen kutusu, lead detayı, pano ve "Bugün" (Faz 6a) yeni satış pipeline'ından (Postgres) gelir;
+ * "Raporlar", "Kişiler" ve eski form listesi geçiş süresince (Faz 6c–6d) eski JSON verisiyle çalışır.
  */
 export default function App() {
   const { ready, authChecked, user, openDealId } = useCrm();
@@ -43,7 +43,7 @@ export default function App() {
   }
   if (!user) return <LoginPage />;
 
-  const legacy = route === "activities" || route === "reports" || route === "contacts" || route === "leads";
+  const legacy = route === "reports" || route === "contacts" || route === "leads";
 
   return (
     <div className="shell">
@@ -55,10 +55,10 @@ export default function App() {
           <LeadPage id={id} key={id} />
         ) : route === "pipeline" ? (
           <KanbanPage />
-        ) : legacy && !ready ? (
-          <BoardSkeleton />
         ) : route === "activities" ? (
           <ActivitiesPage />
+        ) : legacy && !ready ? (
+          <BoardSkeleton />
         ) : route === "reports" ? (
           <ReportsPage />
         ) : route === "leads" ? (

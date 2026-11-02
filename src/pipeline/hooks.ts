@@ -2,7 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../data/api";
 import type { TeamMember } from "../domain/types";
 import { useLang } from "../i18n";
-import type { LeadDetailDto, LeadDto, ReferenceDto, StageCodeDto } from "../modules/sales-pipeline/api/dto";
+import type {
+  LeadDetailDto,
+  LeadDto,
+  LeadListDto,
+  ReferenceDto,
+  StageCodeDto,
+  TodayDto,
+} from "../modules/sales-pipeline/api/dto";
 import { useCrm } from "../state/CrmContext";
 import { PipelineError, pipelineApi } from "./api";
 
@@ -63,7 +70,7 @@ export interface LeadFilter {
 }
 
 export function useLeads(filter: LeadFilter) {
-  const [leads, setLeads] = useState<LeadDto[] | null>(null);
+  const [leads, setLeads] = useState<LeadListDto[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const key = `${filter.stage ?? ""}|${filter.q ?? ""}|${filter.includeTest ? 1 : 0}`;
   const seq = useRef(0);
@@ -100,6 +107,47 @@ export function useLeadDetail(id: string | null) {
   }, [id]);
   useEffect(reload, [reload]);
   return { detail, setDetail, error, loading, reload };
+}
+
+/** "Bugün" listesi: gecikmiş / bugün / yaklaşan, sunucu takvimine göre. */
+export function useToday() {
+  const [data, setData] = useState<TodayDto | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const reload = useCallback(() => {
+    pipelineApi
+      .today()
+      .then((d) => {
+        setData(d);
+        setError(null);
+      })
+      .catch(setError);
+  }, []);
+  useEffect(reload, [reload]);
+  return { data, error, reload };
+}
+
+/** Üst menü rozeti: gecikmiş + bugünkü açık aktivite sayısı; dakikada bir ve her sayfa geçişinde yenilenir. */
+export function useTodayCount() {
+  const { user } = useCrm();
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    const load = () =>
+      pipelineApi
+        .today()
+        .then((d) => alive && setCount(d.overdue.length + d.today.length))
+        .catch(() => undefined);
+    load();
+    const id = setInterval(load, 60_000);
+    window.addEventListener("hashchange", load);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      window.removeEventListener("hashchange", load);
+    };
+  }, [user]);
+  return count;
 }
 
 /** Kullanıcı kimliği → görünen ad; roster mevcut /api/users ucundan. */

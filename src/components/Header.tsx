@@ -1,9 +1,9 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { STAGE, countryName } from "../domain/constants";
-import { activityBucket, isRotting } from "../domain/rules";
 import { useLang, type Lang } from "../i18n";
 import { navigate, type Route } from "../router";
 import { NotificationsBell } from "../pipeline/NotificationsBell";
+import { useTodayCount } from "../pipeline/hooks";
 import { useCrm, type Theme } from "../state/CrmContext";
 import { Avatar, Button, Icon, money } from "./ui";
 
@@ -23,17 +23,13 @@ interface Opt {
 }
 
 export function Header({ route, onNewLead }: { route: Route; onNewLead: () => void }) {
-  const { data, user, me, isAdmin, isViewer, inView, theme, setTheme, logout, resetDemo } = useCrm();
+  const { user, isAdmin, isViewer, theme, setTheme, logout, resetDemo } = useCrm();
   const { t, lang, setLang } = useLang();
 
-  const dealOwner = new Map(data.deals.map((d) => [d.id, d.owner]));
-  const dueCount = data.activities.filter(
-    (a) => !a.done && dealOwner.get(a.deal_id) === me && activityBucket(a) !== "planned",
-  ).length;
-  const rotting = data.deals.filter((d) => inView(d.owner) && isRotting(d, data.activities)).length;
-  void rotting;
+  // Faz 6a: "Bugün" rozeti yeni aktivite ucundan (gecikmiş + bugün).
+  const dueCount = useTodayCount();
 
-  // Faz 1: Gelen kutusu ve Pano yeni pipeline; Bugün / Kişiler / Raporlar eski veriyle çalışır.
+  // Gelen kutusu, Pano ve Bugün yeni pipeline; Kişiler / Raporlar geçiş süresince eski veriyle çalışır (Faz 6c–6d).
   const NAV: { r: Route; icon: string; label: string; badge?: number; badgeLabel?: string; bad?: boolean }[] = [
     { r: "inbox", icon: "inbox", label: t("nav.inbox") },
     { r: "pipeline", icon: "columns", label: t("nav.board") },

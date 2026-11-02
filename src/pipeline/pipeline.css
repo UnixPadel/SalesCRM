@@ -599,3 +599,57 @@ a.pl-row:focus-visible {
   color: var(--text-3);
   text-align: center;
 }
+
+/* ---- aktiviteler (Faz 6a) ---- */
+.kb-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s-2);
+  margin-block-start: var(--s-1);
+}
+.kb-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--t-xs);
+  color: var(--text-3);
+}
+.kb-next.is-today {
+  color: var(--ok-ink);
+}
+.kb-next.is-overdue {
+  color: var(--bad-ink);
+  font-weight: 600;
+}
+.act-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-2) var(--s-3);
+  margin-block-start: var(--s-3);
+}
+.act-form .wide {
+  grid-column: 1 / -1;
+}
+.act-form textarea {
+  resize: vertical;
+}
+.act-done {
+  margin-block-start: var(--s-3);
+}
+.act-done > summary {
+  cursor: pointer;
+  color: var(--text-3);
+  font-size: var(--t-sm);
+}
+.today-page h1 {
+  margin: 0;
+}
+.today-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin-block-end: var(--s-4);
+}

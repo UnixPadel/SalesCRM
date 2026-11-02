@@ -46,6 +46,7 @@ export function useStageMove(
                 .catch((e) => toast(errText(e), { bad: true })),
           },
         });
+        if (r.followUp) toast(t("activity.followUp"));
         onChanged(r.lead);
         return true;
       } catch (e) {
