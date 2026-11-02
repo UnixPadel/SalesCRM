@@ -55,4 +55,6 @@ getirmek; Lead → CRM entegrasyonunu bozmadan. Kararlar `docs/yol-haritasi.md` 
 - **6b (2026-11-02):** migration `0010_faz6b_lead_fields.sql`; `domain/opportunity.ts` (`parseLeadFields`, `stageSummary`,
   `columnStats`, `parseEurRates`); `UpdateLeadFields`, `LeadQueries.board`; `GET /board`, `PATCH /leads/:id`,
   `reference.eurRates`; pano filtreleri URL'de ve hatırlanır. Rapor: `docs/faz6b-kabul-raporu.md`.
-- 6c–6d bu ADR'nin 4 ve 7. maddelerini uygular.
+- **6c (2026-11-02):** raporlar `lead_stage_events`'ten (`domain/reports.ts`, `ReportQueries.summary`, `GET /reports`);
+  eski JSON rapor sayfası kaldırıldı. Rapor: `docs/faz6c-kabul-raporu.md`.
+- 6d bu ADR'nin 4 ve 7. maddelerini uygular.

@@ -53,7 +53,7 @@ Deals" akışıyla aynı mantık, kopyasız.
 | Kolon istatistikleri | adet, toplam EUR, ort. gün | ✔ 6b (`GET /board`, kurlar `EUR_RATES`) | Kurların ekrandan düzenlenmesi (Faz 7) |
 | Filtreler | ülke, sorumlu, takipsiz | ✔ 6b, URL'de ve hatırlanır | — |
 | Kişiler | ✔ eski kişi/kuruluş listesi | Eski JSON | Yeni `persons` tablosundan liste yok |
-| Raporlar | aylık satış, kolona göre dönüşüm, ülkeye göre hat, kayıp nedenleri | Eski JSON | Yeni aşama olaylarından rapor yok |
+| Raporlar | aylık satış, kolona göre dönüşüm, ülkeye göre hat, kayıp nedenleri | ✔ 6c (`GET /reports`, aşama olaylarından; + kaynağa göre lead) | Ağırlıklı tahmin (aşama olasılığı yok) |
 | Fırsat alanları | tutar, para birimi, kort sayısı, kort modeli, tahmini kapanış | tutar (Teklif/Kazanıldı olayında); kort sayısı, kort modeli, beklenen kapanış (6b) | kuruluş (6d) |
 | Reklam platformlarına geri bildirim | — | ✔ Faz 4–5 | Gerçek platform testi bekliyor |
 
@@ -198,8 +198,8 @@ gantt
 
 Faz 6 dört parçaya bölündü; her parça ayrı iş emri ve ayrı kabul raporu olur, önceki fazlarla aynı yöntem.
 
-**Durum (2026-11-02):** 6a ve 6b tamamlandı (ADR-0013, `docs/faz6a-kabul-raporu.md`, `docs/faz6b-kabul-raporu.md`).
-Sıradaki: 6c.
+**Durum (2026-11-02):** 6a, 6b ve 6c tamamlandı (ADR-0013, `docs/faz6a-kabul-raporu.md`, `docs/faz6b-kabul-raporu.md`,
+`docs/faz6c-kabul-raporu.md`). Sıradaki: 6d.
 
 ## 7. Canlıya alma ve veritabanı
 

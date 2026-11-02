@@ -136,7 +136,20 @@ ADR-0013). Lead = fırsat; ayrı "deal" kaydı yok. Faz 6a:
   (`#/pipeline?owner=me&country=TR&rotting=1`), tarayıcıda hatırlanır; panoya parametresiz girince son filtre uygulanır.
 - **Kart:** kort sayısı, son tutar, beklenen kapanış (geçmişse turuncu) ve aşamada geçen gün.
 
-Sonraki parçalar: 6c raporlar, 6d kişiler/kuruluşlar (`organization_id` o zaman gelir) ve eski sayfaların kaldırılması.
+## Satış panosu: raporlar (Faz 6c)
+
+"Raporlar" sayfası artık yeni aşama olaylarından (`leads` + `lead_stage_events`) üretilir; eski JSON rapor sayfası
+kaldırıldı. API: `GET /api/pipeline/reports?months=12` (1–36 ay). Satışçı kendi + havuzdaki lead'leri, admin hepsini
+görür; test lead'leri hiçbir rapora girmez.
+
+- **KPI:** açık hat değeri (son teklif tutarıyla), bu ay kazanılan, kazanma oranı (kapananlar içinde), gelen lead.
+- **Aylık kazanılan:** Kazanıldı olayının ayına göre (Europe/Istanbul takvimi), EUR karşılığı (`EUR_RATES`).
+- **Aşamaya göre dönüşüm:** o aşamaya ulaşıp kapanan lead'lerden kazanılanların payı; açık lead'ler oranı sulandırmaz.
+- **Ülkeye göre açık hat**, **kayıp nedenleri** (son Kaybedildi olayındaki kod), **kaynağa göre lead** (dönemde
+  oluşturulanlar ve kazanılanları).
+- Dönem 6 / 12 / 24 ay, tarayıcıda hatırlanır. Boş veride sayfa sıfır çubuklar ve "—" ile çalışır.
+
+Sonraki parça: 6d kişiler/kuruluşlar (`organization_id` o zaman gelir) ve eski sayfaların kaldırılması.
 
 ## Geliştirme kuralları (Faz 0'dan itibaren)
 
