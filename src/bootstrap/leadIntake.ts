@@ -4,7 +4,11 @@
  */
 import type { Router } from "express";
 import { IntegrationSettings } from "../modules/integration-settings/application";
-import { pgFieldMappingRepository, pgSettingsRepository } from "../modules/integration-settings/infrastructure";
+import {
+  pgFieldMappingRepository,
+  pgSettingsRepository,
+  pgStageMappingRepository,
+} from "../modules/integration-settings/infrastructure";
 import { googleSourceAdapter, GOOGLE_SECRET_NAMES } from "../modules/lead-intake/adapters/google";
 import {
   createGraphClient,
@@ -68,9 +72,12 @@ export function bootLeadIntake(app: SalesPipelineApp, opts: BootLeadIntakeOption
   if (!keyB64)
     logger.warn("INBOX_ENCRYPTION_KEY tanımsız: inbox payload'ı düz metin saklanıyor (yalnız yerel geliştirme)");
 
+  // Aynı nesne ad-feedback'e verilir (server/index.mjs): aşama eşlemeleri olmadan dağıtıcı her satırı
+  // `mapping_missing` ile atlar; bu yüzden üç depo da burada bağlanır.
   const settings = new IntegrationSettings({
     mappings: pgFieldMappingRepository(db),
     settings: pgSettingsRepository(db),
+    stageMappings: pgStageMappingRepository(db),
     clock: systemClock,
   });
 
