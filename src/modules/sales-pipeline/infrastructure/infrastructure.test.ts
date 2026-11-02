@@ -30,7 +30,7 @@ afterAll(() => db.close());
 
 beforeEach(async () => {
   await db.exec(
-    "TRUNCATE user_notifications, inbound_webhook_events, outbound_conversion_events, lead_stage_events, lead_consents, lead_attribution, activities, leads, persons, territory_rules",
+    "TRUNCATE user_notifications, inbound_webhook_events, outbound_conversion_events, lead_stage_events, lead_consents, lead_attribution, activities, leads, persons, organizations, territory_rules",
   );
   clock = new FixedClock("2026-03-01T10:00:00Z");
   publisher = new RecordingPublisher();
@@ -306,6 +306,88 @@ describe("Postgres repository'leri + transaction", () => {
       ].sort((x, y) => x[0]!.localeCompare(y[0]!)),
     );
     expect(await uow.run((r) => r.stageEvents.listByLeads([]))).toEqual([]);
+  });
+
+  it("Faz 6d: kuruluş CRUD ve ad+ülke tekliği; kişi listesi/güncelleme; lead kimlik ve kuruluş bağı; aktivite legacy_id", async () => {
+    const uow = new PgUnitOfWork(db, uuidGenerator);
+    const now = clock.now();
+    const org = {
+      id: uuidGenerator.next(),
+      name: "Padel Kulübü",
+      type: "club" as const,
+      country: "TR",
+      website: "",
+      notes: "",
+      legacyId: "org1",
+      createdAt: now,
+      updatedAt: now,
+    };
+    await uow.run((r) => r.organizations.insert(org));
+    expect(await uow.run((r) => r.organizations.findById(org.id))).toEqual(org);
+    expect((await uow.run((r) => r.organizations.findByLegacyId("org1")))?.id).toBe(org.id);
+    expect((await uow.run((r) => r.organizations.findByName("padel kulübü", "tr")))?.id).toBe(org.id);
+    expect(await uow.run((r) => r.organizations.findByName("Padel Kulübü", "DE"))).toBeUndefined();
+    await expect(
+      uow.run((r) =>
+        r.organizations.insert({ ...org, id: uuidGenerator.next(), legacyId: null, name: "PADEL KULÜBÜ" }),
+      ),
+    ).rejects.toThrow(/organizations_name_country_uq|duplicate/);
+    await uow.run((r) => r.organizations.update(org.id, { type: "investor", website: "padel.example" }, now));
+    expect(await uow.run((r) => r.organizations.findById(org.id))).toMatchObject({
+      type: "investor",
+      website: "padel.example",
+      name: "Padel Kulübü",
+    });
+    expect((await uow.run((r) => r.organizations.list({ search: "padel" }))).map((o) => o.id)).toEqual([org.id]);
+    expect(await uow.run((r) => r.organizations.list({ country: "DE" }))).toEqual([]);
+
+    const a = unwrap(await manual({ organizationId: org.id })).lead;
+    expect(a.organizationId).toBe(org.id);
+    const people = await uow.run((r) => r.persons.list({ search: "ayse@" }));
+    expect(people).toHaveLength(1);
+    expect(people[0]).toMatchObject({ id: a.personId, organizationId: null });
+    await uow.run((r) => r.persons.update(a.personId, { organizationId: org.id, fullName: "Ayşe D." }));
+    expect(await uow.run((r) => r.persons.findById(a.personId))).toMatchObject({
+      organizationId: org.id,
+      fullName: "Ayşe D.",
+    });
+    expect((await uow.run((r) => r.persons.list({ organizationId: org.id }))).map((p) => p.id)).toEqual([a.personId]);
+
+    await uow.run((r) =>
+      r.leads.updateIdentity(a.id, { fullName: "Ayşe D.", email: "ayse.d@example.com", phoneE164: null }, now),
+    );
+    expect(unwrap(await sp.queries.get(a.id, REP)).lead).toMatchObject({
+      fullName: "Ayşe D.",
+      email: "ayse.d@example.com",
+      phoneE164: null,
+      organizationId: org.id,
+    });
+    expect((await sp.queries.list({ actor: ADMIN, organizationId: org.id })).map((l) => l.id)).toEqual([a.id]);
+    expect((await sp.queries.list({ actor: ADMIN, personId: a.personId })).map((l) => l.id)).toEqual([a.id]);
+    await uow.run((r) => r.leads.updateFields(a.id, { organizationId: null }, now));
+    expect(unwrap(await sp.queries.get(a.id, REP)).lead.organizationId).toBeNull();
+
+    const act = {
+      id: uuidGenerator.next(),
+      leadId: a.id,
+      type: "call" as const,
+      subject: "Eski arama",
+      dueAt: now,
+      doneAt: now,
+      notes: "",
+      autoCreated: false,
+      createdByChangeId: null,
+      createdByUserId: null,
+      legacyId: "act1",
+      createdAt: now,
+      updatedAt: now,
+    };
+    await uow.run((r) => r.activities.insert(act));
+    expect(await uow.run((r) => r.activities.findByLegacyId("act1"))).toEqual(act);
+    expect(await uow.run((r) => r.activities.findByLegacyId("yok"))).toBeUndefined();
+    await expect(uow.run((r) => r.activities.insert({ ...act, id: uuidGenerator.next() }))).rejects.toThrow(
+      /legacy_id|duplicate/,
+    );
   });
 
   it("attribution: lead_attribution satırı lead ile aynı transaction'da; yeniden okunur", async () => {

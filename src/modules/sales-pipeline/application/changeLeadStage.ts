@@ -107,6 +107,7 @@ export class ChangeLeadStage {
             autoCreated: true,
             createdByChangeId: changeId,
             createdByUserId: input.actor.userId,
+            legacyId: null,
             createdAt: now,
             updatedAt: now,
           };

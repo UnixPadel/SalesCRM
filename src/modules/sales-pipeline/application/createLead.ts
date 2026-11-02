@@ -38,6 +38,8 @@ export interface CreateLeadInput {
   courtCount?: number | string | null;
   courtModel?: string | null;
   expectedCloseDate?: string | null;
+  /** Kuruluş bağı (Faz 6d). */
+  organizationId?: string | null;
   campaign?: Partial<CampaignInfo>;
   /** Tıklama kimlikleri (Faz 2: reklam platformlarından). Hepsi boşsa satır yazılmaz. */
   attribution?: Partial<LeadAttribution>;
@@ -117,6 +119,7 @@ export class CreateLead {
       courtCount: input.courtCount ?? null,
       courtModel: input.courtModel ?? "",
       expectedCloseDate: input.expectedCloseDate ?? null,
+      organizationId: input.organizationId ?? null,
     });
     if (!fieldsR.ok) return fieldsR;
     const fields = fieldsR.value;
@@ -164,6 +167,7 @@ export class CreateLead {
         courtCount: fields.courtCount ?? null,
         courtModel: fields.courtModel ?? "",
         expectedCloseDate: fields.expectedCloseDate ?? null,
+        organizationId: fields.organizationId ?? null,
         createdAt,
         updatedAt: now,
       };
@@ -259,6 +263,7 @@ export class CreateLead {
       phoneE164: p.phone?.e164 ?? null,
       country: p.country,
       company: p.company.trim(),
+      organizationId: null,
       createdAt: p.now,
     };
     await repos.persons.insert(person);

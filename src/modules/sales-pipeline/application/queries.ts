@@ -73,6 +73,8 @@ export interface ListLeadsInput {
   /** Sorumlu kimliği; null = ortak havuz; undefined = hepsi. */
   owner?: string | null | undefined;
   country?: string | undefined;
+  organizationId?: string | undefined;
+  personId?: string | undefined;
   search?: string | undefined;
   includeTest?: boolean | undefined;
   limit?: number | undefined;
@@ -181,6 +183,8 @@ export class LeadQueries {
         stage: input.stage,
         owner: input.owner,
         country: input.country,
+        organizationId: input.organizationId,
+        personId: input.personId,
         search: input.search,
         includeTest: input.includeTest,
         limit: input.limit,

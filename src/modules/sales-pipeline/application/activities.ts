@@ -36,6 +36,7 @@ export class AddActivity {
         autoCreated: false,
         createdByChangeId: null,
         createdByUserId: input.actor.userId,
+        legacyId: null,
         createdAt: now,
         updatedAt: now,
       };

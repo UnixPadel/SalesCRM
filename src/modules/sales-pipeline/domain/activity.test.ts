@@ -22,6 +22,7 @@ const act = (over: Partial<Activity>): Activity => ({
   autoCreated: false,
   createdByChangeId: null,
   createdByUserId: null,
+  legacyId: null,
   createdAt: new Date("2026-03-01T10:00:00Z"),
   updatedAt: new Date("2026-03-01T10:00:00Z"),
   ...over,

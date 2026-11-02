@@ -6,6 +6,7 @@ export * from "./transition";
 export * from "./undo";
 export * from "./assignment";
 export * from "./activity";
+export * from "./organization";
 export * from "./opportunity";
 export * from "./reports";
 export * from "./events";

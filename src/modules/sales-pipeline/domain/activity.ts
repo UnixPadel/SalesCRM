@@ -24,6 +24,8 @@ export interface Activity {
   /** Otomatik aktiviteyi açan aşama değişikliği; geri al bu kimlikle siler. */
   createdByChangeId: string | null;
   createdByUserId: string | null;
+  /** Eski panodan taşınan aktivitenin kimliği; yalnız taşıma betiği doldurur. */
+  legacyId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

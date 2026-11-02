@@ -1,5 +1,6 @@
 import { RuleError, err, ok, type Result } from "../../shared/kernel";
 import type { Lead, StageEvent } from "./lead";
+import { isUuid } from "./organization";
 import { STAGE_CODES, type StageCode } from "./stage";
 
 /**
@@ -17,6 +18,8 @@ export interface LeadFields {
   city: string;
   productInterest: string;
   notes: string;
+  /** Kuruluş bağı; null = bağı kaldır. */
+  organizationId: string | null;
 }
 
 export const LEAD_FIELD_KEYS = [
@@ -27,6 +30,7 @@ export const LEAD_FIELD_KEYS = [
   "city",
   "productInterest",
   "notes",
+  "organizationId",
 ] as const satisfies readonly (keyof LeadFields)[];
 
 export const LEAD_FIELD_LIMITS = {
@@ -111,6 +115,13 @@ export function parseLeadFields(raw: Record<string, unknown>): Result<Partial<Le
     const r = text("notes", LEAD_FIELD_LIMITS.notes);
     if (!r.ok) return r;
     out.notes = r.value;
+  }
+  if ("organizationId" in raw) {
+    const v = raw["organizationId"];
+    if (v === null || v === "" || v === undefined) out.organizationId = null;
+    else if (!isUuid(v)) {
+      return err(new RuleError("lead.organization_invalid", "Kuruluş kimliği geçersiz.", { value: v }));
+    } else out.organizationId = v.toLowerCase();
   }
   return ok(out);
 }

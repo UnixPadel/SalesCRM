@@ -14,6 +14,8 @@ import type {
   LeadListFilter,
   LeadRepository,
   LostReasonSource,
+  Organization,
+  OrganizationRepository,
   OutboxWriter,
   Person,
   PersonRepository,
@@ -40,6 +42,7 @@ export interface OutboxRow {
 export interface MemoryState {
   leads: Lead[];
   persons: Person[];
+  organizations: Organization[];
   events: StageEvent[];
   attributions: Record<string, LeadAttribution>;
   consents: LeadConsent[];
@@ -54,6 +57,7 @@ export interface MemoryState {
 export const emptyState = (): MemoryState => ({
   leads: [],
   persons: [],
+  organizations: [],
   events: [],
   attributions: {},
   consents: [],
@@ -86,6 +90,8 @@ function reposFor(s: MemoryState): Repositories {
       if (f.stage) rows = rows.filter((l) => l.currentStage === f.stage);
       if (f.owner !== undefined) rows = rows.filter((l) => l.assignedUserId === f.owner);
       if (f.country) rows = rows.filter((l) => l.country === f.country!.toUpperCase());
+      if (f.organizationId) rows = rows.filter((l) => l.organizationId === f.organizationId);
+      if (f.personId) rows = rows.filter((l) => l.personId === f.personId);
       if (f.search) {
         const q = f.search.toLowerCase();
         rows = rows.filter((l) =>
@@ -123,6 +129,14 @@ function reposFor(s: MemoryState): Repositories {
       Object.assign(l, fields);
       l.updatedAt = updatedAt;
     },
+    async updateIdentity(id, identity, updatedAt) {
+      const l = s.leads.find((x) => x.id === id);
+      if (!l) throw new Error("lead yok");
+      l.fullName = identity.fullName;
+      l.email = identity.email;
+      l.phoneE164 = identity.phoneE164;
+      l.updatedAt = updatedAt;
+    },
     async saveAttribution(leadId, a) {
       s.attributions[leadId] = { ...a };
     },
@@ -138,12 +152,84 @@ function reposFor(s: MemoryState): Repositories {
     },
   };
   const persons: PersonRepository = {
+    async findById(id) {
+      const p = s.persons.find((x) => x.id === id);
+      return p ? { ...p } : undefined;
+    },
     async findByEmailOrPhone(email, phone) {
       const p = s.persons.find((x) => (email && x.emailNormalized === email) || (phone && x.phoneE164 === phone));
       return p ? { ...p } : undefined;
     },
+    async list(f) {
+      let rows = [...s.persons];
+      if (f.search) {
+        const q = f.search.toLowerCase();
+        rows = rows.filter((p) =>
+          [p.fullName, p.emailNormalized, p.phoneE164, p.company].some((v) => (v ?? "").toLowerCase().includes(q)),
+        );
+      }
+      if (f.organizationId) rows = rows.filter((p) => p.organizationId === f.organizationId);
+      rows.sort((a, b) => a.fullName.localeCompare(b.fullName) || a.id.localeCompare(b.id));
+      return (f.limit ? rows.slice(0, f.limit) : rows).map((p) => ({ ...p }));
+    },
     async insert(p) {
+      if (p.emailNormalized && s.persons.some((x) => x.emailNormalized === p.emailNormalized)) {
+        throw new Error("persons_email_uq");
+      }
+      if (p.phoneE164 && s.persons.some((x) => x.phoneE164 === p.phoneE164)) throw new Error("persons_phone_uq");
       s.persons.push({ ...p });
+    },
+    async update(id, patch) {
+      const p = s.persons.find((x) => x.id === id);
+      if (!p) throw new Error("kişi yok");
+      Object.assign(p, patch);
+    },
+  };
+  const organizations: OrganizationRepository = {
+    async findById(id) {
+      const o = s.organizations.find((x) => x.id === id);
+      return o ? { ...o } : undefined;
+    },
+    async findByIds(ids) {
+      return s.organizations.filter((o) => ids.includes(o.id)).map((o) => ({ ...o }));
+    },
+    async findByLegacyId(legacyId) {
+      const o = s.organizations.find((x) => x.legacyId === legacyId);
+      return o ? { ...o } : undefined;
+    },
+    async findByName(name, country) {
+      const o = s.organizations.find(
+        (x) =>
+          x.name.toLowerCase() === name.trim().toLowerCase() && (x.country ?? "") === (country?.toUpperCase() ?? ""),
+      );
+      return o ? { ...o } : undefined;
+    },
+    async list(f) {
+      let rows = [...s.organizations];
+      if (f.search) {
+        const q = f.search.toLowerCase();
+        rows = rows.filter((o) => [o.name, o.website, o.country].some((v) => (v ?? "").toLowerCase().includes(q)));
+      }
+      if (f.country) rows = rows.filter((o) => o.country === f.country!.toUpperCase());
+      if (f.type) rows = rows.filter((o) => o.type === f.type);
+      rows.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+      return (f.limit ? rows.slice(0, f.limit) : rows).map((o) => ({ ...o }));
+    },
+    async insert(o) {
+      if (
+        s.organizations.some(
+          (x) => x.name.toLowerCase() === o.name.toLowerCase() && (x.country ?? "") === (o.country ?? ""),
+        )
+      ) {
+        throw new Error("organizations_name_country_uq");
+      }
+      s.organizations.push({ ...o });
+    },
+    async update(id, fields, updatedAt) {
+      const o = s.organizations.find((x) => x.id === id);
+      if (!o) throw new Error("kuruluş yok");
+      Object.assign(o, fields);
+      o.updatedAt = updatedAt;
     },
   };
   const stageEvents: StageEventRepository = {
@@ -210,6 +296,10 @@ function reposFor(s: MemoryState): Repositories {
     async remove(id) {
       s.activities = s.activities.filter((a) => a.id !== id);
     },
+    async findByLegacyId(legacyId) {
+      const a = s.activities.find((x) => x.legacyId === legacyId);
+      return a ? { ...a } : undefined;
+    },
     async removeAutoCreatedByChange(changeId) {
       const before = s.activities.length;
       s.activities = s.activities.filter((a) => !(a.autoCreated && a.createdByChangeId === changeId));
@@ -239,7 +329,7 @@ function reposFor(s: MemoryState): Repositories {
   };
   const territories: TerritoryRuleSource = { all: async () => s.territories.map((t) => ({ ...t })) };
   const lostReasons: LostReasonSource = { activeCodes: async () => [...s.lostReasons] };
-  return { leads, persons, stageEvents, activities, outbox, territories, lostReasons };
+  return { leads, persons, organizations, stageEvents, activities, outbox, territories, lostReasons };
 }
 
 export class InMemoryUnitOfWork implements UnitOfWork {

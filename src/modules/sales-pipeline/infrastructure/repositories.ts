@@ -5,6 +5,7 @@ import type {
   LeadFields,
   LeadListFilter,
   LeadRepository,
+  PersonListFilter,
   LostReasonSource,
   OutboxWriter,
   Person,
@@ -31,7 +32,7 @@ import {
 const LEAD_COLS =
   "id, source, platform_lead_id, form_id, person_id, full_name, email, phone_e164, country, city, company, product_interest, " +
   "campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name, assigned_user_id, current_stage, is_test, notes, extra_answers, " +
-  "court_count, court_model, expected_close_date, created_at, updated_at";
+  "court_count, court_model, expected_close_date, organization_id, created_at, updated_at";
 /** Okurken tarih sütunu metin olarak gelir (rows.ts: LeadRow.expected_close_date). */
 const LEAD_SELECT = LEAD_COLS.replace("expected_close_date", "expected_close_date::text AS expected_close_date");
 
@@ -43,7 +44,9 @@ const FIELD_COLUMN: Record<keyof LeadFields, string> = {
   city: "city",
   productInterest: "product_interest",
   notes: "notes",
+  organizationId: "organization_id",
 };
+const PERSON_COLS = "id, full_name, email_normalized, phone_e164, country, company, organization_id, created_at";
 
 export function pgLeadRepository(q: Queryable): LeadRepository {
   return {
@@ -79,6 +82,8 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
       if (f.owner === null) where.push("assigned_user_id IS NULL");
       else if (f.owner !== undefined) where.push(`assigned_user_id = ${p(f.owner)}`);
       if (f.country) where.push(`country = ${p(f.country.toUpperCase())}`);
+      if (f.organizationId) where.push(`organization_id = ${p(f.organizationId)}`);
+      if (f.personId) where.push(`person_id = ${p(f.personId)}`);
       if (f.search) {
         const like = p(`%${f.search.toLowerCase()}%`);
         where.push(
@@ -92,7 +97,7 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
     },
     async insert(l: Lead) {
       await q.query(
-        `INSERT INTO leads (${LEAD_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)`,
+        `INSERT INTO leads (${LEAD_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)`,
         [
           l.id,
           l.source,
@@ -120,10 +125,20 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
           l.courtCount,
           l.courtModel,
           l.expectedCloseDate,
+          l.organizationId,
           l.createdAt,
           l.updatedAt,
         ],
       );
+    },
+    async updateIdentity(id, identity, updatedAt) {
+      await q.query("UPDATE leads SET full_name = $2, email = $3, phone_e164 = $4, updated_at = $5 WHERE id = $1", [
+        id,
+        identity.fullName,
+        identity.email,
+        identity.phoneE164,
+        updatedAt,
+      ]);
     },
     async updateStage(id, stage: StageCode, updatedAt) {
       await q.query("UPDATE leads SET current_stage = $2, updated_at = $3 WHERE id = $1", [id, stage, updatedAt]);
@@ -201,24 +216,73 @@ const CONSENT_COLS = "id, lead_id, consent_type, granted, text_version, granted_
 const ATTR_COLS =
   "lead_id, gclid, gbraid, wbraid, fbclid, fbc, fbp, utm_source, utm_medium, utm_campaign, utm_term, utm_content, landing_url, click_at";
 
+const PERSON_PATCH_COLUMN = {
+  fullName: "full_name",
+  emailNormalized: "email_normalized",
+  phoneE164: "phone_e164",
+  country: "country",
+  company: "company",
+  organizationId: "organization_id",
+} as const;
+
 export function pgPersonRepository(q: Queryable): PersonRepository {
   return {
+    async findById(id) {
+      const r = await queryOne<PersonRow>(q, `SELECT ${PERSON_COLS} FROM persons WHERE id = $1`, [id]);
+      return r && personFromRow(r);
+    },
     async findByEmailOrPhone(email, phone) {
       if (!email && !phone) return undefined;
       const r = await queryOne<PersonRow>(
         q,
-        `SELECT id, full_name, email_normalized, phone_e164, country, company, created_at FROM persons
+        `SELECT ${PERSON_COLS} FROM persons
           WHERE ($1::text IS NOT NULL AND email_normalized = $1) OR ($2::text IS NOT NULL AND phone_e164 = $2)
           ORDER BY created_at LIMIT 1`,
         [email, phone],
       );
       return r && personFromRow(r);
     },
+    async list(f: PersonListFilter) {
+      const where: string[] = [];
+      const params: unknown[] = [];
+      const p = (v: unknown) => {
+        params.push(v);
+        return `$${params.length}`;
+      };
+      if (f.search) {
+        const like = p(`%${f.search.toLowerCase()}%`);
+        where.push(
+          `(lower(full_name) LIKE ${like} OR lower(coalesce(email_normalized,'')) LIKE ${like} OR coalesce(phone_e164,'') LIKE ${like} OR lower(company) LIKE ${like})`,
+        );
+      }
+      if (f.organizationId) where.push(`organization_id = ${p(f.organizationId)}`);
+      const sql = `SELECT ${PERSON_COLS} FROM persons ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY full_name, id ${
+        f.limit ? `LIMIT ${p(f.limit)}` : ""
+      }`;
+      return (await q.query<PersonRow>(sql, params)).map(personFromRow);
+    },
     async insert(p: Person) {
-      await q.query(
-        "INSERT INTO persons (id, full_name, email_normalized, phone_e164, country, company, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)",
-        [p.id, p.fullName, p.emailNormalized, p.phoneE164, p.country, p.company, p.createdAt],
-      );
+      await q.query(`INSERT INTO persons (${PERSON_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [
+        p.id,
+        p.fullName,
+        p.emailNormalized,
+        p.phoneE164,
+        p.country,
+        p.company,
+        p.organizationId,
+        p.createdAt,
+      ]);
+    },
+    async update(id, patch) {
+      const sets: string[] = [];
+      const params: unknown[] = [id];
+      for (const key of Object.keys(PERSON_PATCH_COLUMN) as (keyof typeof PERSON_PATCH_COLUMN)[]) {
+        if (!(key in patch)) continue;
+        params.push(patch[key] ?? null);
+        sets.push(`${PERSON_PATCH_COLUMN[key]} = $${params.length}`);
+      }
+      if (!sets.length) return;
+      await q.query(`UPDATE persons SET ${sets.join(", ")} WHERE id = $1`, params);
     },
   };
 }

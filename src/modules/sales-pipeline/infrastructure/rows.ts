@@ -2,6 +2,8 @@ import type {
   Activity,
   ActivityType,
   Lead,
+  Organization,
+  OrganizationType,
   LeadAttribution,
   LeadConsent,
   LeadSource,
@@ -41,6 +43,7 @@ export interface LeadRow extends Record<string, unknown> {
   court_model: string;
   /** SELECT'te ::text ile okunur (YYYY-MM-DD); sürücünün yerel saate çevirmesi günü kaydırabilirdi. */
   expected_close_date: string | null;
+  organization_id: string | null;
   created_at: Date | string;
   updated_at: Date | string;
 }
@@ -78,6 +81,7 @@ export function leadFromRow(r: LeadRow): Lead {
     courtCount: r.court_count === null ? null : Number(r.court_count),
     courtModel: r.court_model,
     expectedCloseDate: r.expected_close_date,
+    organizationId: r.organization_id,
     createdAt: date(r.created_at),
     updatedAt: date(r.updated_at),
   };
@@ -140,6 +144,7 @@ export interface PersonRow extends Record<string, unknown> {
   phone_e164: string | null;
   country: string | null;
   company: string;
+  organization_id: string | null;
   created_at: Date | string;
 }
 
@@ -150,7 +155,32 @@ export const personFromRow = (r: PersonRow): Person => ({
   phoneE164: r.phone_e164,
   country: r.country,
   company: r.company,
+  organizationId: r.organization_id,
   createdAt: date(r.created_at),
+});
+
+export interface OrganizationRow extends Record<string, unknown> {
+  id: string;
+  name: string;
+  type: string;
+  country: string | null;
+  website: string;
+  notes: string;
+  legacy_id: string | null;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+
+export const organizationFromRow = (r: OrganizationRow): Organization => ({
+  id: r.id,
+  name: r.name,
+  type: r.type as OrganizationType,
+  country: r.country,
+  website: r.website,
+  notes: r.notes,
+  legacyId: r.legacy_id,
+  createdAt: date(r.created_at),
+  updatedAt: date(r.updated_at),
 });
 
 export interface ActivityRow extends Record<string, unknown> {
@@ -164,6 +194,7 @@ export interface ActivityRow extends Record<string, unknown> {
   auto_created: boolean;
   created_by_change_id: string | null;
   created_by_user_id: string | null;
+  legacy_id: string | null;
   created_at: Date | string;
   updated_at: Date | string;
 }
@@ -179,6 +210,7 @@ export const activityFromRow = (r: ActivityRow): Activity => ({
   autoCreated: r.auto_created,
   createdByChangeId: r.created_by_change_id,
   createdByUserId: r.created_by_user_id,
+  legacyId: r.legacy_id,
   createdAt: date(r.created_at),
   updatedAt: date(r.updated_at),
 });

@@ -3,7 +3,7 @@ import type { Activity, ActivityRepository } from "../domain";
 import { activityFromRow, type ActivityRow } from "./rows";
 
 const COLS =
-  "id, lead_id, type, subject, due_at, done_at, notes, auto_created, created_by_change_id, created_by_user_id, created_at, updated_at";
+  "id, lead_id, type, subject, due_at, done_at, notes, auto_created, created_by_change_id, created_by_user_id, legacy_id, created_at, updated_at";
 
 export function pgActivityRepository(q: Queryable): ActivityRepository {
   return {
@@ -28,7 +28,7 @@ export function pgActivityRepository(q: Queryable): ActivityRepository {
       ).map(activityFromRow);
     },
     async insert(a: Activity) {
-      await q.query(`INSERT INTO activities (${COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, [
+      await q.query(`INSERT INTO activities (${COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, [
         a.id,
         a.leadId,
         a.type,
@@ -39,9 +39,14 @@ export function pgActivityRepository(q: Queryable): ActivityRepository {
         a.autoCreated,
         a.createdByChangeId,
         a.createdByUserId,
+        a.legacyId,
         a.createdAt,
         a.updatedAt,
       ]);
+    },
+    async findByLegacyId(legacyId) {
+      const r = await queryOne<ActivityRow>(q, `SELECT ${COLS} FROM activities WHERE legacy_id = $1`, [legacyId]);
+      return r && activityFromRow(r);
     },
     async setDone(id, doneAt, updatedAt) {
       await q.query("UPDATE activities SET done_at = $2, updated_at = $3 WHERE id = $1", [id, doneAt, updatedAt]);

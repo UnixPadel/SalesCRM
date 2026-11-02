@@ -28,6 +28,7 @@ const lead = (id: string, over: Partial<Lead>): Lead => ({
   courtCount: null,
   courtModel: "",
   expectedCloseDate: null,
+  organizationId: null,
   createdAt: new Date("2026-02-01T00:00:00Z"),
   updatedAt: new Date("2026-02-01T00:00:00Z"),
   ...over,

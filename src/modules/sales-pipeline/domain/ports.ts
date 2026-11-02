@@ -3,6 +3,7 @@ import type { TerritoryRule } from "./assignment";
 import type { DomainEvent } from "./events";
 import type { Lead, LeadAttribution, LeadConsent, Person, StageEvent } from "./lead";
 import type { LeadFields } from "./opportunity";
+import type { Organization, OrganizationFields, OrganizationType } from "./organization";
 import type { StageCode } from "./stage";
 
 /** Portlar (Genel plan kural 2): uygulamalar infrastructure katmanında, testler sahte uygulamayla. */
@@ -15,6 +16,8 @@ export interface LeadListFilter {
   owner?: string | null | undefined;
   /** ISO 3166-1 alpha-2. */
   country?: string | undefined;
+  organizationId?: string | undefined;
+  personId?: string | undefined;
   includeTest?: boolean | undefined;
   search?: string | undefined;
   limit?: number | undefined;
@@ -29,6 +32,12 @@ export interface LeadRepository {
   updateAssignee(id: string, userId: string | null, updatedAt: Date): Promise<void>;
   /** Fırsat ve serbest metin alanları (Faz 6b); yalnız verilen anahtarlar değişir. */
   updateFields(id: string, fields: Partial<LeadFields>, updatedAt: Date): Promise<void>;
+  /** Kimlik alanları (Faz 6d): ad, normalize e-posta, E.164 telefon; kişi kaydı uygulama katmanında ayrıca güncellenir. */
+  updateIdentity(
+    id: string,
+    identity: { fullName: string; email: string | null; phoneE164: string | null },
+    updatedAt: Date,
+  ): Promise<void>;
   /** Tıklama kimlikleri (1:1); lead ile aynı transaction'da yazılır. */
   saveAttribution(leadId: string, attribution: LeadAttribution): Promise<void>;
   findAttribution(leadId: string): Promise<LeadAttribution | undefined>;
@@ -37,9 +46,43 @@ export interface LeadRepository {
   findConsents(leadId: string): Promise<LeadConsent[]>;
 }
 
+export interface PersonListFilter {
+  search?: string | undefined;
+  organizationId?: string | undefined;
+  limit?: number | undefined;
+}
+
 export interface PersonRepository {
+  findById(id: string): Promise<Person | undefined>;
   findByEmailOrPhone(emailNormalized: string | null, phoneE164: string | null): Promise<Person | undefined>;
+  /** Ad, e-posta, telefon, firma araması; ada göre sıralı. */
+  list(filter: PersonListFilter): Promise<Person[]>;
   insert(person: Person): Promise<void>;
+  /** Yalnız verilen alanlar değişir (kimlik düzenleme, kuruluş bağı, taşıma). */
+  update(
+    id: string,
+    patch: Partial<
+      Pick<Person, "fullName" | "emailNormalized" | "phoneE164" | "country" | "company" | "organizationId">
+    >,
+  ): Promise<void>;
+}
+
+export interface OrganizationListFilter {
+  search?: string | undefined;
+  country?: string | undefined;
+  type?: OrganizationType | undefined;
+  limit?: number | undefined;
+}
+
+export interface OrganizationRepository {
+  findById(id: string): Promise<Organization | undefined>;
+  findByIds(ids: readonly string[]): Promise<Organization[]>;
+  findByLegacyId(legacyId: string): Promise<Organization | undefined>;
+  /** Aynı ad + ülke tek kayıttır (büyük/küçük harf duyarsız). */
+  findByName(name: string, country: string | null): Promise<Organization | undefined>;
+  list(filter: OrganizationListFilter): Promise<Organization[]>;
+  insert(organization: Organization): Promise<void>;
+  update(id: string, fields: Partial<OrganizationFields>, updatedAt: Date): Promise<void>;
 }
 
 export interface StageEventRepository {
@@ -80,11 +123,14 @@ export interface ActivityRepository {
   remove(id: string): Promise<void>;
   /** Geri al: o aşama değişikliğiyle otomatik açılan aktiviteler silinir; silinen sayısı döner. */
   removeAutoCreatedByChange(changeId: string): Promise<number>;
+  /** Taşıma: eski kimlikle daha önce açılmış mı. */
+  findByLegacyId(legacyId: string): Promise<Activity | undefined>;
 }
 
 export interface Repositories {
   leads: LeadRepository;
   persons: PersonRepository;
+  organizations: OrganizationRepository;
   stageEvents: StageEventRepository;
   activities: ActivityRepository;
   outbox: OutboxWriter;

@@ -28,6 +28,8 @@ export interface Person {
   phoneE164: string | null;
   country: string | null;
   company: string;
+  /** Kuruluş bağı (Faz 6d); null = bağsız. */
+  organizationId: string | null;
   createdAt: Date;
 }
 
@@ -65,6 +67,8 @@ export interface Lead {
   courtModel: string;
   /** Takvim günü YYYY-MM-DD; saat yok. */
   expectedCloseDate: string | null;
+  /** Kuruluş bağı (Faz 6d); null = bağsız. `company` metni geçiş süresince kalır. */
+  organizationId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
