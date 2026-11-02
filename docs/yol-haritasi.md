@@ -48,16 +48,16 @@ Deals" akışıyla aynı mantık, kopyasız.
 |---|---|---|---|
 | Gelen kutusu, lead detayı, Kanban | — / 5 kolon | ✔ Faz 1; kartta tutar, kort sayısı, kapanış, sonraki aktivite (6a–6b) | — |
 | Aşama kuralları | Kırmızı hat neden, proforma takibi | İleri yönlü, 10 dk geri al, Nitelikli 3 soru, Kaybedildi neden kodu, Kazanıldı tutar, Teklif tutarı (2026-11-02) | Teklif → otomatik takip aktivitesi |
-| Aktiviteler ("Bugün") | ✔ arama/e-posta/toplantı/proforma/saha, gecikmiş/bugün/yaklaşan | Eski JSON ile çalışıyor, yeni lead'lere bağlı değil | Yeni modelde aktivite yok |
-| Takipsiz (rotting) rozeti | ✔ | — | Yok |
+| Aktiviteler ("Bugün") | ✔ arama/e-posta/toplantı/proforma/saha, gecikmiş/bugün/yaklaşan | ✔ 6a (`activities`, teklif takibi otomatik) | — |
+| Takipsiz (rotting) rozeti | ✔ | ✔ 6a | — |
 | Kolon istatistikleri | adet, toplam EUR, ort. gün | ✔ 6b (`GET /board`, kurlar `EUR_RATES`) | Kurların ekrandan düzenlenmesi (Faz 7) |
 | Filtreler | ülke, sorumlu, takipsiz | ✔ 6b, URL'de ve hatırlanır | — |
-| Kişiler | ✔ eski kişi/kuruluş listesi | Eski JSON | Yeni `persons` tablosundan liste yok |
+| Kişiler | ✔ eski kişi/kuruluş listesi | ✔ 6d (`organizations`, `persons`, arama, kimlik düzenleme) | Kişi birleştirme (Faz 7 adayı) |
 | Raporlar | aylık satış, kolona göre dönüşüm, ülkeye göre hat, kayıp nedenleri | ✔ 6c (`GET /reports`, aşama olaylarından; + kaynağa göre lead) | Ağırlıklı tahmin (aşama olasılığı yok) |
-| Fırsat alanları | tutar, para birimi, kort sayısı, kort modeli, tahmini kapanış | tutar (Teklif/Kazanıldı olayında); kort sayısı, kort modeli, beklenen kapanış (6b) | kuruluş (6d) |
+| Fırsat alanları | tutar, para birimi, kort sayısı, kort modeli, tahmini kapanış | tutar (Teklif/Kazanıldı olayında); kort sayısı, kort modeli, beklenen kapanış (6b); kuruluş (6d) | — |
 | Reklam platformlarına geri bildirim | — | ✔ Faz 4–5 | Gerçek platform testi bekliyor |
 
-Eski sayfalar (`src/pages/*`, `/api/db/*`, `server/data/crm.json`) yeni sayfalar yerine geçince kaldırılır.
+Eski sayfalar, `/api/db/*` ve JSON deposu 6d ile kaldırıldı; `server/data/crm.json` yalnız `db:migrate-legacy` girdisi.
 
 ## 3. Hedef veri modeli
 
@@ -199,7 +199,7 @@ gantt
 Faz 6 dört parçaya bölündü; her parça ayrı iş emri ve ayrı kabul raporu olur, önceki fazlarla aynı yöntem.
 
 **Durum (2026-11-02):** 6a, 6b ve 6c tamamlandı (ADR-0013, `docs/faz6a-kabul-raporu.md`, `docs/faz6b-kabul-raporu.md`,
-`docs/faz6c-kabul-raporu.md`). Sıradaki: 6d.
+`docs/faz6c-kabul-raporu.md`); **6d tamamlandı** (`docs/faz6d-kabul-raporu.md`): Faz 6 bitti. Sıradaki: Faz 7.
 
 ## 7. Canlıya alma ve veritabanı
 

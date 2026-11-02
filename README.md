@@ -149,7 +149,21 @@ görür; test lead'leri hiçbir rapora girmez.
   oluşturulanlar ve kazanılanları).
 - Dönem 6 / 12 / 24 ay, tarayıcıda hatırlanır. Boş veride sayfa sıfır çubuklar ve "—" ile çalışır.
 
-Sonraki parça: 6d kişiler/kuruluşlar (`organization_id` o zaman gelir) ve eski sayfaların kaldırılması.
+## Satış panosu: kişiler ve kuruluşlar (Faz 6d)
+
+Faz 6 bu parçayla tamamlandı; arayüzün tamamı yeni modelde çalışır, eski JSON panosu ve `/api/db/*` kaldırıldı.
+
+- **Kuruluşlar** (`organizations`): kulüp / yatırımcı / distribütör / yüklenici / diğer; aynı ad + ülke tek kayıt.
+  Kişiler ve lead'ler kuruluşa bağlanır (`organization_id`); lead'deki serbest `company` metni geçiş süresince kalır.
+  API: `GET/POST /api/pipeline/organizations`, `PATCH /organizations/:id`.
+- **Kişiler** sayfası (`#/contacts`): Kuruluşlar ve Kişiler sekmeleri, sunucuda arama; kuruluş satırı açılınca bağlı
+  kişiler ve görünür lead'leri; kişi satırında lead çipleri (aşama, tutar). `GET /persons?q=&organizationId=`.
+- **Kimlik düzenleme:** lead detayındaki Kişi panelinden ad, e-posta, telefon; lead ve bağlı kişi birlikte güncellenir,
+  e-posta ya da telefondan biri kalmalı, başka kişiye kayıtlı e-posta/telefon reddedilir. `PATCH /leads/:id/contact`.
+- **Üst menü araması** sunucudan: görünür lead'ler, kişiler, kuruluşlar (`GET /search?q=`).
+- `npm run db:migrate-legacy` eski kuruluşları ve 28 aktiviteyi de taşır; yeniden çalıştırmak güvenlidir (`legacy_id`).
+
+Sonraki: Faz 7 yönetim paneli (eşleme ve ayar ekranları, sağlık paneli, kurlar), Faz 8 canlıya alma.
 
 ## Geliştirme kuralları (Faz 0'dan itibaren)
 
@@ -192,7 +206,7 @@ günlüğe yazar. Yardımcı betikler: `node scripts/list-users.mjs` (kim girebi
 sunucusuna bağlanmaz. Geri açmak için `.env` içinde `MAIL_ENABLED=1`.
 
 Ortam değişkenleri: `API_PORT` (8787), `AUTH_DB_URL`, `AUTH_DB_TABLE` ve `AUTH_DB_*_COL` (bkz. `.env.example`),
-`MAIL_ENABLED`, `IMAP_HOST`, `IMAP_PORT`, `MAIL_DOMAIN`, `CRM_DATA` (eski veri dosyası, varsayılan `server/data/crm.json`),
+`MAIL_ENABLED`, `IMAP_HOST`, `IMAP_PORT`, `MAIL_DOMAIN`, `CRM_DATA` (yalnız `db:migrate-legacy` girdisi: eski JSON dışa aktarımı, varsayılan `server/data/crm.json`),
 `DATABASE_URL` (Postgres; yoksa PGlite), `PGLITE_DIR`, `UNDO_WINDOW_MINUTES` (10), `ENABLED_PROVIDERS` (Faz 4–5), `EUR_RATES` (Faz 6b),
 Faz 2: `INBOX_ENCRYPTION_KEY`, `META_*`, `GOOGLE_LEAD_FORM_KEY`, `SMTP_*`, `PUBLIC_BASE_URL`, `INTAKE_*`, `BACKFILL_*` (hepsi `.env.example` içinde).
 
@@ -205,85 +219,43 @@ Faz 2: `INBOX_ENCRYPTION_KEY`, `META_*`, `GOOGLE_LEAD_FORM_KEY`, `SMTP_*`, `PUBL
 | Salah, Yuşa, Ahlem, Mohamed, Simon | KullaniciBilgileri (Temsilci) | satışçı |
 | Muhasebe, Fabrika, Lojistik, Gözlemci | KullaniciBilgileri | görüntüleyici |
 
-- **Admin:** tüm satışçıların kartlarını görür (pano varsayılanı "Tüm ekip", satışçı filtresi), her kartı
-  taşır, düzenler, sorumlusunu değiştirir, siler; örnek veriyi sıfırlar. Sunucu da bunu uygular (403).
-- **Satışçı:** kendi kartları + ortak havuz. Başkasının kartını yalnız görüntüler ("yalnız görüntüleme" notu).
+- **Admin:** tüm lead'leri görür (pano filtresi "Tüm sorumlular"), her lead'in aşamasını, sorumlusunu ve
+  alanlarını değiştirir. Sunucu da bunu uygular (403).
+- **Satışçı:** kendi lead'leri + ortak havuz (bölge kuralına göre). Başkasının lead'ini görmez; havuzdakini üstlenir.
+- **Görüntüleyici:** her şeyi okur, hiçbir şeyi değiştiremez.
 - `adminPassword` ilk açılışta rastgele üretilir ve dosyaya yazılır; dosyadan değiştirebilir ya da
   `CRM_ADMIN_PASSWORD` ortam değişkeniyle ezebilirsiniz.
 
-## Pano: iki görünüm
+## Ekranlar
 
-Panonun sol üstündeki anahtar: **Hat haritası | Kolonlar**. Seçim tarayıcıda hatırlanır; varsayılan hat haritası.
+Hepsi yeni satış pipeline'ından (`/api/pipeline/*`, Postgres; yerelde PGlite):
 
-Herkes panoyu **Müşterilerim** görünümünde açar (yönetici dahil); **Ortak havuz** ve **Tüm ekip** bir tık uzaktadır.
+| Sayfa | Ne gösterir |
+|---|---|
+| **Gelen kutusu** (`#/inbox`) | Yeni lead'ler, kaynak rozeti, "geleli" sayacı (1 sa turuncu, 24 sa kırmızı), üstlen |
+| **Pano** (`#/pipeline`) | 6 aşama, sürükle-bırak (yalnız ileri; 10 dk geri al), filtreler sorumlu · ülke · takipsiz (URL'de, hatırlanır), kolon başlığında adet · toplam EUR · ort. gün; kartta kort, tutar, beklenen kapanış, sonraki aktivite / Takipsiz |
+| **Lead detayı** (`#/lead/<id>`) | Sonraki aşama (Nitelikli 3 soru, Teklif tutarı, Kazanıldı tutar, Kaybedildi neden), Kişi (düzenle), Proje (fırsat alanları, kuruluş), aktiviteler, zaman çizelgesi, kaynak detayı |
+| **Bugün** (`#/activities`) | Gecikmiş · bugün · yaklaşan aktiviteler, tek tıkla tamamla |
+| **Kişiler** (`#/contacts`) | Kuruluşlar ve kişiler, arama, bağlı lead'ler |
+| **Raporlar** (`#/reports`) | Aylık kazanılan, aşamaya göre dönüşüm, ülkeye göre açık hat, kayıp nedenleri, kaynağa göre lead |
 
-**Hat haritası — kişisel (Müşterilerim / Ortak havuz / tek satışçı):** üstte tek bir hat ve beş durak:
-her durağın adı, anlamı, kaç müşteri olduğu ve müşteriyi bir sonraki durağa ne taşır ("Dönüş yapıp
-fiyat sorarsa → 2. Yeşil hat"). Altında her durağın müşterileri kart olarak durur; kartta ülke, kort,
-değer, bu durakta geçen süre ve düz Türkçeyle "şimdi ne yapmalı" satırı (takipsiz / gecikmiş / bugün /
-planlı tarih) vardır. Karttaki **▶ Sonraki durak** düğmesi tek tıkla ilerletir; 4. durakta
-**Satış tamamlandı** çıkar. Sürükle-bırak ve `Alt + ←/→` da çalışır.
-
-**Hat haritası — ekip (Tüm ekip):** her satır bir satışçı hattı (en altta ortak havuz), sütunlar
-1–4 duraklar, en sağda kırmızı hat terminali. Müşteriler bulundukları durağın altında "boncuk" olarak
-durur. Boncuğu başka durağa sürüklemek kolonu değiştirir, başka hatta bırakmak sorumluyu değiştirir
-(başkasının hattına yalnız yönetici bırakabilir); ikisi birden tek adımdır ve "Geri al" ikisini de
-geri alır. Simgeler: 🔥 takipsiz, ⏰ gecikmiş adım, 🕒 bugün, 🏆 satıldı, ⛔ kırmızı hat.
-
-**Kolonlar**: klasik 5 kolonlu pano (aşağıda).
-
-## Pano: 5 kolon
-
-| # | Kolon | Anlamı |
-|---|-------|--------|
-| 1 | İletişim kuruldu | Ulaştığımız tüm müşteriler |
-| 2 | Yeşil hat | Dönüş yaptı, fiyat soruyor |
-| 3 | Proforma gönderildi | Teklif müşteride; 3 gün sonrasına otomatik takip araması açılır |
-| 4 | Saha ziyareti / planlama | Keşif, ölçü, proje planı |
-| 5 | Kırmızı hat | Dönüş yaptı ama olumsuz sonuçlandı; **neden zorunlu**, kartın üstünde görünür |
-
-Satış kapanınca kart kolonunda kalır, "Satış tamamlandı" ile satıldı işareti alır (raporlar bunu kullanır).
-Kart sürüklenir, "Taşı" menüsü ya da çekmecedeki kolon düğmeleriyle de taşınır. Planlı adımı olmayan
-açık müşteri **takipsiz** sayılır (kırmızı şerit).
-
-## Kimin müşterisi?
-
-Her kartın bir sorumlusu vardır ya da **ortak havuzdadır** (sahipsiz). Panodaki anahtar:
-**Müşterilerim · Ortak havuz · Tüm ekip**. Havuzdaki kartta "Üstlen" düğmesi vardır; sorumlu, çekmece
-başlığından da değiştirilir. Formlar sayfasında da "Benim + havuz" varsayılan görünümdür.
-
-## Müşteri çekmecesi
-
-Karta tıklayınca sağdan açılır: ad, durak ve "şimdi ne var" satırı → yolculuk çizgisi (durağa tıkla =
-taşı) → kimlik kartı (kişi, Ara / WhatsApp / E-posta düğmeleri, değer, kort) → sekmeler: Adımlar · Bilgiler · Notlar.
-E-postalar sekmesi `MAIL_ENABLED=1` olunca geri gelir.
-
-E-postalar **kartın sorumlusunun** posta kutusundan canlı okunur: gelen kutusunda müşteriden gelenler,
-gönderilenler klasöründe ona gidenler (klasör başına son 40 ileti, 90 sn önbellek). Panel hangi
-klasörlerin tarandığını ve kaç ileti içerdiğini yazar; firma alan adlı adreslerde (`@firma.com`) o alan
-adından yazan herkes eşleşir, gmail/hotmail gibi adreslerde tam adres aranır. Satıra tıklayınca metin açılır.
-
-- Örnek verideki müşteri adresleri kurgudur; gerçek yazışma görmek için kartın e-postasını gerçekten
-  yazıştığınız bir adresle değiştirin ya da yeni müşteri ekleyin.
-- Başka bir satışçının kartını açan **admin**, o satışçının kutusunu ancak sunucuda Dovecot *master user*
-  tanımlıysa okuyabilir: `IMAP_MASTER_USER` ve `IMAP_MASTER_PASSWORD` (posta sunucusu yöneticisi açar).
-  Tanımlı değilse panel bunu söyler ve "Kendi kutumda ara" seçeneği sunar.
+Davranış kuralları ve veri modeli: `docs/yol-haritasi.md` bölüm 3–4, ADR-0013. Eski 5 kolonlu pano, hat haritası,
+müşteri çekmecesi ve e-posta paneli Faz 6d ile kaldırıldı (e-posta okuma `MAIL_ENABLED` ile sunucuda duruyor,
+arayüzü yeniden eklenmedi).
 
 ## Veri
 
-- Tüm ekip aynı veriyi görür: sunucu `server/data/crm.json` dosyasında tutar (`/api/db/*`).
-- `src/data/repository.ts` depolamadan bağımsız arayüz; `src/data/httpRepository.ts` sunucu sürücüsü.
-- `db/schema.sql` Postgres şeması; alan adları TypeScript tipleriyle birebir aynı.
-- İlk açılışta örnek veri yüklenir (15 kurgusal müşteri + 24 sentetik form kaydı; gerçek dışa aktarımlar depoda değil, `server/data/` altında durur). Kullanıcı menüsündeki
-  "Örnek veriyi sıfırla" herkesin verisini siler.
+- Tek kaynak Postgres (`DATABASE_URL`; yoksa yerel PGlite `server/data/pglite`). Şema `db/migrations/*.sql`, açılışta
+  uygulanır (`npm run db:migrate` elle de çalıştırır).
+- Eski JSON dışa aktarımı (`server/data/crm.json`, git dışı) yalnız `npm run db:migrate-legacy` girdisidir.
+- Gerçek kişi verisi depoda yoktur (`docs/decisions.md` madde 5).
 
 ## Tasarım
 
 - `src/styles.css` başındaki token'lar: 8pt aralık, 1.25 tip ölçeği, sıcak kağıt zemin, kolon tonları
   (slate / yeşil / mavi / amber / kırmızı), açık ve koyu tema.
 - `npm run contrast` tüm renk çiftlerini WCAG AA'ya göre ölçer.
-- Klavye: kartta `Enter` açar, `Alt + ←/→` kolon değiştirir; `Ctrl + K` arama. Çekmece ve
-  diyaloglar native `<dialog>` (odak içeride kalır, `Esc` kapatır).
-- Hedef: masaüstü ve tablet (≥1024px).
+- Klavye: kartta `Enter` açar; `Ctrl + K` arama. Diyaloglar native `<dialog>` (odak içeride kalır, `Esc` kapatır).
+- Hedef: masaüstü ve tablet; telefonda Kanban yatay kaydırma, listeler tek sütun.
 
-Eski tek dosyalık takip sayfası `legacy/` klasöründe duruyor.
+Eski tek dosyalık takip sayfası `legacy/` klasöründe duruyor; canlıya alma öncesi silinir (Faz 8).

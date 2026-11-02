@@ -57,4 +57,8 @@ getirmek; Lead → CRM entegrasyonunu bozmadan. Kararlar `docs/yol-haritasi.md` 
   `reference.eurRates`; pano filtreleri URL'de ve hatırlanır. Rapor: `docs/faz6b-kabul-raporu.md`.
 - **6c (2026-11-02):** raporlar `lead_stage_events`'ten (`domain/reports.ts`, `ReportQueries.summary`, `GET /reports`);
   eski JSON rapor sayfası kaldırıldı. Rapor: `docs/faz6c-kabul-raporu.md`.
-- 6d bu ADR'nin 4 ve 7. maddelerini uygular.
+- **6d (2026-11-02):** migration `0011_faz6d_organizations.sql` (`organizations` + `legacy_id`, `persons/leads.organization_id`,
+  `activities.legacy_id`); `domain/organization.ts`; `CreateOrganization`, `UpdateOrganization`, `UpdateLeadContact`,
+  `PeopleQueries`; API `/organizations`, `/persons`, `/leads/:id/contact`, `/search`; eski sayfalar, `/api/db/*` ve JSON
+  deposu kaldırıldı; `db:migrate-legacy` kuruluş ve aktiviteleri taşır. Kişi birleştirme yok (başka kişinin
+  e-postası/telefonu reddedilir). Rapor: `docs/faz6d-kabul-raporu.md`. Madde 4 ve 7 böylece tamamlandı.
