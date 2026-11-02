@@ -67,7 +67,56 @@ export function QualifiedDialog({
   );
 }
 
-export function WonDialog({
+export type MoneyValue = { amount: number; currency: string };
+
+/** Tutar + para birimi girişi; Teklif ve Kazanıldı pencereleri paylaşır. */
+function MoneyFields({
+  currencies,
+  amount,
+  currency,
+  error,
+  errorId,
+  onAmount,
+  onCurrency,
+}: {
+  currencies: string[];
+  amount: string;
+  currency: string;
+  error: string;
+  errorId: string;
+  onAmount: (v: string) => void;
+  onCurrency: (v: string) => void;
+}) {
+  const { t } = useLang();
+  return (
+    <div className="won-row">
+      <Field label={t("dialog.won.amount")} error={error} errorId={errorId}>
+        <input
+          type="number"
+          inputMode="decimal"
+          min={0}
+          step="0.01"
+          value={amount}
+          onChange={(e) => onAmount(e.target.value)}
+        />
+      </Field>
+      <Field label={t("dialog.won.currency")}>
+        <select value={currency} onChange={(e) => onCurrency(e.target.value)}>
+          {currencies.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </Field>
+    </div>
+  );
+}
+
+const parseAmount = (s: string) => Number(s.replace(",", "."));
+
+/** Teklif tutarı isteğe bağlıdır: boş geçilebilir, girildiyse sıfırdan büyük olmalı. */
+export function ProposalDialog({
   currencies,
   saving,
   onCancel,
@@ -82,32 +131,71 @@ export function WonDialog({
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState(currencies[0] ?? "EUR");
   const [tried, setTried] = useState(false);
-  const n = Number(amount.replace(",", "."));
+  const empty = amount.trim() === "";
+  const n = parseAmount(amount);
+  const valid = empty || n > 0;
+  const err = tried && !valid ? t("dialog.proposal.amountErr") : "";
+  return (
+    <Modal title={t("dialog.proposal.title")} onClose={onCancel} width={420}>
+      <p className="lede">{t("dialog.proposal.lede")}</p>
+      <MoneyFields
+        currencies={currencies}
+        amount={amount}
+        currency={currency}
+        error={err}
+        errorId="proposal-err"
+        onAmount={setAmount}
+        onCurrency={setCurrency}
+      />
+      <div className="modal-actions">
+        <Button onClick={onCancel}>{t("common.cancel")}</Button>
+        <Button
+          variant="pri"
+          loading={saving}
+          onClick={() => {
+            setTried(true);
+            if (valid) onConfirm({ target: "PROPOSAL", value: empty ? null : { amount: n, currency } });
+          }}
+        >
+          {t("dialog.proposal.confirm")}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+export function WonDialog({
+  currencies,
+  initial,
+  saving,
+  onCancel,
+  onConfirm,
+}: {
+  currencies: string[];
+  /** Son teklif tutarı; varsa alan dolu gelir, satışçı yalnız onaylar ya da düzeltir. */
+  initial?: MoneyValue | null;
+  saving: boolean;
+  onCancel: () => void;
+  onConfirm: (body: ChangeStageBody) => void;
+}) {
+  const { t } = useLang();
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
+  const [currency, setCurrency] = useState(initial?.currency ?? currencies[0] ?? "EUR");
+  const [tried, setTried] = useState(false);
+  const n = parseAmount(amount);
   const err = tried && !(n > 0) ? t("dialog.won.amountErr") : "";
   return (
     <Modal title={t("dialog.won.title")} onClose={onCancel} width={420}>
       <p className="lede">{t("dialog.won.lede")}</p>
-      <div className="won-row">
-        <Field label={t("dialog.won.amount")} error={err} errorId="won-err">
-          <input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </Field>
-        <Field label={t("dialog.won.currency")}>
-          <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-            {currencies.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
+      <MoneyFields
+        currencies={currencies}
+        amount={amount}
+        currency={currency}
+        error={err}
+        errorId="won-err"
+        onAmount={setAmount}
+        onCurrency={setCurrency}
+      />
       <div className="modal-actions">
         <Button onClick={onCancel}>{t("common.cancel")}</Button>
         <Button

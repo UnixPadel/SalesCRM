@@ -88,7 +88,7 @@ bağımsızdır ve Faz 5'te Google için de kullanılır (`src/modules/ad-feedba
   import, onay yok, eşleme yok/kapalı, eşleştirme anahtarı yok); sağlayıcı başına toplu gönderim (100); 2xx `sent`,
   400 `dead` (toplu istekte tek tek yeniden denenir), 429/5xx/zaman aşımı 1, 5, 30, 120, 720 dk sonra, sonra `dead`.
 - **Meta:** `POST /{DATASET_ID}/events`; `event_name` `platform_stage_mappings`'ten (seed `0006`), `lead_id` 64-bit
-  sayı, `em`/`ph` SHA-256, `custom_data.event_source = crm`, `lead_event_source = Unixpadel CRM`, WON'da tutar;
+  sayı, `em`/`ph` SHA-256, `custom_data.event_source = crm`, `lead_event_source = Unixpadel CRM`, WON'da (girildiyse PROPOSAL'da da) tutar;
   web formu lead'leri `action_source: website` + `fbc`/`fbp`. Staging'de `META_TEST_EVENT_CODE`.
 - **Günlük dead-letter raporu** `OUTBOX_REPORT_TO` adreslerine; **acil durdurma** `integration_settings`
   `meta/outbound_enabled`. Geriye doldurma: `npx tsx scripts/outbox-backfill.ts --provider meta --dry-run`.

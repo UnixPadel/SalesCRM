@@ -7,7 +7,7 @@ import { allowedTransitions, isTerminal, skippedStages, type StageCode } from ".
 export interface StageChangeRequest {
   currentStage: StageCode;
   target: StageCode;
-  /** WON için zorunlu. */
+  /** WON için zorunlu; PROPOSAL için isteğe bağlı teklif tutarı (platformlara değer olarak gider). */
   value?: { amount: number; currency: string } | null;
   /** LOST için zorunlu; `knownLostReasons` içinde olmalı. */
   lostReasonCode?: string | null;
@@ -65,6 +65,12 @@ export function planStageChange(req: StageChangeRequest): Result<StageChangePlan
   if (to === "WON") {
     if (!req.value)
       return err(new RuleError("stage.value_required", "Kazanıldı için tutar ve para birimi zorunlu.", {}));
+    const money = Money.create(req.value.amount, req.value.currency);
+    if (!money.ok) return money;
+    target.value = money.value.toJSON();
+  }
+
+  if (to === "PROPOSAL" && req.value) {
     const money = Money.create(req.value.amount, req.value.currency);
     if (!money.ok) return money;
     target.value = money.value.toJSON();

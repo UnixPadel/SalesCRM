@@ -27,7 +27,14 @@ export function LeadPage({ id }: { id: string }) {
     },
     [setDetail, reload],
   );
-  const { move, dialog, saving } = useStageMove(ref, onChanged);
+  // Kazanıldı penceresi son geçerli teklif tutarıyla açılır; satışçı yalnız onaylar ya da düzeltir.
+  const lastValue = useCallback(
+    () =>
+      [...(detail?.events ?? [])].reverse().find((e) => e.stageCode === "PROPOSAL" && !e.undoneAt && e.value)?.value ??
+      null,
+    [detail],
+  );
+  const { move, dialog, saving } = useStageMove(ref, onChanged, { lastValue });
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDetailsElement>(null);
   useEffect(() => {

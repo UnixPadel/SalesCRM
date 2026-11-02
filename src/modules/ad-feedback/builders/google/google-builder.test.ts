@@ -259,4 +259,13 @@ describe("googleEventInputFrom", () => {
       googleEventInputFrom({ ...ctx, stageCode: "QUALIFIED" }, "555", { timeZone: "UTC", eventSource: "OTHER" }).value,
     ).toBeNull();
   });
+
+  it("PROPOSAL: girilen teklif tutarı taşınır, girilmediyse yok", () => {
+    const o = { timeZone: "UTC", eventSource: "WEB" as const };
+    expect(googleEventInputFrom({ ...ctx, stageCode: "PROPOSAL" }, "444", o).value).toEqual({
+      amount: 1000,
+      currency: "EUR",
+    });
+    expect(googleEventInputFrom({ ...ctx, stageCode: "PROPOSAL", value: null }, "444", o).value).toBeNull();
+  });
 });

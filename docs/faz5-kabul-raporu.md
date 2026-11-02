@@ -99,5 +99,20 @@ dağıtıcı (`ad-feedback/application/dispatcher.ts`) de değişmedi. Değişen
    63 günlük pencere uygulanır.
 6. Faz 2–4'ün yazılım dışı eksikleri sürüyor (hosting, Meta token/veri seti, Google anahtarı, SMTP, site aktarıcısı).
 
+## Sonradan bulunan hatalar ve düzeltmeler (2026-11-02)
+
+Rehberle (MarcaDM, "Lead → CRM Entegrasyon Rehberi") kod karşılaştırılınca üç eksik çıktı; üçü de ayrı commit'le
+kapatıldı. Bu rapordaki ve Faz 4 raporundaki "uçtan uca" sonuçları 1. maddedeki hatayı **kapsamıyordu**: testler
+kendi `IntegrationSettings` nesnesini kurduğu için sunucunun gerçek bağlantısı sınanmamıştı.
+
+| # | Eksik | Etki | Düzeltme | Test |
+|---|---|---|---|---|
+| 1 | `src/bootstrap/leadIntake.ts` `IntegrationSettings`'i aşama eşlemesi deposu olmadan kuruyordu; `server/index.mjs` aynı nesneyi ad-feedback'e verir | Canlıda her outbox satırı `skipped: mapping_missing`; Meta'ya ve Google'a hiçbir aşama gitmezdi | `pgStageMappingRepository(db)` bağlandı | `src/bootstrap/leadIntake.test.ts`: sunucuyla aynı sırada kurulum, Meta lead'inin NEW ve CONTACTED olayları `sent: 2, skipped: 0` |
+| 2 | Lead'in `createdAt`'i işleme anıydı; Meta `created_time` ve web formu `submitted_at` okunup atılıyordu, Google `null` | Yedek senkronla gelen lead'in yaşı yanlış; Google 90/63 gün penceresi ve rehberin `lead_submit_time` kuralı yanlış tabandan | `CreateLeadInput.createdAt`; `CreateLeadFromAd` `submittedAt` geçirir; Google adaptörü inbox'a düşüş anını (`AdapterContext.receivedAt`) kullanır; NEW olayı ve varsayılan onay zamanı aynı tarihi alır; gelecekteki tarih şimdiye düşer | `application.test.ts` "createdAt: …", `intake.test.ts` "lead'in oluşturulma zamanı…", `google.test.ts` `submittedAt` = `receivedAt` |
+| 3 | Teklif tutarı yalnız WON'da alınıyordu; rehberin veri modeli tutarı teklifte de platformlara gönderir | Teklif aşamasında değer sinyali yok | `planStageChange` PROPOSAL'da isteğe bağlı tutar kabul eder; Meta ve Google builder'ları PROPOSAL'daki tutarı taşır; arayüzde Teklif penceresi (boş geçilebilir), Kazanıldı penceresi son teklif tutarıyla dolu açılır | `transition.test.ts` "PROPOSAL", `meta-builder.test.ts` ve `google-builder.test.ts` "PROPOSAL: …" |
+
+Not: 3. düzeltme Meta builder'ında bir satır değiştirdi; Faz 5'in "Meta modülünde değişen satır yok" kriteri Faz 5
+commit'leri (3e159ac..78794d1) için geçerliliğini korur.
+
 >>>
 

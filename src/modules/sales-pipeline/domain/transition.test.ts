@@ -45,6 +45,31 @@ describe("planStageChange", () => {
     expect(!lost.ok && lost.error.code).toBe("stage.terminal");
   });
 
+  describe("PROPOSAL", () => {
+    it("teklif tutarı isteğe bağlı; verilirse doğrulanır ve yuvarlanır", () => {
+      const none = unwrap(planStageChange(base({ currentStage: "QUALIFIED", target: "PROPOSAL" })));
+      expect(none.events[0]?.value).toBeNull();
+      const some = unwrap(
+        planStageChange(
+          base({ currentStage: "QUALIFIED", target: "PROPOSAL", value: { amount: 95000.005, currency: "eur" } }),
+        ),
+      );
+      expect(some.events[0]?.value).toEqual({ amount: 95000.01, currency: "EUR" });
+      const bad = planStageChange(
+        base({ currentStage: "QUALIFIED", target: "PROPOSAL", value: { amount: -1, currency: "EUR" } }),
+      );
+      expect(bad.ok).toBe(false);
+    });
+
+    it("teklif tutarı yalnız PROPOSAL olayına yazılır, atlanan aşamalara değil", () => {
+      const plan = unwrap(
+        planStageChange(base({ currentStage: "NEW", target: "PROPOSAL", value: { amount: 1000, currency: "EUR" } })),
+      );
+      expect(plan.events.map((e) => e.stageCode)).toEqual(["CONTACTED", "QUALIFIED", "PROPOSAL"]);
+      expect(plan.events.map((e) => e.value)).toEqual([null, null, { amount: 1000, currency: "EUR" }]);
+    });
+  });
+
   describe("WON", () => {
     it("tutar zorunlu ve doğrulanır", () => {
       const none = planStageChange(base({ currentStage: "PROPOSAL", target: "WON" }));

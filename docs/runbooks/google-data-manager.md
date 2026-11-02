@@ -64,7 +64,7 @@ Dağıtıcının ortak nedenleri (emergency_stop, undone, test_lead, manual_sour
 `transactionId` = aşama olayı kimliği (Google aynı kimlikle gelen sonraki olayı düzeltme sayar); `eventTimestamp`
 RFC 3339, `GOOGLE_EVENT_TIMEZONE` (Europe/Istanbul) ofsetiyle; `eventSource` `GOOGLE_EVENT_SOURCE` (WEB);
 `userData.userIdentifiers`: e-posta (küçük harf, boşluksuz, gmail/googlemail'de nokta ve `+` sonrası silinir) ve telefon
-(E.164, `+` dahil) SHA-256 hex; `adIdentifiers.gclid|gbraid|wbraid`; WON'da `conversionValue` + `currency`;
+(E.164, `+` dahil) SHA-256 hex; `adIdentifiers.gclid|gbraid|wbraid`; WON'da ve girildiyse PROPOSAL'da `conversionValue` + `currency`;
 `consent.adUserData` ve `adPersonalization` `CONSENT_GRANTED` (dağıtıcının onay filtresi kapı). İstek: dönüşüm işlemi
 başına bir hedef (`operatingAccount` GOOGLE_ADS + müşteri kimliği, varsa `loginAccount`), `encoding: HEX`.
 Örnek: `src/modules/ad-feedback/builders/google/__snapshots__`.

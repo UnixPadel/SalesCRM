@@ -112,6 +112,16 @@ const DICT = {
   "q.install_within_12m": ["Kurulum 12 ay içinde mi?", "Is installation within 12 months?"],
   "dialog.qualified.confirm": ["Nitelikli olarak işaretle", "Mark as qualified"],
   "dialog.qualified.notAll": ['Üç sorunun üçü de "evet" olmalı.', 'All three answers must be "yes".'],
+  "dialog.proposal.title": ["Teklif gönderildi", "Proposal sent"],
+  "dialog.proposal.lede": [
+    "Teklif tutarını girerseniz platformlara değer olarak gider ve Kazanıldı penceresinde hazır gelir. Boş bırakılabilir.",
+    "If you enter the proposal value it is sent to the ad platforms and pre-filled when the deal is won. Optional.",
+  ],
+  "dialog.proposal.confirm": ["Teklif gönderildi olarak işaretle", "Mark as proposal sent"],
+  "dialog.proposal.amountErr": [
+    "Tutar boş ya da sıfırdan büyük olmalı.",
+    "Leave the amount empty or enter more than zero.",
+  ],
   "dialog.won.title": ["Kazanıldı", "Won"],
   "dialog.won.lede": [
     "Satış tutarı ve para birimi platformlara değer olarak gider.",

@@ -41,7 +41,7 @@ eklensin. Google Ads API'nin eski çevrimdışı dönüşüm yolu kapsam dışı
    `gclid|gbraid|wbraid` varsa `GOOGLE_CLICK_WINDOW_DAYS` (90), yalnız e-posta/telefon varsa
    `GOOGLE_USER_DATA_WINDOW_DAYS` (63); aşımda `skipped (expired)`. Sınır dahil: 90. gün geçerli, 91. gün değil.
 5. **Payload:** `transactionId` = aşama olayı kimliği; `eventSource` `GOOGLE_EVENT_SOURCE` (varsayılan WEB);
-   `eventTimestamp` `GOOGLE_EVENT_TIMEZONE` (Europe/Istanbul) ofsetiyle; WON'da `conversionValue` + `currency`;
+   `eventTimestamp` `GOOGLE_EVENT_TIMEZONE` (Europe/Istanbul) ofsetiyle; WON'da ve girildiyse PROPOSAL'da `conversionValue` + `currency`;
    `consent` iki alan `CONSENT_GRANTED` (dağıtıcının onay filtresi kapı; hukuk görüşü `adPersonalization`'ı
    ayırabilir). Hash hex, `encoding: HEX`.
 6. **Doğrulama modu:** `GOOGLE_DM_VALIDATE_ONLY=1` staging'de `validateOnly: true`; satır `sent` işaretlenir, Google

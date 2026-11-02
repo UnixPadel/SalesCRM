@@ -184,6 +184,13 @@ describe("metaEventInputFrom (sales-pipeline bağlamı)", () => {
     });
   });
 
+  it("PROPOSAL: girilen teklif tutarı taşınır; diğer ara aşamalarda value yok", () => {
+    const proposal = { ...base, stageCode: "PROPOSAL" as const, value: { amount: 95000, currency: "EUR" } };
+    expect(metaEventInputFrom(proposal, "Teklif Gönderildi").value).toEqual({ amount: 95000, currency: "EUR" });
+    expect(metaEventInputFrom({ ...proposal, value: null }, "Teklif Gönderildi").value).toBeNull();
+    expect(metaEventInputFrom({ ...proposal, stageCode: "CONTACTED" }, "İletişim Kuruldu").value).toBeNull();
+  });
+
   it("web formu: website, lead_id yok, fbc/fbp ve landing_url; WON dışı aşamada value yok", () => {
     const web: OutboundStageEvent = {
       ...base,

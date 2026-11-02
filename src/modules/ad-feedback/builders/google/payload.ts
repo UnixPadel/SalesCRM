@@ -2,7 +2,7 @@
  * Google Data Manager API `events:ingest` payload builder — saf kod, ağ yok (ADR-0012).
  * Olay: transactionId (= aşama olayı kimliği, tekilleştirme), eventTimestamp (RFC 3339, saat dilimi ofsetiyle),
  * eventSource, userData.userIdentifiers (emailAddress / phoneNumber SHA-256 hex), adIdentifiers (gclid/gbraid/wbraid),
- * WON'da conversionValue + currency, consent (adUserData, adPersonalization).
+ * WON'da (ve girildiyse PROPOSAL'da) conversionValue + currency, consent (adUserData, adPersonalization).
  * İstek: destinations (hedef = Google Ads hesabı + dönüşüm işlemi), encoding HEX, validateOnly (staging).
  */
 import type { OutboundStageEvent } from "../../../sales-pipeline/application";
@@ -164,6 +164,6 @@ export function googleEventInputFrom(
     gclid: ctx.attribution?.gclid ?? null,
     gbraid: ctx.attribution?.gbraid ?? null,
     wbraid: ctx.attribution?.wbraid ?? null,
-    value: ctx.stageCode === "WON" ? ctx.value : null,
+    value: ctx.stageCode === "WON" || ctx.stageCode === "PROPOSAL" ? ctx.value : null,
   };
 }

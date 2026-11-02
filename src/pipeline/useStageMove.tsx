@@ -4,14 +4,23 @@ import type { ChangeStageBody, LeadDto, ReferenceDto, StageCodeDto } from "../mo
 import { useCrm } from "../state/CrmContext";
 import { pipelineApi } from "./api";
 import { useErrorText } from "./hooks";
-import { LostDialog, QualifiedDialog, WonDialog } from "./StageDialogs";
+import { LostDialog, ProposalDialog, QualifiedDialog, WonDialog, type MoneyValue } from "./StageDialogs";
+
+export interface StageMoveOptions {
+  /** Kazanıldı penceresini dolduracak son teklif tutarı (detay sayfası zaman çizelgesinden). */
+  lastValue?: (lead: LeadDto) => MoneyValue | null;
+}
 
 /**
  * Tek giriş noktası: detay sayfası, Kanban sürükle-bırak ve "Sonraki aşama" düğmesi aynı akışı çağırır.
  * Kural (ileri / ek bilgi) sunucuda; arayüz yalnız gereken pencereyi açar ve sonucu gösterir.
  * En fazla iki tık: 1) hedef aşama, 2) varsa pencere onayı.
  */
-export function useStageMove(ref: ReferenceDto | null, onChanged: (lead: LeadDto) => void) {
+export function useStageMove(
+  ref: ReferenceDto | null,
+  onChanged: (lead: LeadDto) => void,
+  opts: StageMoveOptions = {},
+) {
   const { t } = useLang();
   const { toast } = useCrm();
   const errText = useErrorText();
@@ -52,7 +61,8 @@ export function useStageMove(ref: ReferenceDto | null, onChanged: (lead: LeadDto
   const move = useCallback(
     (lead: LeadDto, target: StageCodeDto) => {
       if (lead.currentStage === target) return;
-      if (target === "QUALIFIED" || target === "WON" || target === "LOST") setPending({ lead, target });
+      if (target === "QUALIFIED" || target === "PROPOSAL" || target === "WON" || target === "LOST")
+        setPending({ lead, target });
       else void submit(lead, { target });
     },
     [submit],
@@ -68,8 +78,18 @@ export function useStageMove(ref: ReferenceDto | null, onChanged: (lead: LeadDto
       dialog = (
         <QualifiedDialog questions={ref.qualificationQuestions} saving={saving} onCancel={close} onConfirm={confirm} />
       );
+    else if (pending.target === "PROPOSAL")
+      dialog = <ProposalDialog currencies={ref.currencies} saving={saving} onCancel={close} onConfirm={confirm} />;
     else if (pending.target === "WON")
-      dialog = <WonDialog currencies={ref.currencies} saving={saving} onCancel={close} onConfirm={confirm} />;
+      dialog = (
+        <WonDialog
+          currencies={ref.currencies}
+          initial={opts.lastValue?.(pending.lead) ?? null}
+          saving={saving}
+          onCancel={close}
+          onConfirm={confirm}
+        />
+      );
     else dialog = <LostDialog reasons={ref.lostReasons} saving={saving} onCancel={close} onConfirm={confirm} />;
   }
 

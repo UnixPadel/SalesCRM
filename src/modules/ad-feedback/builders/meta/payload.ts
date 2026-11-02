@@ -3,7 +3,7 @@
  * Rehber ve Genel plan: event_name = eşleme tablosundaki ad; event_time = aşama anı (Unix saniye);
  * action_source = system_generated (Meta formu lead'i, user_data.lead_id = leadgen_id) ya da website
  * (web formu lead'i: lead_id yok, _fbc/_fbp ve event_source_url); em/ph SHA-256; custom_data.event_source = crm,
- * lead_event_source = Unixpadel CRM; WON'da value ve currency.
+ * lead_event_source = Unixpadel CRM; WON'da (ve girildiyse PROPOSAL'da) value ve currency.
  * `lead_id` 64-bit tam sayıdır: JSON'a sayı olarak, hassasiyet kaybı olmadan yazılır (JSON.rawJSON).
  */
 import type { OutboundStageEvent } from "../../../sales-pipeline/application";
@@ -140,7 +140,7 @@ export function metaEventInputFrom(ctx: OutboundStageEvent, eventName: string): 
     fbc: ctx.attribution?.fbc ?? null,
     fbp: ctx.attribution?.fbp ?? null,
     eventSourceUrl: ctx.attribution?.landingUrl ?? null,
-    value: ctx.stageCode === "WON" ? ctx.value : null,
+    value: ctx.stageCode === "WON" || ctx.stageCode === "PROPOSAL" ? ctx.value : null,
     eventId: ctx.stageEventId,
   };
 }
