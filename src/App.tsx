@@ -1,26 +1,24 @@
 import { useEffect, useState } from "react";
-import { DealPanel } from "./components/DealPanel";
 import { Header } from "./components/Header";
 import { Toasts } from "./components/Toasts";
 import { Skeleton } from "./components/ui";
-import { ContactsPage } from "./pages/ContactsPage";
-import { LeadsPage } from "./pages/LeadsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ActivitiesPage } from "./pipeline/ActivitiesPage";
 import { InboxPage } from "./pipeline/InboxPage";
 import { KanbanPage } from "./pipeline/KanbanPage";
 import { LeadPage } from "./pipeline/LeadPage";
 import { NewLeadDialog } from "./pipeline/NewLeadDialog";
+import { PeoplePage } from "./pipeline/PeoplePage";
 import { ReportsPage } from "./pipeline/ReportsPage";
 import { parseHash } from "./router";
 import { useCrm } from "./state/CrmContext";
 
 /**
- * Yönlendirme. Gelen kutusu, lead detayı, pano ve "Bugün" (Faz 6a) yeni satış pipeline'ından (Postgres) gelir;
- * "Raporlar", "Kişiler" ve eski form listesi geçiş süresince (Faz 6c–6d) eski JSON verisiyle çalışır.
+ * Yönlendirme. Bütün sayfalar yeni satış pipeline'ından (Postgres) gelir: Gelen kutusu, lead detayı, Pano,
+ * Bugün, Kişiler ve kuruluşlar, Raporlar. Eski JSON panosu ve sayfaları Faz 6d ile kaldırıldı.
  */
 export default function App() {
-  const { ready, authChecked, user, openDealId } = useCrm();
+  const { authChecked, user } = useCrm();
   const [{ route, q, id, params }, setLoc] = useState(parseHash);
   const [newLead, setNewLead] = useState(false);
 
@@ -43,8 +41,6 @@ export default function App() {
   }
   if (!user) return <LoginPage />;
 
-  const legacy = route === "contacts" || route === "leads";
-
   return (
     <div className="shell">
       <Header route={route} onNewLead={() => setNewLead(true)} />
@@ -59,35 +55,14 @@ export default function App() {
           <ActivitiesPage />
         ) : route === "reports" ? (
           <ReportsPage />
-        ) : legacy && !ready ? (
-          <BoardSkeleton />
-        ) : route === "leads" ? (
-          <LeadsPage initialQuery={q} key={q} />
         ) : (
-          <ContactsPage initialQuery={q} key={q} />
+          <PeoplePage initialQuery={q} key={q} />
         )}
       </main>
 
-      {openDealId && <DealPanel dealId={openDealId} key={openDealId} />}
       {newLead && <NewLeadDialog onClose={() => setNewLead(false)} />}
 
       <Toasts />
-    </div>
-  );
-}
-
-/** Fixed-size placeholders so the board does not jump when data arrives (no CLS). */
-function BoardSkeleton() {
-  return (
-    <div className="board-skel" aria-busy="true" aria-label="Yükleniyor">
-      {Array.from({ length: 5 }, (_, i) => (
-        <div key={i}>
-          <Skeleton h={64} />
-          {Array.from({ length: 3 - (i % 2) }, (_, j) => (
-            <Skeleton key={j} h={112} />
-          ))}
-        </div>
-      ))}
     </div>
   );
 }

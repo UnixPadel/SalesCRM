@@ -11,10 +11,16 @@ import type {
   LeadDto,
   LeadListDto,
   NotificationsDto,
+  OrganizationBody,
+  OrganizationDto,
+  OrganizationSummaryDto,
+  PersonSummaryDto,
   ReferenceDto,
   ReportDto,
+  SearchDto,
   StageCodeDto,
   TodayDto,
+  UpdateContactBody,
   UpdateLeadBody,
 } from "../modules/sales-pipeline/api/dto";
 
@@ -78,6 +84,22 @@ export const pipelineApi = {
       `/leads/${encodeURIComponent(id)}/stage`,
       body,
     ),
+  // Kuruluşlar ve kişiler (Faz 6d)
+  organizations: (p: { q?: string | undefined } = {}) =>
+    call<OrganizationSummaryDto[]>("GET", "/organizations" + (p.q ? "?q=" + encodeURIComponent(p.q) : "")),
+  createOrganization: (body: OrganizationBody) => call<OrganizationDto>("POST", "/organizations", body),
+  updateOrganization: (id: string, body: OrganizationBody) =>
+    call<OrganizationDto>("PATCH", `/organizations/${encodeURIComponent(id)}`, body),
+  persons: (p: { q?: string | undefined; organizationId?: string | undefined } = {}) => {
+    const qs = new URLSearchParams();
+    if (p.q) qs.set("q", p.q);
+    if (p.organizationId) qs.set("organizationId", p.organizationId);
+    const s = qs.toString();
+    return call<PersonSummaryDto[]>("GET", "/persons" + (s ? "?" + s : ""));
+  },
+  updateContact: (id: string, body: UpdateContactBody) =>
+    call<LeadDto>("PATCH", `/leads/${encodeURIComponent(id)}/contact`, body),
+  search: (q: string) => call<SearchDto>("GET", "/search?q=" + encodeURIComponent(q)),
   // Raporlar (Faz 6c)
   reports: (months: number) => call<ReportDto>("GET", `/reports?months=${months}`),
   // Aktiviteler (Faz 6a)

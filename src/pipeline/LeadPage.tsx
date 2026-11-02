@@ -8,6 +8,7 @@ import { useCrm } from "../state/CrmContext";
 import { ActivityItem, AddActivityForm } from "./activityBits";
 import { pipelineApi } from "./api";
 import { Age, Country, SourceBadge, StageTag } from "./bits";
+import { LeadContactForm } from "./LeadContactForm";
 import { LeadFieldsForm } from "./LeadFieldsForm";
 import { useErrorText, useLeadDetail, useNow, useReference, useTeamNames } from "./hooks";
 import { useStageMove } from "./useStageMove";
@@ -40,6 +41,7 @@ export function LeadPage({ id }: { id: string }) {
   const { move, dialog, saving } = useStageMove(ref, onChanged, { lastValue });
   const [moreOpen, setMoreOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [editingContact, setEditingContact] = useState(false);
   const moreRef = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const away = (e: MouseEvent) => {
@@ -67,7 +69,7 @@ export function LeadPage({ id }: { id: string }) {
     );
   }
 
-  const { lead, events, activities, allowedTransitions, undo } = detail;
+  const { lead, organization, events, activities, allowedTransitions, undo } = detail;
   const openActs = activities.filter((a) => a.doneAt === null);
   const doneActs = activities
     .filter((a) => a.doneAt !== null)
@@ -186,29 +188,63 @@ export function LeadPage({ id }: { id: string }) {
       <div className="lead-grid">
         <div className="lead-left">
           <div className="panel">
-            <h2 className="sec-h">{t("lead.contact")}</h2>
-            <dl className="facts-dl">
-              <Fact label={t("new.email")}>{lead.email ? <a href={`mailto:${lead.email}`}>{lead.email}</a> : "—"}</Fact>
-              <Fact label={t("new.phone")}>
-                {lead.phoneE164 ? (
-                  <span className="pl-tel">
-                    <a href={`tel:${lead.phoneE164}`}>{lead.phoneE164}</a>
+            <h2 className="sec-h">
+              {t("lead.contact")}
+              {canAct && !editingContact && (
+                <span className="end">
+                  <Button size="sm" icon="edit" onClick={() => setEditingContact(true)}>
+                    {t("lead.edit")}
+                  </Button>
+                </span>
+              )}
+            </h2>
+            {editingContact ? (
+              <LeadContactForm
+                lead={lead}
+                onCancel={() => setEditingContact(false)}
+                onSaved={(l) => {
+                  setEditingContact(false);
+                  onChanged(l);
+                }}
+              />
+            ) : (
+              <dl className="facts-dl">
+                <Fact label={t("new.email")}>
+                  {lead.email ? <a href={`mailto:${lead.email}`}>{lead.email}</a> : "—"}
+                </Fact>
+                <Fact label={t("new.phone")}>
+                  {lead.phoneE164 ? (
+                    <span className="pl-tel">
+                      <a href={`tel:${lead.phoneE164}`}>{lead.phoneE164}</a>
+                      <a
+                        className="btn btn-ghost btn-sm"
+                        href={`https://wa.me/${lead.phoneE164.replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        WhatsApp
+                      </a>
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </Fact>
+                <Fact label={t("lead.organization")}>
+                  {organization ? (
                     <a
-                      className="btn btn-ghost btn-sm"
-                      href={`https://wa.me/${lead.phoneE164.replace(/\D/g, "")}`}
-                      target="_blank"
-                      rel="noreferrer"
+                      href={`#/contacts?q=${encodeURIComponent(organization.name)}`}
+                      onClick={(e) => (e.preventDefault(), navigate("contacts", organization.name))}
                     >
-                      WhatsApp
+                      {organization.name}
                     </a>
-                  </span>
-                ) : (
-                  "—"
-                )}
-              </Fact>
-              <Fact label={t("lead.company")}>{lead.company || "—"}</Fact>
-              <Fact label={t("lead.city")}>{lead.city || "—"}</Fact>
-            </dl>
+                  ) : (
+                    "—"
+                  )}
+                </Fact>
+                <Fact label={t("lead.company")}>{lead.company || "—"}</Fact>
+                <Fact label={t("lead.city")}>{lead.city || "—"}</Fact>
+              </dl>
+            )}
           </div>
           <div className="panel">
             <h2 className="sec-h">

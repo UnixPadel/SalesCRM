@@ -1,5 +1,5 @@
-export type Route = "inbox" | "lead" | "pipeline" | "activities" | "reports" | "contacts" | "leads";
-export const ROUTES: Route[] = ["inbox", "lead", "pipeline", "activities", "reports", "contacts", "leads"];
+export type Route = "inbox" | "lead" | "pipeline" | "activities" | "reports" | "contacts";
+export const ROUTES: Route[] = ["inbox", "lead", "pipeline", "activities", "reports", "contacts"];
 
 export interface Location {
   route: Route;

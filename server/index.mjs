@@ -4,14 +4,13 @@
 //    and is never written to disk or sent anywhere except mail.unixpadel.com.
 //  - The local "Admin" account (admin@unixpadel.com) has no mailbox: its password lives in
 //    server/data/config.json (or CRM_ADMIN_PASSWORD).
-//  - /api/db/*   shared JSON store for the whole team (server/data/crm.json)
 //  - /api/mail/* e-mails exchanged with a customer, read live from a mailbox
 import "./env.mjs";
 import express from "express";
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { authDbEnabled, authDbLabel, checkLogin, checkTable, listTeam } from "./authDb.mjs";
@@ -27,7 +26,6 @@ const IMAP_HOST = process.env.IMAP_HOST || "mail.unixpadel.com";
 const IMAP_PORT = Number(process.env.IMAP_PORT) || 993;
 const MAIL_DOMAIN = (process.env.MAIL_DOMAIN || "unixpadel.com").toLowerCase();
 const DATA_DIR = path.join(__dirname, "data");
-const DATA_FILE = process.env.CRM_DATA || path.join(DATA_DIR, "crm.json");
 const CONFIG_FILE = path.join(DATA_DIR, "config.json");
 // Optional Dovecot "master user": lets admins read a rep's mailbox without the rep's password.
 // Login becomes "<rep address>*<master user>" with the master password.
@@ -62,43 +60,6 @@ function loadConfig() {
 const config = loadConfig();
 const adminPassword = () => process.env.CRM_ADMIN_PASSWORD || config.adminPassword;
 
-/* ---------------- shared JSON store ---------------- */
-
-const TABLES = ["organizations", "contacts", "leads", "deals", "activities", "stageChanges"];
-const emptyDb = () => ({ seeded: false, tables: Object.fromEntries(TABLES.map((t) => [t, []])) });
-
-function loadDb() {
-  try {
-    if (!existsSync(DATA_FILE)) return emptyDb();
-    const parsed = JSON.parse(readFileSync(DATA_FILE, "utf8"));
-    const db = emptyDb();
-    db.seeded = !!parsed.seeded;
-    for (const t of TABLES) if (Array.isArray(parsed.tables?.[t])) db.tables[t] = parsed.tables[t];
-    return db;
-  } catch (e) {
-    console.error("[db] could not read", DATA_FILE, e.message);
-    return emptyDb();
-  }
-}
-const db = loadDb();
-let saveTimer = null;
-function flush() {
-  saveTimer = null;
-  mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-  const tmp = DATA_FILE + ".tmp";
-  writeFileSync(tmp, JSON.stringify(db));
-  renameSync(tmp, DATA_FILE);
-}
-function save() {
-  if (!saveTimer) saveTimer = setTimeout(flush, 150);
-}
-for (const sig of ["SIGINT", "SIGTERM"]) {
-  process.on(sig, () => {
-    if (saveTimer) flush();
-    process.exit(0);
-  });
-}
-
 /* ---------------- sessions (memory only) ---------------- */
 
 const sessions = new Map();
@@ -120,8 +81,6 @@ function auth(req, res, next) {
   req.session = s;
   next();
 }
-const adminOnly = (req, res, next) =>
-  req.session.role === "admin" ? next() : res.status(403).json({ error: "Bu işlem için admin yetkisi gerekir." });
 setInterval(() => {
   for (const [k, s] of sessions) if (s.expires < Date.now()) sessions.delete(k);
 }, 600e3).unref();
@@ -494,72 +453,7 @@ app.get("/api/users", auth, async (_req, res) => {
   res.json(teamCache.list);
 });
 
-/* ---- shared data ---- */
-
-app.get("/api/db-meta", auth, (_req, res) => res.json({ seeded: db.seeded }));
-app.post("/api/db-meta/seeded", auth, (_req, res) => {
-  db.seeded = true;
-  save();
-  res.status(204).end();
-});
-app.post("/api/db-meta/reset", auth, adminOnly, (_req, res) => {
-  Object.assign(db, emptyDb());
-  save();
-  res.status(204).end();
-});
-
-function table(req, res, next) {
-  if (!TABLES.includes(req.params.table)) return res.status(404).json({ error: "Böyle bir tablo yok." });
-  req.rows = db.tables[req.params.table];
-  next();
-}
-/** Reps may change only their own rows and the shared pool; admins may change anything; viewers nothing. */
-function mayWrite(session, table, row, patch) {
-  if (session.role === "admin") return true;
-  if (session.role === "viewer") return false;
-  if (!("owner" in row)) return true;
-  if (row.owner && row.owner !== session.name) return false;
-  // a rep may take a pool row or keep it, but not hand it to someone else
-  if (patch && "owner" in patch && patch.owner && patch.owner !== session.name) return false;
-  return true;
-}
-const FORBIDDEN = { error: "Bu kayıt başka bir satışçıya ait. Yalnız admin değiştirebilir." };
-
-app.get("/api/db/:table", auth, table, (req, res) => res.json(req.rows));
-app.get("/api/db/:table/:id", auth, table, (req, res) => {
-  const row = req.rows.find((r) => r.id === req.params.id);
-  row ? res.json(row) : res.status(404).json({ error: "Kayıt bulunamadı." });
-});
-app.post("/api/db/:table", auth, table, (req, res) => {
-  const body = req.body;
-  const rows = Array.isArray(body) ? body : [body];
-  for (const r of rows) {
-    if (!r || typeof r.id !== "string") return res.status(400).json({ error: "Kayıtta id eksik." });
-    if (req.rows.some((x) => x.id === r.id)) return res.status(409).json({ error: `${r.id} zaten var.` });
-  }
-  if (!Array.isArray(body) && !mayWrite(req.session, req.params.table, body)) return res.status(403).json(FORBIDDEN);
-  req.rows.push(...rows);
-  save();
-  Array.isArray(body) ? res.status(204).end() : res.status(201).json(body);
-});
-app.patch("/api/db/:table/:id", auth, table, (req, res) => {
-  const i = req.rows.findIndex((r) => r.id === req.params.id);
-  if (i < 0) return res.status(404).json({ error: "Kayıt bulunamadı." });
-  const { id: _ignored, ...patch } = req.body || {};
-  if (!mayWrite(req.session, req.params.table, req.rows[i], patch)) return res.status(403).json(FORBIDDEN);
-  req.rows[i] = { ...req.rows[i], ...patch };
-  save();
-  res.json(req.rows[i]);
-});
-app.delete("/api/db/:table/:id", auth, table, (req, res) => {
-  const i = req.rows.findIndex((r) => r.id === req.params.id);
-  if (i >= 0) {
-    if (!mayWrite(req.session, req.params.table, req.rows[i])) return res.status(403).json(FORBIDDEN);
-    req.rows.splice(i, 1);
-    save();
-  }
-  res.status(204).end();
-});
+/* ---- veri: tamamı satış pipeline'ında (Postgres). Eski /api/db/* JSON deposu Faz 6d ile kaldırıldı. ---- */
 
 app.use("/api/pipeline", auth, salesPipeline.router);
 
@@ -590,7 +484,7 @@ O zaman arayüz bu adresten açılır.</p>
 }
 
 app.listen(PORT, async () => {
-  console.log(`[crm] server on http://localhost:${PORT}  (data ${DATA_FILE})`);
+  console.log(`[crm] server on http://localhost:${PORT}`);
   console.log(
     MAIL_ENABLED
       ? `[crm] e-posta okuma açık (imap ${IMAP_HOST}:${IMAP_PORT})`

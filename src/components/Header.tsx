@@ -1,11 +1,12 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { STAGE, countryName } from "../domain/constants";
+import { useEffect, useId, useRef, useState } from "react";
+import { countryName } from "../domain/constants";
 import { useLang, type Lang } from "../i18n";
 import { navigate, type Route } from "../router";
 import { NotificationsBell } from "../pipeline/NotificationsBell";
-import { useTodayCount } from "../pipeline/hooks";
+import { pipelineApi } from "../pipeline/api";
+import { useReference, useTodayCount } from "../pipeline/hooks";
 import { useCrm, type Theme } from "../state/CrmContext";
-import { Avatar, Button, Icon, money } from "./ui";
+import { Avatar, Button, Icon } from "./ui";
 
 const THEMES: { key: Theme; icon: string; label: string }[] = [
   { key: "auto", icon: "auto", label: "Tema: sistem" },
@@ -23,13 +24,13 @@ interface Opt {
 }
 
 export function Header({ route, onNewLead }: { route: Route; onNewLead: () => void }) {
-  const { user, isAdmin, isViewer, theme, setTheme, logout, resetDemo } = useCrm();
+  const { user, isAdmin, isViewer, theme, setTheme, logout } = useCrm();
   const { t, lang, setLang } = useLang();
 
   // Faz 6a: "Bugün" rozeti yeni aktivite ucundan (gecikmiş + bugün).
   const dueCount = useTodayCount();
 
-  // Gelen kutusu, Pano, Bugün ve Raporlar yeni pipeline; Kişiler geçiş süresince eski veriyle çalışır (Faz 6d).
+  // Bütün sayfalar yeni pipeline'dan (Faz 6d'den itibaren).
   const NAV: { r: Route; icon: string; label: string; badge?: number; badgeLabel?: string; bad?: boolean }[] = [
     { r: "inbox", icon: "inbox", label: t("nav.inbox") },
     { r: "pipeline", icon: "columns", label: t("nav.board") },
@@ -91,10 +92,6 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
           lang={lang}
           onLang={setLang}
           onLogout={logout}
-          onReset={() => {
-            if (confirm("Ekibin tüm verisi silinip örnek veri yeniden yüklensin mi? Bu işlem herkesi etkiler."))
-              resetDemo();
-          }}
         />
       </div>
     </header>
@@ -111,7 +108,6 @@ function UserMenu({
   lang,
   onLang,
   onLogout,
-  onReset,
 }: {
   name: string;
   email: string;
@@ -122,7 +118,6 @@ function UserMenu({
   lang: Lang;
   onLang: (l: Lang) => void;
   onLogout: () => void;
-  onReset: () => void;
 }) {
   const { t } = useLang();
   const ref = useRef<HTMLDetailsElement>(null);
@@ -169,11 +164,6 @@ function UserMenu({
         >
           <Icon name="globe" /> {t("lang.switch")}
         </button>
-        {isAdmin && (
-          <button className="menu-item" onClick={onReset}>
-            <Icon name="reset" /> Örnek veriyi sıfırla (admin)
-          </button>
-        )}
         <button className="menu-item danger" onClick={onLogout}>
           <Icon name="logout" /> Çıkış yap
         </button>
@@ -183,14 +173,16 @@ function UserMenu({
 }
 
 function GlobalSearch() {
-  const { data, orgById, contactById, openDeal } = useCrm();
+  const { t } = useLang();
+  const { stageName } = useReference();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [opts, setOpts] = useState<Opt[]>([]);
   const input = useRef<HTMLInputElement>(null);
   const listId = useId();
 
-  // Ctrl/Cmd+K — the conventional "jump to anything" shortcut.
+  // Ctrl/Cmd+K — "her şeye atla" kısayolu.
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -202,55 +194,53 @@ function GlobalSearch() {
     return () => window.removeEventListener("keydown", k);
   }, []);
 
-  const opts = useMemo<Opt[]>(() => {
-    const s = q.trim().toLocaleLowerCase("tr");
-    if (s.length < 2) return [];
-    const has = (t: string) => t.toLocaleLowerCase("tr").includes(s);
-    const deals = data.deals
-      .filter((d) => {
-        const org = d.organization_id ? orgById.get(d.organization_id)?.name : "";
-        const con = d.contact_id ? contactById.get(d.contact_id) : undefined;
-        return has(`${d.title} ${org} ${con?.name ?? ""} ${con?.email ?? ""}`);
-      })
-      .slice(0, 6)
-      .map((d) => ({
-        id: d.id,
-        group: "Müşteriler",
-        icon: "pipeline",
-        title: d.title,
-        meta: `${STAGE[d.stage].no}. ${STAGE[d.stage].label}${d.value ? " · " + money(d.value, d.currency, true) : ""}`,
-        go: () => openDeal(d.id),
-      }));
-    const orgs = data.organizations
-      .filter((o) => has(o.name))
-      .slice(0, 4)
-      .map((o) => ({
-        id: o.id,
-        group: "Organizasyonlar",
-        icon: "building",
-        title: o.name,
-        meta: countryName(o.country),
-        go: () => navigate("contacts", o.name),
-      }));
-    const leads = data.leads
-      .filter((l) => {
-        const c = contactById.get(l.contact_id);
-        return c && has(`${c.name} ${c.email} ${c.phone}`);
-      })
-      .slice(0, 6)
-      .map((l) => {
-        const c = contactById.get(l.contact_id)!;
-        return {
-          id: l.id,
-          group: "Formlar",
-          icon: "inbox",
-          title: c.name,
-          meta: c.email || c.phone,
-          go: () => navigate("leads", c.email || c.name),
-        };
-      });
-    return [...deals, ...orgs, ...leads];
-  }, [q, data, orgById, contactById, openDeal]);
+  // Arama sunucuda (Faz 6d): görünür lead'ler, kişiler, kuruluşlar; 200 ms bekleyip tek istek.
+  useEffect(() => {
+    const s = q.trim();
+    if (s.length < 2) {
+      setOpts([]);
+      return;
+    }
+    let alive = true;
+    const id = setTimeout(() => {
+      pipelineApi
+        .search(s)
+        .then((r) => {
+          if (!alive) return;
+          const leads: Opt[] = r.leads.map((l) => ({
+            id: "l-" + l.id,
+            group: t("search.leads"),
+            icon: "inbox",
+            title: l.fullName,
+            meta: [stageName(l.currentStage), l.company].filter(Boolean).join(" · "),
+            go: () => navigate("lead", undefined, l.id),
+          }));
+          const persons: Opt[] = r.persons.map((p) => ({
+            id: "p-" + p.id,
+            group: t("search.persons"),
+            icon: "user",
+            title: p.fullName || p.emailNormalized || p.phoneE164 || "—",
+            meta: p.emailNormalized || p.phoneE164 || "",
+            go: () => navigate("contacts", p.emailNormalized || p.phoneE164 || p.fullName),
+          }));
+          const orgs: Opt[] = r.organizations.map((o) => ({
+            id: "o-" + o.id,
+            group: t("search.orgs"),
+            icon: "building",
+            title: o.name,
+            meta: o.country ? countryName(o.country) : "",
+            go: () => navigate("contacts", o.name),
+          }));
+          setOpts([...leads, ...persons, ...orgs]);
+          setActive(0);
+        })
+        .catch(() => alive && setOpts([]));
+    }, 200);
+    return () => {
+      alive = false;
+      clearTimeout(id);
+    };
+  }, [q, t, stageName]);
 
   const choose = (o: Opt) => {
     o.go();

@@ -741,3 +741,67 @@ a.pl-row:focus-visible {
     font-size: 10px;
   }
 }
+
+/* ---- kişiler ve kuruluşlar (Faz 6d) ---- */
+.people-page .toolbar {
+  flex: 0 0 auto;
+}
+.people-page .table-wrap {
+  padding: var(--s-4) var(--s-5);
+}
+.org-people {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.org-person {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-3);
+}
+.lead-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-2);
+}
+.lead-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 2px var(--s-2) 2px 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--surface-1);
+  color: var(--text-1);
+  font-size: var(--t-xs);
+  cursor: pointer;
+}
+.lead-chip:hover {
+  border-color: var(--text-2);
+}
+.lead-chip-t {
+  max-inline-size: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.org-pick {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s-2);
+  align-items: end;
+}
+.people-page .pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+}
+@media (max-width: 768px) {
+  .people-page .table-wrap {
+    padding: var(--s-3);
+  }
+}
