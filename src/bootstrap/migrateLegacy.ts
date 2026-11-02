@@ -10,15 +10,32 @@
  *           won_at dolu → WON (tutar + para birimi), lost → LOST (neden metni koda eşlenir)
  * Geriye hareket içeren eski geçmiş yeniden oynatılmaz; son aşama tek adımda yazılır, atlananlar
  * auto_fill olur. Eski geçmiş `extraAnswers.legacy` altında saklanır.
+ *
+ * Faz 6d: kuruluşlar `organizations` tablosuna (legacy_id ile; aynı ad+ülke varsa ona bağlanır), kişi ve fırsat
+ * kuruluşa bağlanır; eski aktiviteler fırsatın lead'ine `activities` olarak (legacy_id ile) taşınır.
  */
 import type { Db } from "../modules/shared/db";
 import { FixedClock, silentLogger, uuidGenerator, type Logger } from "../modules/shared/kernel";
 import { createSalesPipeline, type SalesPipeline } from "../modules/sales-pipeline/application";
-import type { StageCode } from "../modules/sales-pipeline/domain";
+import {
+  isActivityType,
+  isOrganizationType,
+  type Activity,
+  type Organization,
+  type StageCode,
+} from "../modules/sales-pipeline/domain";
 import { PgUnitOfWork } from "../modules/sales-pipeline/infrastructure";
 
 export interface LegacySnapshot {
-  organizations: { id: string; name: string; country: string }[];
+  organizations: {
+    id: string;
+    name: string;
+    country: string;
+    type?: string;
+    website?: string;
+    notes?: string;
+    created_at?: string;
+  }[];
   contacts: {
     id: string;
     name: string;
@@ -61,6 +78,19 @@ export interface LegacySnapshot {
     lost_at: string | null;
   }[];
   stageChanges: { id: string; deal_id: string; from_stage: string | null; to_stage: string; changed_at: string }[];
+  /** Eski panodaki aktiviteler (Faz 6d); eski dışa aktarımlarda olmayabilir. */
+  activities?: {
+    id: string;
+    type: string;
+    subject: string;
+    due_at: string;
+    done: boolean;
+    done_at: string | null;
+    deal_id: string;
+    notes: string;
+    auto_created: boolean;
+    created_at: string;
+  }[];
 }
 
 export interface MigrateOptions {
@@ -70,6 +100,7 @@ export interface MigrateOptions {
 }
 
 export interface MigrateReport {
+  organizations: { created: number; existing: number };
   leads: { created: number; existing: number; skipped: { id: string; reason: string }[] };
   deals: {
     created: number;
@@ -77,8 +108,12 @@ export interface MigrateReport {
     skipped: { id: string; reason: string }[];
     stageErrors: { id: string; reason: string }[];
   };
+  activities: { created: number; existing: number; skipped: { id: string; reason: string }[] };
   unknownOwners: string[];
 }
+
+/** Eski aktivite türü → yeni; proforma_sent → proposal_sent. */
+const ACTIVITY_TYPE: Record<string, Activity["type"]> = { proforma_sent: "proposal_sent" };
 
 const DEAL_STAGE: Record<string, StageCode> = {
   contacted: "CONTACTED",
@@ -105,8 +140,9 @@ const YES = { budget_approved: true, site_known: true, install_within_12m: true 
 export async function migrateLegacy(db: Db, snap: LegacySnapshot, opts: MigrateOptions): Promise<MigrateReport> {
   const logger = opts.logger ?? silentLogger;
   const clock = new FixedClock();
+  const uow = new PgUnitOfWork(db, uuidGenerator);
   const sp: SalesPipeline = createSalesPipeline({
-    uow: new PgUnitOfWork(db, uuidGenerator),
+    uow,
     clock,
     ids: uuidGenerator,
     platforms: { enabledProviders: () => [] }, // taşıma platformlara olay üretmez
@@ -115,8 +151,10 @@ export async function migrateLegacy(db: Db, snap: LegacySnapshot, opts: MigrateO
     undoWindowMs: 0,
   });
   const report: MigrateReport = {
+    organizations: { created: 0, existing: 0 },
     leads: { created: 0, existing: 0, skipped: [] },
     deals: { created: 0, existing: 0, skipped: [], stageErrors: [] },
+    activities: { created: 0, existing: 0, skipped: [] },
     unknownOwners: [],
   };
   const unknown = new Set<string>();
@@ -129,6 +167,46 @@ export async function migrateLegacy(db: Db, snap: LegacySnapshot, opts: MigrateO
   const contacts = new Map(snap.contacts.map((c) => [c.id, c]));
   const orgs = new Map(snap.organizations.map((o) => [o.id, o]));
   const ACTOR = { userId: "migration", isAdmin: true };
+
+  // Kuruluşlar: eski kimlik → yeni kimlik. Aynı ad + ülke zaten varsa ona bağlanır (ikinci kayıt açılmaz).
+  const orgIds = new Map<string, string>();
+  for (const o of snap.organizations) {
+    const name = o.name.trim();
+    if (!name) continue;
+    const country = /^[A-Za-z]{2}$/.test(o.country ?? "") ? o.country.toUpperCase() : null;
+    const found = await uow.run(
+      async (r) => (await r.organizations.findByLegacyId(o.id)) ?? r.organizations.findByName(name, country),
+    );
+    if (found) {
+      orgIds.set(o.id, found.id);
+      report.organizations.existing++;
+      continue;
+    }
+    const at = o.created_at ? new Date(o.created_at) : new Date();
+    const organization: Organization = {
+      id: uuidGenerator.next(),
+      name,
+      type: isOrganizationType(o.type) ? o.type : "club",
+      country,
+      website: (o.website ?? "").trim().slice(0, 200),
+      notes: (o.notes ?? "").trim().slice(0, 4000),
+      legacyId: o.id,
+      createdAt: at,
+      updatedAt: at,
+    };
+    await uow.run((r) => r.organizations.insert(organization));
+    orgIds.set(o.id, organization.id);
+    report.organizations.created++;
+  }
+  const orgIdOf = (legacy: string | null | undefined) => (legacy ? (orgIds.get(legacy) ?? null) : null);
+  /** Kişi kuruluşsuzsa bağlar (ilk gelen kazanır). */
+  const linkPerson = async (personId: string, organizationId: string | null) => {
+    if (!organizationId) return;
+    await uow.run(async (r) => {
+      const p = await r.persons.findById(personId);
+      if (p && !p.organizationId) await r.persons.update(personId, { organizationId });
+    });
+  };
 
   /** Geçersiz telefonla kayıt kaybetmemek için: önce ikisiyle, olmazsa yalnız e-postayla dener. */
   const createWithFallback = async (input: Parameters<SalesPipeline["createLead"]["execute"]>[0]) => {
@@ -154,6 +232,7 @@ export async function migrateLegacy(db: Db, snap: LegacySnapshot, opts: MigrateO
       city: l.location,
       productInterest: l.product,
       courtCount: /^\d+$/.test(l.court_count) ? Number(l.court_count) : null,
+      organizationId: orgIdOf(c.organization_id),
       campaign: { campaignName: l.campaign || null },
       assignedUserId: ownerId(l.owner),
       extraAnswers: { legacy: { source: l.source, urgency: l.urgency, formAnswers: l.form_answers, status: l.status } },
@@ -162,6 +241,7 @@ export async function migrateLegacy(db: Db, snap: LegacySnapshot, opts: MigrateO
       report.leads.skipped.push({ id: l.id, reason: r.error.code });
       continue;
     }
+    await linkPerson(r.value.lead.personId, orgIdOf(c.organization_id));
     if (!r.value.created) {
       report.leads.existing++;
       continue;
@@ -206,6 +286,7 @@ export async function migrateLegacy(db: Db, snap: LegacySnapshot, opts: MigrateO
       productInterest: d.court_model,
       courtCount: d.court_count || null,
       courtModel: d.court_model,
+      organizationId: orgIdOf(d.organization_id) ?? orgIdOf(c.organization_id),
       notes: d.notes,
       assignedUserId: ownerId(d.owner),
       extraAnswers: {
@@ -223,6 +304,7 @@ export async function migrateLegacy(db: Db, snap: LegacySnapshot, opts: MigrateO
       report.deals.skipped.push({ id: d.id, reason: r.error.code });
       continue;
     }
+    await linkPerson(r.value.lead.personId, orgIdOf(d.organization_id) ?? orgIdOf(c.organization_id));
     if (!r.value.created) {
       report.deals.existing++;
       continue;
@@ -240,6 +322,49 @@ export async function migrateLegacy(db: Db, snap: LegacySnapshot, opts: MigrateO
       qualificationAnswers: target === "QUALIFIED" ? YES : null,
     });
     if (!s.ok) report.deals.stageErrors.push({ id: d.id, reason: s.error.code });
+  }
+
+  // Aktiviteler: fırsatın lead'ine (platform_lead_id = eski fırsat kimliği) bağlanır; legacy_id ile tekrar açılmaz.
+  for (const a of snap.activities ?? []) {
+    const existing = await uow.run((r) => r.activities.findByLegacyId(a.id));
+    if (existing) {
+      report.activities.existing++;
+      continue;
+    }
+    const lead = await uow.run((r) => r.leads.findByPlatformId("import", a.deal_id));
+    if (!lead) {
+      report.activities.skipped.push({ id: a.id, reason: "fırsat taşınmamış" });
+      continue;
+    }
+    const type = ACTIVITY_TYPE[a.type] ?? a.type;
+    if (!isActivityType(type)) {
+      report.activities.skipped.push({ id: a.id, reason: `bilinmeyen tür: ${a.type}` });
+      continue;
+    }
+    const dueAt = new Date(a.due_at);
+    if (Number.isNaN(dueAt.getTime())) {
+      report.activities.skipped.push({ id: a.id, reason: "tarih yok" });
+      continue;
+    }
+    const createdAt = a.created_at ? new Date(a.created_at) : dueAt;
+    const doneAt = a.done ? new Date(a.done_at ?? a.due_at) : null;
+    const activity: Activity = {
+      id: uuidGenerator.next(),
+      leadId: lead.id,
+      type,
+      subject: (a.subject ?? "").trim().slice(0, 200),
+      dueAt,
+      doneAt,
+      notes: (a.notes ?? "").trim().slice(0, 4000),
+      autoCreated: !!a.auto_created,
+      createdByChangeId: null,
+      createdByUserId: null,
+      legacyId: a.id,
+      createdAt: Number.isNaN(createdAt.getTime()) ? dueAt : createdAt,
+      updatedAt: doneAt ?? (Number.isNaN(createdAt.getTime()) ? dueAt : createdAt),
+    };
+    await uow.run((r) => r.activities.insert(activity));
+    report.activities.created++;
   }
 
   report.unknownOwners = [...unknown].sort();

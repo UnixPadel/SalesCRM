@@ -37,7 +37,7 @@ if (ownersArg) {
 const raw = JSON.parse(readFileSync(file, "utf8")) as { tables: LegacySnapshot };
 const snap = raw.tables;
 console.log(
-  `[legacy] kaynak ${file}: ${snap.leads.length} form lead'i, ${snap.deals.length} fırsat, ${snap.contacts.length} kişi`,
+  `[legacy] kaynak ${file}: ${snap.leads.length} form lead'i, ${snap.deals.length} fırsat, ${snap.contacts.length} kişi, ${snap.organizations.length} kuruluş, ${(snap.activities ?? []).length} aktivite`,
 );
 console.log(
   `[legacy] sorumlu eşlemesi: ${
@@ -61,14 +61,25 @@ console.log(
   `[legacy] ${dryRun ? "DRY-RUN (yazılmadı)" : config.databaseUrl ? "postgres" : `pglite (${config.pgliteDir})`}`,
 );
 console.log(
+  `[legacy] kuruluşlar: ${report.organizations.created} açıldı, ${report.organizations.existing} zaten vardı`,
+);
+console.log(
   `[legacy] form lead'leri: ${report.leads.created} açıldı, ${report.leads.existing} zaten vardı, ${report.leads.skipped.length} atlandı`,
 );
 console.log(
   `[legacy] fırsatlar: ${report.deals.created} açıldı, ${report.deals.existing} zaten vardı, ${report.deals.skipped.length} atlandı, ${report.deals.stageErrors.length} aşama hatası`,
 );
+console.log(
+  `[legacy] aktiviteler: ${report.activities.created} açıldı, ${report.activities.existing} zaten vardı, ${report.activities.skipped.length} atlandı`,
+);
 if (report.unknownOwners.length)
   console.log(`[legacy] eşlenmeyen sorumlu adları (havuza düştü): ${report.unknownOwners.join(", ")}`);
-const skipped = [...report.leads.skipped, ...report.deals.skipped, ...report.deals.stageErrors];
+const skipped = [
+  ...report.leads.skipped,
+  ...report.deals.skipped,
+  ...report.deals.stageErrors,
+  ...report.activities.skipped,
+];
 if (skipped.length) {
   const byReason = new Map<string, number>();
   for (const s of skipped) byReason.set(s.reason, (byReason.get(s.reason) ?? 0) + 1);

@@ -3,7 +3,11 @@ import { createPgliteDb, migrate, MIGRATIONS_DIR, readMigrations, type Db } from
 import { mapLostReason, migrateLegacy, type LegacySnapshot } from "./migrateLegacy";
 
 const snap: LegacySnapshot = {
-  organizations: [{ id: "org1", name: "Örnek Kulüp", country: "TR" }],
+  organizations: [
+    { id: "org1", name: "Örnek Kulüp", country: "TR", type: "club", website: "ornek.example", notes: "fuar" },
+    { id: "org2", name: "Boş Ülke Yatırım", country: "", type: "investor" },
+    { id: "org3", name: "Örnek Kulüp", country: "TR" }, // aynı ad+ülke: ikinci kayıt açılmaz, org1'e bağlanır
+  ],
   contacts: [
     {
       id: "c1",
@@ -106,6 +110,44 @@ const snap: LegacySnapshot = {
     { id: "s1", deal_id: "d1", from_stage: null, to_stage: "contacted", changed_at: "2026-10-01T06:00:00Z" },
     { id: "s2", deal_id: "d1", from_stage: "contacted", to_stage: "interested", changed_at: "2026-10-03T06:00:00Z" },
   ],
+  activities: [
+    {
+      id: "a1",
+      type: "proforma_sent",
+      subject: "Proforma gönderildi",
+      due_at: "2026-10-12T09:00:00Z",
+      done: true,
+      done_at: "2026-10-12T10:00:00Z",
+      deal_id: "d1",
+      notes: "",
+      auto_created: false,
+      created_at: "2026-10-10T06:00:00Z",
+    },
+    {
+      id: "a2",
+      type: "call",
+      subject: "Takip araması",
+      due_at: "2026-10-15T09:00:00Z",
+      done: false,
+      done_at: null,
+      deal_id: "d1",
+      notes: "sabah",
+      auto_created: true,
+      created_at: "2026-10-12T06:00:00Z",
+    },
+    {
+      id: "a3",
+      type: "meeting",
+      subject: "Yok",
+      due_at: "2026-10-15T09:00:00Z",
+      done: false,
+      done_at: null,
+      deal_id: "d-yok",
+      notes: "",
+      auto_created: false,
+      created_at: "2026-10-12T06:00:00Z",
+    },
+  ],
 };
 
 let db: Db;
@@ -120,6 +162,8 @@ describe("migrateLegacy", () => {
     const r = await migrateLegacy(db, snap, { ownerIds: { Yuşa: "32" } });
     expect(r.leads).toEqual({ created: 2, existing: 0, skipped: [{ id: "l2", reason: "lead.contact_required" }] });
     expect(r.deals).toEqual({ created: 2, existing: 0, skipped: [], stageErrors: [] });
+    expect(r.organizations).toEqual({ created: 2, existing: 1 });
+    expect(r.activities).toEqual({ created: 2, existing: 0, skipped: [{ id: "a3", reason: "fırsat taşınmamış" }] });
     expect(r.unknownOwners).toEqual(["Bilinmeyen"]);
 
     const leads = await db.query<{
@@ -183,6 +227,41 @@ describe("migrateLegacy", () => {
     );
     expect(extra[0]?.extra_answers.legacy.stageHistory).toHaveLength(2);
     expect(await db.query("SELECT 1 FROM outbound_conversion_events")).toHaveLength(0);
+
+    // Faz 6d: kuruluşlar, bağlar ve aktiviteler.
+    const orgs = await db.query<{
+      legacy_id: string;
+      name: string;
+      type: string;
+      country: string | null;
+      website: string;
+    }>("SELECT legacy_id, name, type, country, website FROM organizations ORDER BY legacy_id");
+    expect(orgs).toEqual([
+      { legacy_id: "org1", name: "Örnek Kulüp", type: "club", country: "TR", website: "ornek.example" },
+      { legacy_id: "org2", name: "Boş Ülke Yatırım", type: "investor", country: null, website: "" },
+    ]);
+    const linked = await db.query<{ platform_lead_id: string; org: string | null; person_org: string | null }>(
+      "SELECT l.platform_lead_id, o.legacy_id AS org, po.legacy_id AS person_org FROM leads l LEFT JOIN organizations o ON o.id = l.organization_id JOIN persons p ON p.id = l.person_id LEFT JOIN organizations po ON po.id = p.organization_id ORDER BY l.platform_lead_id",
+    );
+    expect(linked).toEqual([
+      { platform_lead_id: "d1", org: "org1", person_org: "org1" },
+      { platform_lead_id: "d2", org: null, person_org: null },
+      { platform_lead_id: "l1", org: null, person_org: null },
+      { platform_lead_id: "l3", org: "org1", person_org: "org1" },
+    ]);
+    const acts = await db.query<{
+      legacy_id: string;
+      type: string;
+      done_at: Date | null;
+      auto_created: boolean;
+      notes: string;
+    }>(
+      "SELECT a.legacy_id, a.type, a.done_at, a.auto_created, a.notes FROM activities a JOIN leads l ON l.id = a.lead_id WHERE l.platform_lead_id = 'd1' ORDER BY a.legacy_id",
+    );
+    expect(acts.map((a) => [a.legacy_id, a.type, a.done_at !== null, a.auto_created, a.notes])).toEqual([
+      ["a1", "proposal_sent", true, false, ""],
+      ["a2", "call", false, true, "sabah"],
+    ]);
   });
 
   it("yeniden çalıştırmak çift kayıt açmaz", async () => {
@@ -190,7 +269,11 @@ describe("migrateLegacy", () => {
     expect(r.leads.created).toBe(0);
     expect(r.leads.existing).toBe(2);
     expect(r.deals.existing).toBe(2);
+    expect(r.organizations).toEqual({ created: 0, existing: 3 });
+    expect(r.activities).toEqual({ created: 0, existing: 2, skipped: [{ id: "a3", reason: "fırsat taşınmamış" }] });
     expect(await db.query("SELECT id FROM leads")).toHaveLength(4);
+    expect(await db.query("SELECT id FROM organizations")).toHaveLength(2);
+    expect(await db.query("SELECT id FROM activities")).toHaveLength(2);
   });
 
   it("mapLostReason", () => {
