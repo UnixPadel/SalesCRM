@@ -282,6 +282,131 @@ describe("ChangeLeadStage", () => {
   });
 });
 
+describe("Aktiviteler (Faz 6a)", () => {
+  const addCall = (leadId: string, dueAt: string, actor = REP, over: Record<string, unknown> = {}) =>
+    sp.addActivity.execute({ leadId, type: "call", dueAt: new Date(dueAt), actor, ...over });
+
+  it("ekleme: konu boşsa türün varsayılanı, açan kişi kaydedilir; başkasının lead'ine eklenemez; tür doğrulanır", async () => {
+    const lead = unwrap(await manual()).lead;
+    const a = unwrap(await addCall(lead.id, "2026-03-02T08:00:00Z", REP, { subject: " ", notes: " ara " }));
+    expect(a).toMatchObject({
+      leadId: lead.id,
+      type: "call",
+      subject: "Arama",
+      notes: "ara",
+      doneAt: null,
+      autoCreated: false,
+      createdByUserId: "rep-1",
+      createdAt: h.clock.now(),
+    });
+    expect(h.uow.state.activities).toHaveLength(1);
+    const other = await addCall(lead.id, "2026-03-02T08:00:00Z", REP2);
+    expect(!other.ok && other.error.code).toBe("lead.forbidden");
+    const bad = await sp.addActivity.execute({ leadId: lead.id, type: "fax", dueAt: new Date(), actor: REP });
+    expect(!bad.ok && bad.error.code).toBe("activity.type_unknown");
+    const missing = await addCall("yok", "2026-03-02T08:00:00Z");
+    expect(!missing.ok && missing.error.code).toBe("not_found");
+  });
+
+  it("kural 1: aktivitesi olmayan açık lead takipsiz; açık aktivite eklenince değil; tamamlanınca yine takipsiz; LOST asla", async () => {
+    const lead = unwrap(await manual()).lead;
+    const before = await sp.queries.list({ actor: REP });
+    expect(before[0]).toMatchObject({ id: lead.id, openActivities: 0, nextActivity: null, rotting: true });
+
+    const a = unwrap(await addCall(lead.id, "2026-03-05T08:00:00Z"));
+    const b = unwrap(await addCall(lead.id, "2026-03-02T08:00:00Z", REP, { type: "meeting", subject: "Keşif" }));
+    const after = await sp.queries.list({ actor: REP });
+    expect(after[0]).toMatchObject({
+      openActivities: 2,
+      nextActivity: { id: b.id, type: "meeting", subject: "Keşif", dueAt: new Date("2026-03-02T08:00:00Z") },
+      rotting: false,
+    });
+
+    unwrap(await sp.setActivityDone.execute({ activityId: b.id, done: true, actor: REP }));
+    unwrap(await sp.setActivityDone.execute({ activityId: a.id, done: true, actor: REP }));
+    expect((await sp.queries.list({ actor: REP }))[0]).toMatchObject({ openActivities: 0, rotting: true });
+    // Yeniden aç.
+    const reopened = unwrap(await sp.setActivityDone.execute({ activityId: a.id, done: false, actor: REP }));
+    expect(reopened.doneAt).toBeNull();
+    expect((await sp.queries.list({ actor: REP }))[0]?.rotting).toBe(false);
+
+    const detail = unwrap(await sp.queries.get(lead.id, REP));
+    expect(detail.activities.map((x) => x.id)).toEqual([b.id, a.id]); // vade sırası
+    expect(detail.lead.openActivities).toBe(1);
+
+    unwrap(
+      await sp.changeLeadStage.execute({ leadId: lead.id, target: "LOST", actor: REP, lostReasonCode: "competitor" }),
+    );
+    unwrap(await sp.setActivityDone.execute({ activityId: a.id, done: true, actor: REP }));
+    expect((await sp.queries.list({ actor: REP }))[0]).toMatchObject({ currentStage: "LOST", rotting: false });
+  });
+
+  it("kural 2: Teklif gönderildi 3 gün sonra 09:00 (İstanbul) arama açar, aynı changeId; geri al siler; başka aşama açmaz", async () => {
+    const lead = unwrap(await manual()).lead;
+    const c = unwrap(await sp.changeLeadStage.execute({ leadId: lead.id, target: "CONTACTED", actor: REP }));
+    expect(c.followUp).toBeNull();
+    expect(h.uow.state.activities).toHaveLength(0);
+
+    const p = unwrap(await sp.changeLeadStage.execute({ leadId: lead.id, target: "PROPOSAL", actor: REP }));
+    expect(p.followUp).toMatchObject({
+      type: "call",
+      subject: "Teklif takibi",
+      dueAt: new Date("2026-03-04T06:00:00.000Z"),
+      autoCreated: true,
+      createdByChangeId: p.changeId,
+      createdByUserId: "rep-1",
+      doneAt: null,
+    });
+    expect(h.uow.state.activities).toHaveLength(1);
+    expect((await sp.queries.list({ actor: REP }))[0]).toMatchObject({ openActivities: 1, rotting: false });
+
+    unwrap(await sp.undoStageChange.execute({ leadId: lead.id, actor: REP }));
+    expect(h.uow.state.activities).toHaveLength(0);
+    expect((await sp.queries.list({ actor: REP }))[0]).toMatchObject({ currentStage: "CONTACTED", rotting: true });
+  });
+
+  it("geri al yalnız otomatik aktiviteyi siler, elle açılanı bırakır", async () => {
+    const lead = unwrap(await manual()).lead;
+    const manualAct = unwrap(await addCall(lead.id, "2026-03-02T08:00:00Z"));
+    unwrap(await sp.changeLeadStage.execute({ leadId: lead.id, target: "PROPOSAL", actor: REP }));
+    expect(h.uow.state.activities).toHaveLength(2);
+    unwrap(await sp.undoStageChange.execute({ leadId: lead.id, actor: REP }));
+    expect(h.uow.state.activities.map((a) => a.id)).toEqual([manualAct.id]);
+  });
+
+  it("silme: sahibi ya da admin; başkası 403; sonra 404", async () => {
+    const lead = unwrap(await manual()).lead;
+    const a = unwrap(await addCall(lead.id, "2026-03-02T08:00:00Z"));
+    const other = await sp.deleteActivity.execute({ activityId: a.id, actor: REP2 });
+    expect(!other.ok && other.error.code).toBe("lead.forbidden");
+    unwrap(await sp.deleteActivity.execute({ activityId: a.id, actor: ADMIN }));
+    const gone = await sp.deleteActivity.execute({ activityId: a.id, actor: REP });
+    expect(!gone.ok && gone.error.code).toBe("not_found");
+  });
+
+  it("Bugün: gecikmiş / bugün / yaklaşan takvim gününe göre; satışçı yalnız görebildiği lead'lerin aktivitelerini görür", async () => {
+    // Saat 2026-03-01T10:00Z = İstanbul 13:00.
+    const mine = unwrap(await manual()).lead;
+    const theirs = unwrap(await manual({ email: "x@example.com", phone: null, actor: REP2 })).lead;
+    const late = unwrap(await addCall(mine.id, "2026-02-28T15:00:00Z"));
+    const today = unwrap(await addCall(mine.id, "2026-03-01T06:00:00Z")); // sabah 09:00, geçmiş saat ama bugün
+    const tonight = unwrap(await addCall(mine.id, "2026-03-01T20:30:00Z")); // 23:30 yerel, hâlâ bugün
+    const soon = unwrap(await addCall(mine.id, "2026-03-01T21:30:00Z")); // 2 Mart 00:30 yerel → yaklaşan
+    unwrap(await addCall(theirs.id, "2026-02-20T10:00:00Z", REP2));
+    const done = unwrap(await addCall(mine.id, "2026-02-20T10:00:00Z"));
+    unwrap(await sp.setActivityDone.execute({ activityId: done.id, done: true, actor: REP }));
+
+    const list = await sp.activities.today(REP);
+    expect(list.overdue.map((x) => x.activity.id)).toEqual([late.id]);
+    expect(list.today.map((x) => x.activity.id)).toEqual([today.id, tonight.id]);
+    expect(list.upcoming.map((x) => x.activity.id)).toEqual([soon.id]);
+    expect(list.overdue[0]?.lead.id).toBe(mine.id);
+
+    const all = await sp.activities.today(ADMIN);
+    expect(all.overdue).toHaveLength(2);
+  });
+});
+
 describe("UndoStageChange", () => {
   let leadId: string;
   beforeEach(async () => {

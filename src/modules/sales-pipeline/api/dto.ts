@@ -51,11 +51,67 @@ export interface StageEventDto {
   undoneAt: string | null;
 }
 
+export type ActivityTypeDto = "call" | "email" | "meeting" | "proposal_sent" | "site_visit";
+
+export interface ActivityDto {
+  id: string;
+  leadId: string;
+  type: ActivityTypeDto;
+  subject: string;
+  dueAt: string;
+  /** null = açık. */
+  doneAt: string | null;
+  notes: string;
+  autoCreated: boolean;
+  createdByUserId: string | null;
+  createdAt: string;
+}
+
+/** Liste ve detaydaki lead: aktivite özetiyle. Komut yanıtları yalın LeadDto döner. */
+export interface LeadListDto extends LeadDto {
+  openActivities: number;
+  nextActivity: { id: string; type: ActivityTypeDto; subject: string; dueAt: string } | null;
+  /** Açık aşamada, açık aktivitesi yok (kural 1). */
+  rotting: boolean;
+}
+
 export interface LeadDetailDto {
-  lead: LeadDto;
+  lead: LeadListDto;
   events: StageEventDto[];
+  activities: ActivityDto[];
   allowedTransitions: StageCodeDto[];
   undo: { available: boolean; reason?: string; untilIso?: string };
+}
+
+export interface AddActivityBody {
+  type: ActivityTypeDto;
+  subject?: string;
+  /** ISO tarih-saat. */
+  dueAt: string;
+  notes?: string;
+}
+
+export interface SetActivityDoneBody {
+  done: boolean;
+}
+
+export interface TodayItemDto {
+  activity: ActivityDto;
+  lead: {
+    id: string;
+    fullName: string;
+    company: string;
+    country: string | null;
+    currentStage: StageCodeDto;
+    assignedUserId: string | null;
+  };
+}
+
+/** "Bugün" sayfası: üç küme, her biri vade sırasıyla. */
+export interface TodayDto {
+  overdue: TodayItemDto[];
+  today: TodayItemDto[];
+  upcoming: TodayItemDto[];
 }
 
 export interface ReferenceDto {

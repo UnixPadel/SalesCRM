@@ -1,10 +1,12 @@
 import { Router, type Request, type Response } from "express";
 import type { Db } from "../../shared/db";
 import { RuleError, isAppError, type Logger, type Result } from "../../shared/kernel";
-import type { Actor, Notification, NotificationQueries, SalesPipeline } from "../application";
-import { QUALIFICATION_QUESTIONS, isStageCode } from "../domain";
+import type { Actor, ActivityWithLead, Notification, NotificationQueries, SalesPipeline } from "../application";
+import { QUALIFICATION_QUESTIONS, isStageCode, type Activity } from "../domain";
 import { readLostReasons, readStageDefinitions } from "../infrastructure";
 import type {
+  ActivityDto,
+  AddActivityBody,
   ApiErrorDto,
   AssignBody,
   ChangeStageBody,
@@ -12,6 +14,9 @@ import type {
   NotificationDto,
   NotificationsDto,
   ReferenceDto,
+  SetActivityDoneBody,
+  TodayDto,
+  TodayItemDto,
 } from "./dto";
 
 export interface RouterDeps {
@@ -142,6 +147,56 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
     send(res, await pipeline.assignLead.execute({ leadId: String(req.params["id"]), toUserId, actor: a }));
   });
 
+  // ---- Aktiviteler (Faz 6a): yetki lead'inkiyle aynı; tarih ISO metin gelir, doğrulama domain'de.
+  r.post("/leads/:id/activities", async (req, res) => {
+    const a = actor(req, res, true);
+    if (!a) return;
+    const b = (req.body ?? {}) as Partial<AddActivityBody>;
+    const dueAt = typeof b.dueAt === "string" && b.dueAt ? new Date(b.dueAt) : null;
+    const result = await pipeline.addActivity.execute({
+      leadId: String(req.params["id"]),
+      type: b.type,
+      subject: b.subject ?? null,
+      dueAt,
+      notes: b.notes ?? null,
+      actor: a,
+    });
+    if (!result.ok) return sendError(res, result.error);
+    res.status(201).json(activityDto(result.value));
+  });
+
+  r.get("/activities/today", async (req, res) => {
+    const a = actor(req, res, false);
+    if (!a) return;
+    const list = await pipeline.activities.today(a);
+    res.json(<TodayDto>{
+      overdue: list.overdue.map(todayItemDto),
+      today: list.today.map(todayItemDto),
+      upcoming: list.upcoming.map(todayItemDto),
+    });
+  });
+
+  r.post("/activities/:id/done", async (req, res) => {
+    const a = actor(req, res, true);
+    if (!a) return;
+    const b = (req.body ?? {}) as Partial<SetActivityDoneBody>;
+    const result = await pipeline.setActivityDone.execute({
+      activityId: String(req.params["id"]),
+      done: b.done !== false,
+      actor: a,
+    });
+    if (!result.ok) return sendError(res, result.error);
+    res.json(activityDto(result.value));
+  });
+
+  r.delete("/activities/:id", async (req, res) => {
+    const a = actor(req, res, true);
+    if (!a) return;
+    const result = await pipeline.deleteActivity.execute({ activityId: String(req.params["id"]), actor: a });
+    if (!result.ok) return sendError(res, result.error);
+    res.status(204).end();
+  });
+
   // ---- Bildirimler: herkes yalnız kendininkini görür; okundu işareti veri değişikliği sayılmaz (görüntüleyici de yapabilir).
   r.get("/notifications", async (req, res) => {
     const a = actor(req, res, false);
@@ -182,6 +237,35 @@ const parseBody = (raw: string): Record<string, unknown> => {
     return {};
   }
 };
+
+function activityDto(a: Activity): ActivityDto {
+  return {
+    id: a.id,
+    leadId: a.leadId,
+    type: a.type,
+    subject: a.subject,
+    dueAt: a.dueAt.toISOString(),
+    doneAt: a.doneAt === null ? null : a.doneAt.toISOString(),
+    notes: a.notes,
+    autoCreated: a.autoCreated,
+    createdByUserId: a.createdByUserId,
+    createdAt: a.createdAt.toISOString(),
+  };
+}
+
+function todayItemDto(x: ActivityWithLead): TodayItemDto {
+  return {
+    activity: activityDto(x.activity),
+    lead: {
+      id: x.lead.id,
+      fullName: x.lead.fullName,
+      company: x.lead.company,
+      country: x.lead.country,
+      currentStage: x.lead.currentStage,
+      assignedUserId: x.lead.assignedUserId,
+    },
+  };
+}
 
 function notificationDto(n: Notification): NotificationDto {
   const body = parseBody(n.body);

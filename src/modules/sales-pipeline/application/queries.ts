@@ -2,10 +2,14 @@ import { NotFoundError, RuleError, err, ok, type Result } from "../../shared/ker
 import {
   allowedTransitions,
   planUndo,
+  summarizeActivities,
+  type Activity,
+  type ActivitySummary,
   type Lead,
   type LeadAttribution,
   type LeadConsent,
   type LeadSource,
+  type Repositories,
   type StageCode,
   type StageEvent,
   type StageEventOrigin,
@@ -13,9 +17,21 @@ import {
 import type { Actor, UseCaseDeps } from "./types";
 import { canSee, territoriesOf } from "./visibility";
 
+/** Liste ve detaydaki lead: aktivite özetiyle (açık sayısı, sonraki, takipsiz). */
+export interface LeadListItem extends Lead, ActivitySummary {}
+
+async function withActivitySummary(repos: Repositories, leads: readonly Lead[]): Promise<LeadListItem[]> {
+  const open = await repos.activities.listOpenByLeads(leads.map((l) => l.id));
+  const byLead = new Map<string, Activity[]>();
+  for (const a of open) byLead.set(a.leadId, [...(byLead.get(a.leadId) ?? []), a]);
+  return leads.map((l) => ({ ...l, ...summarizeActivities(l.currentStage, byLead.get(l.id) ?? []) }));
+}
+
 export interface LeadDetail {
-  lead: Lead;
+  lead: LeadListItem;
   events: StageEvent[];
+  /** Açık ve bitmiş aktiviteler, vade sırasıyla. */
+  activities: Activity[];
   /** Arayüz aşama kuralını tekrar yazmaz; izinli geçişleri buradan okur. */
   allowedTransitions: readonly StageCode[];
   undo: { available: boolean; reason?: string; untilIso?: string };
@@ -122,18 +138,19 @@ export class LeadQueries {
     });
   }
 
-  async list(input: ListLeadsInput): Promise<Lead[]> {
+  async list(input: ListLeadsInput): Promise<LeadListItem[]> {
     return this.deps.uow.run(async (repos) => {
       const visibleTo = input.actor.isAdmin
         ? undefined
         : { userId: input.actor.userId, countries: territoriesOf(input.actor.userId, await repos.territories.all()) };
-      return repos.leads.list({
+      const leads = await repos.leads.list({
         visibleTo,
         stage: input.stage,
         search: input.search,
         includeTest: input.includeTest,
         limit: input.limit,
       });
+      return withActivitySummary(repos, leads);
     });
   }
 
@@ -154,6 +171,7 @@ export class LeadQueries {
       const myCountries = actor.isAdmin ? [] : territoriesOf(actor.userId, await repos.territories.all());
       if (!canSee(lead, actor, myCountries)) return err(new NotFoundError("Lead", leadId));
       const events = await repos.stageEvents.listByLead(lead.id);
+      const activities = await repos.activities.listByLead(lead.id);
       const now = this.deps.clock.now();
       const undo = planUndo({
         events,
@@ -164,8 +182,9 @@ export class LeadQueries {
       });
       const last = events.filter((e) => !e.undoneAt).sort((a, b) => b.sequence - a.sequence)[0];
       return ok({
-        lead,
+        lead: { ...lead, ...summarizeActivities(lead.currentStage, activities) },
         events,
+        activities,
         allowedTransitions: allowedTransitions(lead.currentStage),
         undo: undo.ok
           ? {

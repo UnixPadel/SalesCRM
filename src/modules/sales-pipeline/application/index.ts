@@ -4,7 +4,24 @@ export { CreateLead, type CreateLeadInput, type CreateLeadResult } from "./creat
 export { ChangeLeadStage, type ChangeLeadStageInput, type ChangeLeadStageResult } from "./changeLeadStage";
 export { UndoStageChange, type UndoStageChangeInput, type UndoStageChangeResult } from "./undoStageChange";
 export { AssignLead, type AssignLeadInput } from "./assignLead";
-export { LeadQueries, type LeadDetail, type ListLeadsInput, type OutboundStageEvent } from "./queries";
+export {
+  ActivityQueries,
+  AddActivity,
+  DeleteActivity,
+  SetActivityDone,
+  type ActivityWithLead,
+  type AddActivityInput,
+  type DeleteActivityInput,
+  type SetActivityDoneInput,
+  type TodayList,
+} from "./activities";
+export {
+  LeadQueries,
+  type LeadDetail,
+  type LeadListItem,
+  type ListLeadsInput,
+  type OutboundStageEvent,
+} from "./queries";
 export { canAct, canSee, territoriesOf } from "./visibility";
 export {
   InMemoryNotificationStore,
@@ -24,6 +41,7 @@ export {
   type UserDirectory,
 } from "./notifications";
 
+import { ActivityQueries, AddActivity, DeleteActivity, SetActivityDone } from "./activities";
 import { AssignLead } from "./assignLead";
 import { ChangeLeadStage } from "./changeLeadStage";
 import { CreateLead } from "./createLead";
@@ -36,7 +54,11 @@ export interface SalesPipeline {
   changeLeadStage: ChangeLeadStage;
   undoStageChange: UndoStageChange;
   assignLead: AssignLead;
+  addActivity: AddActivity;
+  setActivityDone: SetActivityDone;
+  deleteActivity: DeleteActivity;
   queries: LeadQueries;
+  activities: ActivityQueries;
 }
 
 /** Modülün dışa açık yüzü: api katmanı ve diğer modüller bunu kullanır. */
@@ -46,6 +68,10 @@ export function createSalesPipeline(deps: UseCaseDeps): SalesPipeline {
     changeLeadStage: new ChangeLeadStage(deps),
     undoStageChange: new UndoStageChange(deps),
     assignLead: new AssignLead(deps),
+    addActivity: new AddActivity(deps),
+    setActivityDone: new SetActivityDone(deps),
+    deleteActivity: new DeleteActivity(deps),
     queries: new LeadQueries(deps),
+    activities: new ActivityQueries(deps),
   };
 }

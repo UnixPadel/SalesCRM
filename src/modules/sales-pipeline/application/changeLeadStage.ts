@@ -1,5 +1,14 @@
 import { NotFoundError, RuleError, err, ok, type Result } from "../../shared/kernel";
-import { planStageChange, type DomainEvent, type Lead, type StageCode, type StageEvent } from "../domain";
+import {
+  PROPOSAL_FOLLOW_UP,
+  followUpFor,
+  planStageChange,
+  type Activity,
+  type DomainEvent,
+  type Lead,
+  type StageCode,
+  type StageEvent,
+} from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
 import { canAct, territoriesOf } from "./visibility";
 
@@ -18,6 +27,8 @@ export interface ChangeLeadStageResult {
   events: StageEvent[];
   /** Havuzdaki lead'i değiştiren satışçı onu üstlenmiş olur. */
   assignedTo: string | null;
+  /** Kural 2: Teklif gönderildi'ye girişte açılan takip aktivitesi; başka aşamada null. */
+  followUp: Activity | null;
 }
 
 /**
@@ -80,6 +91,28 @@ export class ChangeLeadStage {
         }
         await repos.leads.updateStage(lead.id, plan.value.to, now);
 
+        // Kural 2: takip aktivitesi aynı transaction'da, aynı changeId ile (geri al onu da siler).
+        const follow = followUpFor(plan.value.to, now, {
+          ...PROPOSAL_FOLLOW_UP,
+          timeZone: this.deps.timeZone ?? PROPOSAL_FOLLOW_UP.timeZone,
+        });
+        let followUp: Activity | null = null;
+        if (follow) {
+          followUp = {
+            id: ids.next(),
+            leadId: lead.id,
+            ...follow,
+            doneAt: null,
+            notes: "",
+            autoCreated: true,
+            createdByChangeId: changeId,
+            createdByUserId: input.actor.userId,
+            createdAt: now,
+            updatedAt: now,
+          };
+          await repos.activities.insert(followUp);
+        }
+
         const domainEvents: DomainEvent[] = [
           {
             type: "LeadStageChanged",
@@ -109,6 +142,7 @@ export class ChangeLeadStage {
           changeId,
           events,
           assignedTo,
+          followUp,
           domainEvents,
         });
       },

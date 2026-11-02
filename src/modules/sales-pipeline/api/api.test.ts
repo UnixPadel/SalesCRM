@@ -4,7 +4,16 @@ import type { Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { actorFromSession, bootSalesPipeline, type SalesPipelineApp } from "../../../bootstrap/salesPipeline";
 import { silentLogger } from "../../shared/kernel";
-import type { ApiErrorDto, LeadDetailDto, LeadDto, NotificationsDto, ReferenceDto } from "./dto";
+import type {
+  ActivityDto,
+  ApiErrorDto,
+  LeadDetailDto,
+  LeadDto,
+  LeadListDto,
+  NotificationsDto,
+  ReferenceDto,
+  TodayDto,
+} from "./dto";
 
 let app: SalesPipelineApp;
 let server: Server;
@@ -217,6 +226,98 @@ describe("bildirimler", () => {
       after.body.unreadCount,
     );
     expect((await call(null, "GET", "/api/pipeline/notifications")).status).toBe(401);
+  });
+});
+
+describe("aktiviteler (Faz 6a)", () => {
+  let leadId: string;
+  let activityId: string;
+
+  it("yeni lead takipsiz; aktivite eklenince değil; görüntüleyici ve başkası ekleyemez; tür/tarih doğrulanır", async () => {
+    const created = await call<{ lead: LeadDto }>("rep1", "POST", "/api/pipeline/leads", {
+      fullName: "Aktivite Testi",
+      email: "aktivite@example.com",
+      country: "tr",
+    });
+    leadId = created.body.lead.id;
+    const before = (await call<LeadListDto[]>("rep1", "GET", "/api/pipeline/leads")).body.find((l) => l.id === leadId);
+    expect(before).toMatchObject({ openActivities: 0, nextActivity: null, rotting: true });
+
+    expect((await call("viewer", "POST", `/api/pipeline/leads/${leadId}/activities`, { type: "call" })).status).toBe(
+      403,
+    );
+    expect(
+      (await call("rep2", "POST", `/api/pipeline/leads/${leadId}/activities`, { type: "call", dueAt: "2030-01-01" }))
+        .status,
+    ).toBe(403);
+    const badType = await call<ApiErrorDto>("rep1", "POST", `/api/pipeline/leads/${leadId}/activities`, {
+      type: "fax",
+      dueAt: "2030-01-01T09:00:00Z",
+    });
+    expect(badType.status).toBe(422);
+    expect(badType.body.code).toBe("activity.type_unknown");
+    const noDate = await call<ApiErrorDto>("rep1", "POST", `/api/pipeline/leads/${leadId}/activities`, {
+      type: "call",
+      dueAt: "dün",
+    });
+    expect(noDate.body.code).toBe("activity.due_required");
+
+    const ok = await call<ActivityDto>("rep1", "POST", `/api/pipeline/leads/${leadId}/activities`, {
+      type: "meeting",
+      subject: "Keşif toplantısı",
+      dueAt: "2030-01-01T09:00:00Z",
+      notes: "Saha ölçüsü",
+    });
+    expect(ok.status).toBe(201);
+    expect(ok.body).toMatchObject({
+      leadId,
+      type: "meeting",
+      subject: "Keşif toplantısı",
+      dueAt: "2030-01-01T09:00:00.000Z",
+      doneAt: null,
+      autoCreated: false,
+      createdByUserId: "rep-1",
+    });
+    activityId = ok.body.id;
+    const after = (await call<LeadListDto[]>("rep1", "GET", "/api/pipeline/leads")).body.find((l) => l.id === leadId);
+    expect(after).toMatchObject({ openActivities: 1, rotting: false });
+    expect(after?.nextActivity?.id).toBe(activityId);
+  });
+
+  it("Teklif gönderildi takip aktivitesi açar; detayda aktiviteler; Bugün listesinde yaklaşan", async () => {
+    const moved = await call<{ followUp: ActivityDto | null }>("rep1", "POST", `/api/pipeline/leads/${leadId}/stage`, {
+      target: "PROPOSAL",
+    });
+    expect(moved.status).toBe(200);
+    expect(moved.body.followUp).toMatchObject({ type: "call", subject: "Teklif takibi", autoCreated: true });
+    const detail = await call<LeadDetailDto>("rep1", "GET", `/api/pipeline/leads/${leadId}`);
+    expect(detail.body.activities).toHaveLength(2);
+    expect(detail.body.lead.openActivities).toBe(2);
+
+    const today = await call<TodayDto>("rep1", "GET", "/api/pipeline/activities/today");
+    expect(today.status).toBe(200);
+    const ids = today.body.upcoming.map((x) => x.activity.id);
+    expect(ids).toContain(activityId);
+    expect(ids).toContain(moved.body.followUp!.id);
+    expect(today.body.upcoming.find((x) => x.activity.id === activityId)?.lead).toMatchObject({
+      id: leadId,
+      fullName: "Aktivite Testi",
+      currentStage: "PROPOSAL",
+    });
+    expect((await call<TodayDto>("rep2", "GET", "/api/pipeline/activities/today")).body.upcoming).toEqual([]);
+  });
+
+  it("tamamla, yeniden aç, sil; bilinmeyen 404", async () => {
+    const done = await call<ActivityDto>("rep1", "POST", `/api/pipeline/activities/${activityId}/done`, { done: true });
+    expect(done.status).toBe(200);
+    expect(typeof done.body.doneAt).toBe("string");
+    const reopen = await call<ActivityDto>("rep1", "POST", `/api/pipeline/activities/${activityId}/done`, {
+      done: false,
+    });
+    expect(reopen.body.doneAt).toBeNull();
+    expect((await call("rep2", "DELETE", `/api/pipeline/activities/${activityId}`)).status).toBe(403);
+    expect((await call("rep1", "DELETE", `/api/pipeline/activities/${activityId}`)).status).toBe(204);
+    expect((await call("rep1", "DELETE", `/api/pipeline/activities/${activityId}`)).status).toBe(404);
   });
 });
 
