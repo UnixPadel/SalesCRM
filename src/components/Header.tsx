@@ -29,7 +29,7 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
   // Faz 6a: "Bugün" rozeti yeni aktivite ucundan (gecikmiş + bugün).
   const dueCount = useTodayCount();
 
-  // Gelen kutusu, Pano ve Bugün yeni pipeline; Kişiler / Raporlar geçiş süresince eski veriyle çalışır (Faz 6c–6d).
+  // Gelen kutusu, Pano, Bugün ve Raporlar yeni pipeline; Kişiler geçiş süresince eski veriyle çalışır (Faz 6d).
   const NAV: { r: Route; icon: string; label: string; badge?: number; badgeLabel?: string; bad?: boolean }[] = [
     { r: "inbox", icon: "inbox", label: t("nav.inbox") },
     { r: "pipeline", icon: "columns", label: t("nav.board") },

@@ -715,3 +715,29 @@ a.pl-row:focus-visible {
     max-inline-size: 46vw;
   }
 }
+
+/* ---- raporlar (Faz 6c) ---- */
+.reports-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.reports-head .pl-title {
+  margin: 0;
+}
+@media (max-width: 768px) {
+  .reports {
+    padding: var(--s-3);
+  }
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rgrid {
+    grid-template-columns: 1fr;
+  }
+  .vbar-l {
+    font-size: 10px;
+  }
+}

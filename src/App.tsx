@@ -6,12 +6,12 @@ import { Skeleton } from "./components/ui";
 import { ContactsPage } from "./pages/ContactsPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { LoginPage } from "./pages/LoginPage";
-import { ReportsPage } from "./pages/ReportsPage";
 import { ActivitiesPage } from "./pipeline/ActivitiesPage";
 import { InboxPage } from "./pipeline/InboxPage";
 import { KanbanPage } from "./pipeline/KanbanPage";
 import { LeadPage } from "./pipeline/LeadPage";
 import { NewLeadDialog } from "./pipeline/NewLeadDialog";
+import { ReportsPage } from "./pipeline/ReportsPage";
 import { parseHash } from "./router";
 import { useCrm } from "./state/CrmContext";
 
@@ -43,7 +43,7 @@ export default function App() {
   }
   if (!user) return <LoginPage />;
 
-  const legacy = route === "reports" || route === "contacts" || route === "leads";
+  const legacy = route === "contacts" || route === "leads";
 
   return (
     <div className="shell">
@@ -57,10 +57,10 @@ export default function App() {
           <KanbanPage params={params} />
         ) : route === "activities" ? (
           <ActivitiesPage />
-        ) : legacy && !ready ? (
-          <BoardSkeleton />
         ) : route === "reports" ? (
           <ReportsPage />
+        ) : legacy && !ready ? (
+          <BoardSkeleton />
         ) : route === "leads" ? (
           <LeadsPage initialQuery={q} key={q} />
         ) : (

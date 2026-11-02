@@ -12,6 +12,7 @@ import type {
   LeadListDto,
   NotificationsDto,
   ReferenceDto,
+  ReportDto,
   StageCodeDto,
   TodayDto,
   UpdateLeadBody,
@@ -77,6 +78,8 @@ export const pipelineApi = {
       `/leads/${encodeURIComponent(id)}/stage`,
       body,
     ),
+  // Raporlar (Faz 6c)
+  reports: (months: number) => call<ReportDto>("GET", `/reports?months=${months}`),
   // Aktiviteler (Faz 6a)
   today: () => call<TodayDto>("GET", "/activities/today"),
   addActivity: (leadId: string, body: AddActivityBody) =>
