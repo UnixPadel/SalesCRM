@@ -37,6 +37,10 @@ export interface LeadRow extends Record<string, unknown> {
   is_test: boolean;
   notes: string;
   extra_answers: Record<string, unknown> | string;
+  court_count: number | null;
+  court_model: string;
+  /** SELECT'te ::text ile okunur (YYYY-MM-DD); sürücünün yerel saate çevirmesi günü kaydırabilirdi. */
+  expected_close_date: string | null;
   created_at: Date | string;
   updated_at: Date | string;
 }
@@ -71,6 +75,9 @@ export function leadFromRow(r: LeadRow): Lead {
     isTest: r.is_test,
     notes: r.notes,
     extraAnswers: json(r.extra_answers),
+    courtCount: r.court_count === null ? null : Number(r.court_count),
+    courtModel: r.court_model,
+    expectedCloseDate: r.expected_close_date,
     createdAt: date(r.created_at),
     updatedAt: date(r.updated_at),
   };

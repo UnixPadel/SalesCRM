@@ -6,5 +6,6 @@ export * from "./transition";
 export * from "./undo";
 export * from "./assignment";
 export * from "./activity";
+export * from "./opportunity";
 export * from "./events";
 export * from "./ports";

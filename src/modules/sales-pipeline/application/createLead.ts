@@ -149,6 +149,9 @@ export class CreateLead {
         isTest: input.isTest ?? false,
         notes: (input.notes ?? "").trim(),
         extraAnswers: input.extraAnswers ?? {},
+        courtCount: null,
+        courtModel: "",
+        expectedCloseDate: null,
         createdAt,
         updatedAt: now,
       };

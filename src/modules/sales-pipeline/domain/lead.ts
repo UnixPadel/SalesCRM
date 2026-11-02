@@ -60,6 +60,11 @@ export interface Lead {
   isTest: boolean;
   notes: string;
   extraAnswers: Record<string, unknown>;
+  /** Fırsat alanları (Faz 6b, ADR-0013 madde 5). Tutar aşama olayında. */
+  courtCount: number | null;
+  courtModel: string;
+  /** Takvim günü YYYY-MM-DD; saat yok. */
+  expectedCloseDate: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

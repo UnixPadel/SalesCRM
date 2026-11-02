@@ -40,6 +40,9 @@ export interface LeadDetail {
 export interface ListLeadsInput {
   actor: Actor;
   stage?: StageCode | undefined;
+  /** Sorumlu kimliği; null = ortak havuz; undefined = hepsi. */
+  owner?: string | null | undefined;
+  country?: string | undefined;
   search?: string | undefined;
   includeTest?: boolean | undefined;
   limit?: number | undefined;
@@ -146,6 +149,8 @@ export class LeadQueries {
       const leads = await repos.leads.list({
         visibleTo,
         stage: input.stage,
+        owner: input.owner,
+        country: input.country,
         search: input.search,
         includeTest: input.includeTest,
         limit: input.limit,

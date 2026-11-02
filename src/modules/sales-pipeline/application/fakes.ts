@@ -84,6 +84,8 @@ function reposFor(s: MemoryState): Repositories {
         );
       }
       if (f.stage) rows = rows.filter((l) => l.currentStage === f.stage);
+      if (f.owner !== undefined) rows = rows.filter((l) => l.assignedUserId === f.owner);
+      if (f.country) rows = rows.filter((l) => l.country === f.country!.toUpperCase());
       if (f.search) {
         const q = f.search.toLowerCase();
         rows = rows.filter((l) =>
@@ -115,6 +117,12 @@ function reposFor(s: MemoryState): Repositories {
       l.assignedUserId = userId;
       l.updatedAt = updatedAt;
     },
+    async updateFields(id, fields, updatedAt) {
+      const l = s.leads.find((x) => x.id === id);
+      if (!l) throw new Error("lead yok");
+      Object.assign(l, fields);
+      l.updatedAt = updatedAt;
+    },
     async saveAttribution(leadId, a) {
       s.attributions[leadId] = { ...a };
     },
@@ -141,6 +149,12 @@ function reposFor(s: MemoryState): Repositories {
   const stageEvents: StageEventRepository = {
     async listByLead(leadId) {
       return s.events.filter((e) => e.leadId === leadId).map((e) => ({ ...e }));
+    },
+    async listByLeads(leadIds) {
+      return s.events
+        .filter((e) => leadIds.includes(e.leadId))
+        .sort((a, b) => a.leadId.localeCompare(b.leadId) || a.sequence - b.sequence)
+        .map((e) => ({ ...e }));
     },
     async findByIds(ids) {
       return s.events.filter((e) => ids.includes(e.id)).map((e) => ({ ...e }));

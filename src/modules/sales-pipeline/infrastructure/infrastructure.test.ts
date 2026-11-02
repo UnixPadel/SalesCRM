@@ -259,6 +259,55 @@ describe("Postgres repository'leri + transaction", () => {
     expect(auto.assignedUserId).toBe("rep-2");
   });
 
+  it("Faz 6b: fırsat alanları yazılır ve okunur; tarih günü kaymaz; sorumlu/ülke filtreleri; olaylar toplu okunur", async () => {
+    const uow = new PgUnitOfWork(db, uuidGenerator);
+    const a = unwrap(await manual()).lead;
+    const pool = unwrap(await manual({ assignedUserId: null, email: "p@a.com", phone: "", country: "DE" })).lead;
+    expect(a).toMatchObject({ courtCount: null, courtModel: "", expectedCloseDate: null });
+
+    await uow.run((r) =>
+      r.leads.updateFields(
+        a.id,
+        { courtCount: 4, courtModel: "Panoramic", expectedCloseDate: "2026-12-31", city: "İzmir" },
+        clock.now(),
+      ),
+    );
+    const read = unwrap(await sp.queries.get(a.id, REP)).lead;
+    expect(read).toMatchObject({
+      courtCount: 4,
+      courtModel: "Panoramic",
+      expectedCloseDate: "2026-12-31",
+      city: "İzmir",
+    });
+    expect(read.company).toBe(a.company); // verilmeyen alan değişmez
+
+    await uow.run((r) => r.leads.updateFields(a.id, { courtCount: null, expectedCloseDate: null }, clock.now()));
+    expect(unwrap(await sp.queries.get(a.id, REP)).lead).toMatchObject({
+      courtCount: null,
+      courtModel: "Panoramic",
+      expectedCloseDate: null,
+    });
+    await expect(uow.run((r) => r.leads.updateFields(a.id, { courtCount: 1000 }, clock.now()))).rejects.toThrow();
+
+    const ids = async (extra: Record<string, unknown>) =>
+      (await sp.queries.list({ actor: ADMIN, ...extra })).map((l) => l.id).sort();
+    expect(await ids({ owner: REP.userId })).toEqual([a.id]);
+    expect(await ids({ owner: null })).toEqual([pool.id]);
+    expect(await ids({ country: "de" })).toEqual([pool.id]);
+    expect(await ids({ country: "TR", owner: null })).toEqual([]);
+
+    unwrap(await sp.changeLeadStage.execute({ leadId: a.id, target: "CONTACTED", actor: REP }));
+    const events = await uow.run((r) => r.stageEvents.listByLeads([a.id, pool.id]));
+    expect(events.map((e) => [e.leadId, e.stageCode])).toEqual(
+      [
+        [a.id, "NEW"],
+        [a.id, "CONTACTED"],
+        [pool.id, "NEW"],
+      ].sort((x, y) => x[0]!.localeCompare(y[0]!)),
+    );
+    expect(await uow.run((r) => r.stageEvents.listByLeads([]))).toEqual([]);
+  });
+
   it("attribution: lead_attribution satırı lead ile aynı transaction'da; yeniden okunur", async () => {
     const lead = unwrap(
       await manual({

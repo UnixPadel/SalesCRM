@@ -13,7 +13,7 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
 
   it("dosyaları sırayla uygular, ikinci çalıştırmada atlar", async () => {
     const files = readMigrations(MIGRATIONS_DIR);
-    expect(files.map((f) => f.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(files.map((f) => f.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     const first = await migrate(db, files);
     expect(first.applied).toEqual([
       "0001_faz1_core",
@@ -25,10 +25,11 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
       "0007_faz4_outbox_finished_at",
       "0008_faz5_google_seed",
       "0009_faz6a_activities",
+      "0010_faz6b_lead_fields",
     ]);
     const second = await migrate(db, files);
     expect(second.applied).toEqual([]);
-    expect(second.skipped).toHaveLength(9);
+    expect(second.skipped).toHaveLength(10);
   });
 
   it("on altı tablo ve seed verisi var", async () => {
@@ -72,6 +73,13 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
     expect(
       await db.query("SELECT id FROM platform_stage_mappings WHERE provider = 'google' AND NOT enabled"),
     ).toHaveLength(2);
+    // Faz 6b: fırsat sütunları ve kort sayısı sınırı.
+    const cols = (
+      await db.query<{ column_name: string }>(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'leads' AND column_name IN ('court_count','court_model','expected_close_date') ORDER BY 1",
+      )
+    ).map((c) => c.column_name);
+    expect(cols).toEqual(["court_count", "court_model", "expected_close_date"]);
   });
 
   it("UNIQUE(source, platform_lead_id) çift kaydı engeller", async () => {

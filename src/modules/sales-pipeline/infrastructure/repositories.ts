@@ -2,6 +2,7 @@ import { queryOne, type Queryable } from "../../shared/db";
 import type { IdGenerator } from "../../shared/kernel";
 import type {
   Lead,
+  LeadFields,
   LeadListFilter,
   LeadRepository,
   LostReasonSource,
@@ -29,18 +30,31 @@ import {
 
 const LEAD_COLS =
   "id, source, platform_lead_id, form_id, person_id, full_name, email, phone_e164, country, city, company, product_interest, " +
-  "campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name, assigned_user_id, current_stage, is_test, notes, extra_answers, created_at, updated_at";
+  "campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name, assigned_user_id, current_stage, is_test, notes, extra_answers, " +
+  "court_count, court_model, expected_close_date, created_at, updated_at";
+/** Okurken tarih sütunu metin olarak gelir (rows.ts: LeadRow.expected_close_date). */
+const LEAD_SELECT = LEAD_COLS.replace("expected_close_date", "expected_close_date::text AS expected_close_date");
+
+const FIELD_COLUMN: Record<keyof LeadFields, string> = {
+  courtCount: "court_count",
+  courtModel: "court_model",
+  expectedCloseDate: "expected_close_date",
+  company: "company",
+  city: "city",
+  productInterest: "product_interest",
+  notes: "notes",
+};
 
 export function pgLeadRepository(q: Queryable): LeadRepository {
   return {
     async findById(id) {
-      const r = await queryOne<LeadRow>(q, `SELECT ${LEAD_COLS} FROM leads WHERE id = $1`, [id]);
+      const r = await queryOne<LeadRow>(q, `SELECT ${LEAD_SELECT} FROM leads WHERE id = $1`, [id]);
       return r && leadFromRow(r);
     },
     async findByPlatformId(source, platformLeadId) {
       const r = await queryOne<LeadRow>(
         q,
-        `SELECT ${LEAD_COLS} FROM leads WHERE source = $1 AND platform_lead_id = $2`,
+        `SELECT ${LEAD_SELECT} FROM leads WHERE source = $1 AND platform_lead_id = $2`,
         [source, platformLeadId],
       );
       return r && leadFromRow(r);
@@ -62,20 +76,23 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
         );
       }
       if (f.stage) where.push(`current_stage = ${p(f.stage)}`);
+      if (f.owner === null) where.push("assigned_user_id IS NULL");
+      else if (f.owner !== undefined) where.push(`assigned_user_id = ${p(f.owner)}`);
+      if (f.country) where.push(`country = ${p(f.country.toUpperCase())}`);
       if (f.search) {
         const like = p(`%${f.search.toLowerCase()}%`);
         where.push(
           `(lower(full_name) LIKE ${like} OR lower(coalesce(email,'')) LIKE ${like} OR lower(company) LIKE ${like} OR coalesce(phone_e164,'') LIKE ${like})`,
         );
       }
-      const sql = `SELECT ${LEAD_COLS} FROM leads ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY created_at DESC, id ${
+      const sql = `SELECT ${LEAD_SELECT} FROM leads ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY created_at DESC, id ${
         f.limit ? `LIMIT ${p(f.limit)}` : ""
       }`;
       return (await q.query<LeadRow>(sql, params)).map(leadFromRow);
     },
     async insert(l: Lead) {
       await q.query(
-        `INSERT INTO leads (${LEAD_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`,
+        `INSERT INTO leads (${LEAD_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)`,
         [
           l.id,
           l.source,
@@ -100,6 +117,9 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
           l.isTest,
           l.notes,
           JSON.stringify(l.extraAnswers),
+          l.courtCount,
+          l.courtModel,
+          l.expectedCloseDate,
           l.createdAt,
           l.updatedAt,
         ],
@@ -110,6 +130,17 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
     },
     async updateAssignee(id, userId, updatedAt) {
       await q.query("UPDATE leads SET assigned_user_id = $2, updated_at = $3 WHERE id = $1", [id, userId, updatedAt]);
+    },
+    async updateFields(id, fields, updatedAt) {
+      const sets: string[] = [];
+      const params: unknown[] = [id, updatedAt];
+      for (const key of Object.keys(FIELD_COLUMN) as (keyof LeadFields)[]) {
+        if (!(key in fields)) continue;
+        params.push(fields[key] ?? null);
+        sets.push(`${FIELD_COLUMN[key]} = $${params.length}`);
+      }
+      if (!sets.length) return;
+      await q.query(`UPDATE leads SET ${sets.join(", ")}, updated_at = $2 WHERE id = $1`, params);
     },
     async saveAttribution(leadId, a) {
       await q.query(
@@ -202,6 +233,15 @@ export function pgStageEventRepository(q: Queryable): StageEventRepository {
         await q.query<StageEventRow>(
           `SELECT ${EVENT_COLS} FROM lead_stage_events WHERE lead_id = $1 ORDER BY sequence`,
           [leadId],
+        )
+      ).map(stageEventFromRow);
+    },
+    async listByLeads(leadIds) {
+      if (!leadIds.length) return [];
+      return (
+        await q.query<StageEventRow>(
+          `SELECT ${EVENT_COLS} FROM lead_stage_events WHERE lead_id = ANY($1::uuid[]) ORDER BY lead_id, sequence`,
+          [[...leadIds]],
         )
       ).map(stageEventFromRow);
     },

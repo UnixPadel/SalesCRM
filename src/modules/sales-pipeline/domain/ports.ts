@@ -2,6 +2,7 @@ import type { Activity } from "./activity";
 import type { TerritoryRule } from "./assignment";
 import type { DomainEvent } from "./events";
 import type { Lead, LeadAttribution, LeadConsent, Person, StageEvent } from "./lead";
+import type { LeadFields } from "./opportunity";
 import type { StageCode } from "./stage";
 
 /** Portlar (Genel plan kural 2): uygulamalar infrastructure katmanında, testler sahte uygulamayla. */
@@ -10,6 +11,10 @@ export interface LeadListFilter {
   /** Satışçı görünürlüğü: bu kullanıcıya atanmış + havuz; undefined = hepsi (admin). */
   visibleTo?: { userId: string; countries: readonly string[] } | undefined;
   stage?: StageCode | undefined;
+  /** Sorumlu: kullanıcı kimliği; null = ortak havuz; undefined = hepsi. */
+  owner?: string | null | undefined;
+  /** ISO 3166-1 alpha-2. */
+  country?: string | undefined;
   includeTest?: boolean | undefined;
   search?: string | undefined;
   limit?: number | undefined;
@@ -22,6 +27,8 @@ export interface LeadRepository {
   insert(lead: Lead): Promise<void>;
   updateStage(id: string, stage: StageCode, updatedAt: Date): Promise<void>;
   updateAssignee(id: string, userId: string | null, updatedAt: Date): Promise<void>;
+  /** Fırsat ve serbest metin alanları (Faz 6b); yalnız verilen anahtarlar değişir. */
+  updateFields(id: string, fields: Partial<LeadFields>, updatedAt: Date): Promise<void>;
   /** Tıklama kimlikleri (1:1); lead ile aynı transaction'da yazılır. */
   saveAttribution(leadId: string, attribution: LeadAttribution): Promise<void>;
   findAttribution(leadId: string): Promise<LeadAttribution | undefined>;
@@ -37,6 +44,8 @@ export interface PersonRepository {
 
 export interface StageEventRepository {
   listByLead(leadId: string): Promise<StageEvent[]>;
+  /** Birden çok lead'in tüm olayları (pano özeti: aşamaya giriş anı, son tutar); lead ve sıra düzeninde. */
+  listByLeads(leadIds: readonly string[]): Promise<StageEvent[]>;
   /** Kimlik listesiyle (giden olay dağıtıcısı için); bulunamayanlar atlanır. */
   findByIds(ids: readonly string[]): Promise<StageEvent[]>;
   /** Geriye doldurma: verilen kaynaklardaki test olmayan lead'lerin, geri alınmamış, `since` sonrası olayları. */
