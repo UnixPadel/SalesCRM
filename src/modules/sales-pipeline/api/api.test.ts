@@ -12,8 +12,12 @@ import type {
   LeadDto,
   LeadListDto,
   NotificationsDto,
+  OrganizationDto,
+  OrganizationSummaryDto,
+  PersonSummaryDto,
   ReferenceDto,
   ReportDto,
+  SearchDto,
   TodayDto,
 } from "./dto";
 
@@ -422,6 +426,94 @@ describe("raporlar (Faz 6c)", () => {
     expect((await call<ReportDto>("viewer", "GET", "/api/pipeline/reports")).body.months).toHaveLength(12);
     expect((await call<ReportDto>("rep1", "GET", "/api/pipeline/reports?months=abc")).body.months).toHaveLength(12);
     expect((await call(null, "GET", "/api/pipeline/reports")).status).toBe(401);
+  });
+});
+
+describe("kuruluşlar ve kişiler (Faz 6d)", () => {
+  let orgId: string;
+  let leadId: string;
+
+  it("POST/PATCH /organizations; görüntüleyici 403; aynı ad 422; GET listesi özetlerle", async () => {
+    const created = await call<OrganizationDto>("rep1", "POST", "/api/pipeline/organizations", {
+      name: "Kulüp API",
+      country: "tr",
+      type: "club",
+    });
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ name: "Kulüp API", country: "TR", type: "club" });
+    orgId = created.body.id;
+    expect((await call("viewer", "POST", "/api/pipeline/organizations", { name: "X" })).status).toBe(403);
+    const dup = await call<ApiErrorDto>("admin", "POST", "/api/pipeline/organizations", {
+      name: "kulüp api",
+      country: "TR",
+    });
+    expect(dup.status).toBe(422);
+    expect(dup.body.code).toBe("organization.duplicate");
+    const noName = await call<ApiErrorDto>("rep1", "POST", "/api/pipeline/organizations", {});
+    expect(noName.status).toBe(422);
+    const upd = await call<OrganizationDto>("rep1", "PATCH", `/api/pipeline/organizations/${orgId}`, {
+      website: "k.example",
+    });
+    expect(upd.body.website).toBe("k.example");
+    expect(
+      (await call("rep1", "PATCH", "/api/pipeline/organizations/00000000-0000-4000-8000-000000000000", { name: "Y" }))
+        .status,
+    ).toBe(404);
+
+    const lead = await call<{ lead: LeadDto }>("rep1", "POST", "/api/pipeline/leads", {
+      fullName: "Kuruluş Testi",
+      email: "kurulus@example.com",
+      country: "tr",
+      organizationId: orgId,
+    });
+    leadId = lead.body.lead.id;
+    expect(lead.body.lead.organizationId).toBe(orgId);
+    const list = await call<OrganizationSummaryDto[]>("rep1", "GET", "/api/pipeline/organizations?q=api");
+    expect(list.body).toHaveLength(1);
+    expect(list.body[0]).toMatchObject({ organization: { id: orgId }, leadCount: 1, openCount: 1, wonCount: 0 });
+    const detail = await call<LeadDetailDto>("rep1", "GET", `/api/pipeline/leads/${leadId}`);
+    expect(detail.body.organization?.id).toBe(orgId);
+  });
+
+  it("PATCH /leads/:id/contact; GET /persons; GET /search", async () => {
+    const ok = await call<LeadDto>("rep1", "PATCH", `/api/pipeline/leads/${leadId}/contact`, {
+      fullName: "Kuruluş Testi 2",
+      phone: "+90 532 111 22 33",
+    });
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({
+      fullName: "Kuruluş Testi 2",
+      phoneE164: "+905321112233",
+      email: "kurulus@example.com",
+    });
+    const bad = await call<ApiErrorDto>("rep1", "PATCH", `/api/pipeline/leads/${leadId}/contact`, {
+      email: "",
+      phone: "",
+    });
+    expect(bad.status).toBe(422);
+    expect(bad.body.code).toBe("lead.contact_required");
+    expect((await call("viewer", "PATCH", `/api/pipeline/leads/${leadId}/contact`, { fullName: "X" })).status).toBe(
+      403,
+    );
+
+    const persons = await call<PersonSummaryDto[]>("rep1", "GET", "/api/pipeline/persons?q=kurulus@");
+    expect(persons.body).toHaveLength(1);
+    expect(persons.body[0]).toMatchObject({ person: { fullName: "Kuruluş Testi 2", phoneE164: "+905321112233" } });
+    expect(persons.body[0]?.leads.map((l) => l.id)).toEqual([leadId]);
+    const byOrg = await call<PersonSummaryDto[]>("admin", "GET", `/api/pipeline/persons?organizationId=${orgId}`);
+    expect(Array.isArray(byOrg.body)).toBe(true);
+
+    const search = await call<SearchDto>("rep1", "GET", "/api/pipeline/search?q=kurulu%C5%9F");
+    expect(search.status).toBe(200);
+    expect(search.body.leads.some((l) => l.id === leadId)).toBe(true);
+    expect(search.body.organizations.some((o) => o.id === orgId)).toBe(false); // "Kulüp API" aramayla eşleşmez
+    expect(search.body.persons.length).toBeGreaterThan(0);
+    expect((await call<SearchDto>("rep1", "GET", "/api/pipeline/search?q=k")).body).toEqual({
+      leads: [],
+      persons: [],
+      organizations: [],
+    });
+    expect((await call(null, "GET", "/api/pipeline/search?q=ab")).status).toBe(401);
   });
 });
 

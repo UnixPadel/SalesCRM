@@ -34,13 +34,16 @@ describe("parseOrganizationFields", () => {
 });
 
 describe("lead kuruluş bağı (parseLeadFields.organizationId)", () => {
-  it("uuid kabul, küçük harfe çevrilir; boş/null bağı kaldırır; başka metin reddedilir", () => {
+  it("kimlik metin olarak alınır (varlık kontrolü uygulama katmanında); boş/null bağı kaldırır; sayı ve uzun metin reddedilir", () => {
     const id = "6F9619FF-8B86-D011-B42D-00C04FC964FF";
     expect(isUuid(id)).toBe(true);
-    expect(unwrap(parseLeadFields({ organizationId: id }))).toEqual({ organizationId: id.toLowerCase() });
+    expect(isUuid("org1")).toBe(false);
+    expect(unwrap(parseLeadFields({ organizationId: ` ${id} ` }))).toEqual({ organizationId: id });
     expect(unwrap(parseLeadFields({ organizationId: "" }))).toEqual({ organizationId: null });
     expect(unwrap(parseLeadFields({ organizationId: null }))).toEqual({ organizationId: null });
-    const bad = parseLeadFields({ organizationId: "org1" });
-    expect(!bad.ok && bad.error.code).toBe("lead.organization_invalid");
+    for (const bad of [42, "x".repeat(65), "   "]) {
+      const r = parseLeadFields({ organizationId: bad });
+      expect(!r.ok && r.error.code).toBe("lead.organization_invalid");
+    }
   });
 });

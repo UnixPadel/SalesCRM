@@ -1,6 +1,5 @@
 import { RuleError, err, ok, type Result } from "../../shared/kernel";
 import type { Lead, StageEvent } from "./lead";
-import { isUuid } from "./organization";
 import { STAGE_CODES, type StageCode } from "./stage";
 
 /**
@@ -119,9 +118,9 @@ export function parseLeadFields(raw: Record<string, unknown>): Result<Partial<Le
   if ("organizationId" in raw) {
     const v = raw["organizationId"];
     if (v === null || v === "" || v === undefined) out.organizationId = null;
-    else if (!isUuid(v)) {
+    else if (typeof v !== "string" || !v.trim() || v.trim().length > 64) {
       return err(new RuleError("lead.organization_invalid", "Kuruluş kimliği geçersiz.", { value: v }));
-    } else out.organizationId = v.toLowerCase();
+    } else out.organizationId = v.trim();
   }
   return ok(out);
 }

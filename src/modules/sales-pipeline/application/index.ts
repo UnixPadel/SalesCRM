@@ -26,6 +26,18 @@ export {
   type OutboundStageEvent,
 } from "./queries";
 export { ReportQueries, type ReportInputDto } from "./reports";
+export {
+  CreateOrganization,
+  PeopleQueries,
+  UpdateLeadContact,
+  UpdateOrganization,
+  type CreateOrganizationInput,
+  type OrganizationSummary,
+  type PersonSummary,
+  type SearchResult,
+  type UpdateLeadContactInput,
+  type UpdateOrganizationInput,
+} from "./organizations";
 export { canAct, canSee, loadActionableLead, territoriesOf } from "./visibility";
 export {
   InMemoryNotificationStore,
@@ -49,6 +61,7 @@ import { ActivityQueries, AddActivity, DeleteActivity, SetActivityDone } from ".
 import { AssignLead } from "./assignLead";
 import { ChangeLeadStage } from "./changeLeadStage";
 import { CreateLead } from "./createLead";
+import { CreateOrganization, PeopleQueries, UpdateLeadContact, UpdateOrganization } from "./organizations";
 import { LeadQueries } from "./queries";
 import { ReportQueries } from "./reports";
 import type { UseCaseDeps } from "./types";
@@ -61,12 +74,16 @@ export interface SalesPipeline {
   undoStageChange: UndoStageChange;
   assignLead: AssignLead;
   updateLeadFields: UpdateLeadFields;
+  updateLeadContact: UpdateLeadContact;
+  createOrganization: CreateOrganization;
+  updateOrganization: UpdateOrganization;
   addActivity: AddActivity;
   setActivityDone: SetActivityDone;
   deleteActivity: DeleteActivity;
   queries: LeadQueries;
   activities: ActivityQueries;
   reports: ReportQueries;
+  people: PeopleQueries;
 }
 
 /** Modülün dışa açık yüzü: api katmanı ve diğer modüller bunu kullanır. */
@@ -77,11 +94,15 @@ export function createSalesPipeline(deps: UseCaseDeps): SalesPipeline {
     undoStageChange: new UndoStageChange(deps),
     assignLead: new AssignLead(deps),
     updateLeadFields: new UpdateLeadFields(deps),
+    updateLeadContact: new UpdateLeadContact(deps),
+    createOrganization: new CreateOrganization(deps),
+    updateOrganization: new UpdateOrganization(deps),
     addActivity: new AddActivity(deps),
     setActivityDone: new SetActivityDone(deps),
     deleteActivity: new DeleteActivity(deps),
     queries: new LeadQueries(deps),
     activities: new ActivityQueries(deps),
     reports: new ReportQueries(deps),
+    people: new PeopleQueries(deps),
   };
 }

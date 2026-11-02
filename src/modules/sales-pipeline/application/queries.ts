@@ -10,6 +10,7 @@ import {
   type ColumnStats,
   type Lead,
   type LeadAttribution,
+  type Organization,
   type LeadConsent,
   type LeadSource,
   type Repositories,
@@ -27,7 +28,7 @@ import { canSee, territoriesOf } from "./visibility";
  */
 export interface LeadListItem extends Lead, ActivitySummary, StageSummary {}
 
-async function withSummaries(repos: Repositories, leads: readonly Lead[]): Promise<LeadListItem[]> {
+export async function withSummaries(repos: Repositories, leads: readonly Lead[]): Promise<LeadListItem[]> {
   const ids = leads.map((l) => l.id);
   const [open, events] = await Promise.all([repos.activities.listOpenByLeads(ids), repos.stageEvents.listByLeads(ids)]);
   const actsByLead = new Map<string, Activity[]>();
@@ -59,6 +60,8 @@ export interface BoardInput {
 
 export interface LeadDetail {
   lead: LeadListItem;
+  /** Bağlı kuruluş (Faz 6d); yoksa null. */
+  organization: Organization | null;
   events: StageEvent[];
   /** Açık ve bitmiş aktiviteler, vade sırasıyla. */
   activities: Activity[];
@@ -231,6 +234,7 @@ export class LeadQueries {
       if (!canSee(lead, actor, myCountries)) return err(new NotFoundError("Lead", leadId));
       const events = await repos.stageEvents.listByLead(lead.id);
       const activities = await repos.activities.listByLead(lead.id);
+      const organization = lead.organizationId ? await repos.organizations.findById(lead.organizationId) : undefined;
       const now = this.deps.clock.now();
       const undo = planUndo({
         events,
@@ -243,6 +247,7 @@ export class LeadQueries {
       return ok({
         lead: { ...lead, ...summarizeActivities(lead.currentStage, activities), ...stageSummary(lead, events) },
         events,
+        organization: organization ?? null,
         activities,
         allowedTransitions: allowedTransitions(lead.currentStage),
         undo: undo.ok

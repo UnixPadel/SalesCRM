@@ -123,6 +123,16 @@ export class CreateLead {
     });
     if (!fieldsR.ok) return fieldsR;
     const fields = fieldsR.value;
+    if (fields.organizationId) {
+      const org = await this.deps.uow.run((r) => r.organizations.findById(fields.organizationId!));
+      if (!org) {
+        return err(
+          new RuleError("lead.organization_not_found", "Kuruluş bulunamadı.", {
+            organizationId: fields.organizationId,
+          }),
+        );
+      }
+    }
 
     const { clock, ids, platforms, uow } = this.deps;
     const outcome = await uow.run(async (repos): Promise<CreateLeadResult & { domainEvents: DomainEvent[] }> => {

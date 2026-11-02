@@ -11,6 +11,12 @@ import type {
   AssignBody,
   BoardDto,
   ChangeStageBody,
+  OrganizationBody,
+  OrganizationDto,
+  OrganizationSummaryDto,
+  PersonSummaryDto,
+  SearchDto,
+  UpdateContactBody,
   CreateLeadBody,
   NotificationDto,
   NotificationsDto,
@@ -132,6 +138,7 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
       courtCount: b.courtCount ?? null,
       courtModel: b.courtModel ?? "",
       expectedCloseDate: b.expectedCloseDate ?? null,
+      organizationId: b.organizationId ?? null,
       isTest: b.isTest === true,
       actor: a,
       ...(a.isAdmin && b.assignedUserId !== undefined ? { assignedUserId: b.assignedUserId } : {}),
@@ -144,6 +151,69 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
     if (!a) return;
     const b = (req.body ?? {}) as UpdateLeadBody & Record<string, unknown>;
     send(res, await pipeline.updateLeadFields.execute({ leadId: String(req.params["id"]), fields: b, actor: a }));
+  });
+
+  r.patch("/leads/:id/contact", async (req, res) => {
+    const a = actor(req, res, true);
+    if (!a) return;
+    const b = (req.body ?? {}) as UpdateContactBody;
+    send(
+      res,
+      await pipeline.updateLeadContact.execute({
+        leadId: String(req.params["id"]),
+        fullName: b.fullName,
+        email: b.email,
+        phone: b.phone,
+        actor: a,
+      }),
+    );
+  });
+
+  // ---- Kuruluşlar ve kişiler (Faz 6d): ortak defter; görüntüleyici okur, satışçı ve admin yazar.
+  r.get("/organizations", async (req, res) => {
+    const a = actor(req, res, false);
+    if (!a) return;
+    const search = typeof req.query["q"] === "string" ? req.query["q"].trim() || undefined : undefined;
+    const limit = Math.min(Number(req.query["limit"]) || 500, 2000);
+    const rows = await pipeline.people.organizations({ actor: a, search, limit });
+    res.json(rows as unknown as OrganizationSummaryDto[]);
+  });
+
+  r.post("/organizations", async (req, res) => {
+    const a = actor(req, res, true);
+    if (!a) return;
+    const b = (req.body ?? {}) as OrganizationBody & Record<string, unknown>;
+    const result = await pipeline.createOrganization.execute({ fields: b, actor: a });
+    if (!result.ok) return sendError(res, result.error);
+    res.status(201).json(result.value as unknown as OrganizationDto);
+  });
+
+  r.patch("/organizations/:id", async (req, res) => {
+    const a = actor(req, res, true);
+    if (!a) return;
+    const b = (req.body ?? {}) as OrganizationBody & Record<string, unknown>;
+    send(
+      res,
+      await pipeline.updateOrganization.execute({ organizationId: String(req.params["id"]), fields: b, actor: a }),
+    );
+  });
+
+  r.get("/persons", async (req, res) => {
+    const a = actor(req, res, false);
+    if (!a) return;
+    const search = typeof req.query["q"] === "string" ? req.query["q"].trim() || undefined : undefined;
+    const organizationId =
+      typeof req.query["organizationId"] === "string" ? req.query["organizationId"].trim() || undefined : undefined;
+    const limit = Math.min(Number(req.query["limit"]) || 500, 2000);
+    const rows = await pipeline.people.persons({ actor: a, search, organizationId, limit });
+    res.json(rows as unknown as PersonSummaryDto[]);
+  });
+
+  r.get("/search", async (req, res) => {
+    const a = actor(req, res, false);
+    if (!a) return;
+    const q = typeof req.query["q"] === "string" ? req.query["q"] : "";
+    res.json((await pipeline.people.search({ actor: a, q })) as unknown as SearchDto);
   });
 
   r.post("/leads/:id/stage", async (req, res) => {

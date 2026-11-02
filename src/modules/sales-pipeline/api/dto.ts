@@ -37,8 +37,74 @@ export interface LeadDto {
   courtModel: string;
   /** YYYY-MM-DD ya da null. */
   expectedCloseDate: string | null;
+  /** Kuruluş bağı (Faz 6d). */
+  organizationId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type OrganizationTypeDto = "club" | "investor" | "distributor" | "contractor" | "other";
+
+export interface OrganizationDto {
+  id: string;
+  name: string;
+  type: OrganizationTypeDto;
+  country: string | null;
+  website: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** POST /organizations (name zorunlu) ve PATCH /organizations/:id (yalnız gönderilenler). */
+export interface OrganizationBody {
+  name?: string;
+  type?: OrganizationTypeDto;
+  country?: string | null;
+  website?: string | null;
+  notes?: string | null;
+}
+
+export interface PersonDto {
+  id: string;
+  fullName: string;
+  emailNormalized: string | null;
+  phoneE164: string | null;
+  country: string | null;
+  company: string;
+  organizationId: string | null;
+  createdAt: string;
+}
+
+/** GET /organizations?q= — kuruluş + kişi sayısı + görünür lead özetleri. */
+export interface OrganizationSummaryDto {
+  organization: OrganizationDto;
+  personCount: number;
+  leadCount: number;
+  openCount: number;
+  wonCount: number;
+  openTotalEur: number;
+}
+
+/** GET /persons?q=&organizationId= — kişi + kuruluş adı + görünür lead'leri. */
+export interface PersonSummaryDto {
+  person: PersonDto;
+  organization: { id: string; name: string } | null;
+  leads: LeadListDto[];
+}
+
+/** PATCH /leads/:id/contact — ad, e-posta, telefon; "" ya da null alanı boşaltır (ikisinden biri kalmalı). */
+export interface UpdateContactBody {
+  fullName?: string;
+  email?: string | null;
+  phone?: string | null;
+}
+
+/** GET /search?q= — üst menü araması. */
+export interface SearchDto {
+  leads: LeadDto[];
+  persons: PersonDto[];
+  organizations: OrganizationDto[];
 }
 
 export interface StageEventDto {
@@ -109,10 +175,13 @@ export interface UpdateLeadBody {
   city?: string | null;
   productInterest?: string | null;
   notes?: string | null;
+  /** Kuruluş bağı; null bağı kaldırır. */
+  organizationId?: string | null;
 }
 
 export interface LeadDetailDto {
   lead: LeadListDto;
+  organization: OrganizationDto | null;
   events: StageEventDto[];
   activities: ActivityDto[];
   allowedTransitions: StageCodeDto[];
@@ -200,6 +269,7 @@ export interface CreateLeadBody {
   courtCount?: number | string | null;
   courtModel?: string;
   expectedCloseDate?: string | null;
+  organizationId?: string | null;
   /** Yalnız admin: belirli bir satışçıya ata ya da null ile havuza bırak. */
   assignedUserId?: string | null;
   isTest?: boolean;

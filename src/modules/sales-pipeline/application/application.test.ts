@@ -560,6 +560,135 @@ describe("Raporlar (Faz 6c)", () => {
   });
 });
 
+describe("Kuruluşlar ve kişiler (Faz 6d)", () => {
+  it("CreateOrganization: ad zorunlu, varsayılan tür kulüp, aynı ad+ülke ikinci kez açılmaz; UpdateOrganization kısmi", async () => {
+    const bad = await sp.createOrganization.execute({ fields: { country: "TR" }, actor: REP });
+    expect(!bad.ok && bad.error.code).toBe("organization.name_required");
+    const o = unwrap(
+      await sp.createOrganization.execute({ fields: { name: " Padel Kulübü ", country: "tr" }, actor: REP }),
+    );
+    expect(o).toMatchObject({ name: "Padel Kulübü", type: "club", country: "TR", website: "", legacyId: null });
+    const dup = await sp.createOrganization.execute({ fields: { name: "padel kulübü", country: "TR" }, actor: ADMIN });
+    expect(!dup.ok && dup.error.code).toBe("organization.duplicate");
+    // Farklı ülkede aynı ad serbest.
+    unwrap(await sp.createOrganization.execute({ fields: { name: "Padel Kulübü", country: "DE" }, actor: REP }));
+
+    h.clock.advance(MINUTE);
+    const u = unwrap(
+      await sp.updateOrganization.execute({
+        organizationId: o.id,
+        fields: { type: "investor", website: "p.example" },
+        actor: REP,
+      }),
+    );
+    expect(u).toMatchObject({ name: "Padel Kulübü", type: "investor", website: "p.example", updatedAt: h.clock.now() });
+    const clash = await sp.updateOrganization.execute({ organizationId: o.id, fields: { country: "DE" }, actor: REP });
+    expect(!clash.ok && clash.error.code).toBe("organization.duplicate");
+    const missing = await sp.updateOrganization.execute({ organizationId: "yok", fields: { name: "X" }, actor: REP });
+    expect(!missing.ok && missing.error.code).toBe("not_found");
+  });
+
+  it("UpdateLeadContact: lead ve kişi birlikte; en az bir kanal kalır; başkasının e-postası/telefonu reddedilir; yetki", async () => {
+    const a = unwrap(await manual()).lead;
+    unwrap(await manual({ email: "b@b.co", phone: "+90 532 999 88 77", assignedUserId: "rep-2" }));
+    const u = unwrap(
+      await sp.updateLeadContact.execute({
+        leadId: a.id,
+        fullName: " Ayşe D. ",
+        email: "AYSE.D@Example.com",
+        actor: REP,
+      }),
+    );
+    expect(u).toMatchObject({ fullName: "Ayşe D.", email: "ayse.d@example.com", phoneE164: "+905321234567" });
+    expect(h.uow.state.persons.find((p) => p.id === a.personId)).toMatchObject({
+      fullName: "Ayşe D.",
+      emailNormalized: "ayse.d@example.com",
+    });
+    const taken = await sp.updateLeadContact.execute({ leadId: a.id, email: "b@b.co", actor: REP });
+    expect(!taken.ok && taken.error.code).toBe("person.email_taken");
+    const takenPhone = await sp.updateLeadContact.execute({ leadId: a.id, phone: "0532 999 88 77", actor: REP });
+    expect(!takenPhone.ok && takenPhone.error.code).toBe("person.phone_taken");
+    const none = await sp.updateLeadContact.execute({ leadId: a.id, email: "", phone: null, actor: REP });
+    expect(!none.ok && none.error.code).toBe("lead.contact_required");
+    const badMail = await sp.updateLeadContact.execute({ leadId: a.id, email: "bozuk", actor: REP });
+    expect(!badMail.ok && badMail.error.code).toBe("email.invalid");
+    const other = await sp.updateLeadContact.execute({ leadId: a.id, fullName: "X", actor: REP2 });
+    expect(!other.ok && other.error.code).toBe("lead.forbidden");
+    // Telefonu kaldır, e-posta kalır.
+    const onlyMail = unwrap(await sp.updateLeadContact.execute({ leadId: a.id, phone: "", actor: REP }));
+    expect(onlyMail.phoneE164).toBeNull();
+    expect(h.uow.state.persons.find((p) => p.id === a.personId)?.phoneE164).toBeNull();
+  });
+
+  it("PeopleQueries: kuruluş özetleri görünür lead'lerle; kişi listesi lead'leri ve kuruluş adıyla; arama üç küme", async () => {
+    const org = unwrap(await sp.createOrganization.execute({ fields: { name: "Kulüp A", country: "TR" }, actor: REP }));
+    const a = unwrap(await manual({ organizationId: org.id })).lead; // rep-1
+    const b = unwrap(
+      await manual({ email: "b@b.co", phone: "", organizationId: org.id, assignedUserId: "rep-2" }),
+    ).lead;
+    unwrap(await manual({ email: "c@c.co", phone: "", country: "DE", assignedUserId: null }));
+    await h.uow.run((r) => r.persons.update(a.personId, { organizationId: org.id }));
+    unwrap(
+      await sp.changeLeadStage.execute({
+        leadId: a.id,
+        target: "PROPOSAL",
+        actor: REP,
+        qualificationAnswers: YES,
+        value: { amount: 1000, currency: "USD" },
+      }),
+    );
+    unwrap(
+      await sp.changeLeadStage.execute({
+        leadId: b.id,
+        target: "WON",
+        actor: REP2,
+        qualificationAnswers: YES,
+        value: { amount: 5, currency: "EUR" },
+      }),
+    );
+
+    const adminOrgs = await sp.people.organizations({ actor: ADMIN });
+    expect(adminOrgs).toHaveLength(1);
+    expect(adminOrgs[0]).toMatchObject({ personCount: 1, leadCount: 2, openCount: 1, wonCount: 1, openTotalEur: 920 });
+    // rep-1 b'yi görmez (rep-2'nin).
+    const repOrgs = await sp.people.organizations({ actor: REP, search: "kulüp" });
+    expect(repOrgs[0]).toMatchObject({ leadCount: 1, openCount: 1, wonCount: 0 });
+    expect(await sp.people.organizations({ actor: REP, search: "yok" })).toEqual([]);
+
+    const people = await sp.people.persons({ actor: ADMIN });
+    expect(people).toHaveLength(3);
+    const ayse = people.find((p) => p.person.id === a.personId)!;
+    expect(ayse.organization).toEqual({ id: org.id, name: "Kulüp A" });
+    expect(ayse.leads.map((l) => [l.id, l.currentStage, l.value?.amount])).toEqual([[a.id, "PROPOSAL", 1000]]);
+    const inOrg = await sp.people.persons({ actor: ADMIN, organizationId: org.id });
+    expect(inOrg.map((p) => p.person.id)).toEqual([a.personId]);
+    const repPeople = await sp.people.persons({ actor: REP, search: "b@b" });
+    expect(repPeople).toHaveLength(1);
+    expect(repPeople[0]?.leads).toEqual([]); // kişi görünür, lead'i değil
+
+    const s = await sp.people.search({ actor: REP, q: "kulüp" });
+    expect(s.organizations.map((o) => o.id)).toEqual([org.id]);
+    expect(s.leads).toEqual([]);
+    const s2 = await sp.people.search({ actor: ADMIN, q: "ayse" });
+    expect(s2.leads.map((l) => l.id)).toEqual([a.id]);
+    expect(s2.persons.map((p) => p.id)).toEqual([a.personId]);
+    expect(await sp.people.search({ actor: ADMIN, q: "a" })).toEqual({ leads: [], persons: [], organizations: [] });
+
+    const unknownOrg = await sp.updateLeadFields.execute({
+      leadId: a.id,
+      fields: { organizationId: "yok" },
+      actor: REP,
+    });
+    expect(!unknownOrg.ok && unknownOrg.error.code).toBe("lead.organization_not_found");
+    const unknownOnCreate = await manual({ email: "z@z.co", phone: "", organizationId: "yok" });
+    expect(!unknownOnCreate.ok && unknownOnCreate.error.code).toBe("lead.organization_not_found");
+    const detail = unwrap(await sp.queries.get(a.id, REP));
+    expect(detail.organization?.name).toBe("Kulüp A");
+    unwrap(await sp.updateLeadFields.execute({ leadId: a.id, fields: { organizationId: null }, actor: REP }));
+    expect(unwrap(await sp.queries.get(a.id, REP)).organization).toBeNull();
+  });
+});
+
 describe("UndoStageChange", () => {
   let leadId: string;
   beforeEach(async () => {

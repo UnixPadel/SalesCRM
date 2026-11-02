@@ -1,4 +1,4 @@
-import { RuleError, type Result } from "../../shared/kernel";
+import { RuleError, err, type Result } from "../../shared/kernel";
 import { parseLeadFields, type Lead } from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
 import { loadActionableLead } from "./visibility";
@@ -27,6 +27,13 @@ export class UpdateLeadFields {
       const lead = await loadActionableLead(repos, input.leadId, input.actor);
       if (!lead.ok) return lead;
       if (Object.keys(fields).length === 0) return lead;
+      if (fields.organizationId && !(await repos.organizations.findById(fields.organizationId))) {
+        return err(
+          new RuleError("lead.organization_not_found", "Kuruluş bulunamadı.", {
+            organizationId: fields.organizationId,
+          }),
+        );
+      }
       const now = clock.now();
       await repos.leads.updateFields(lead.value.id, fields, now);
       logger.info("lead alanları güncellendi", {
