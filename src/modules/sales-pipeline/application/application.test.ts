@@ -522,6 +522,44 @@ describe("Fırsat alanları ve pano (Faz 6b)", () => {
   });
 });
 
+describe("Raporlar (Faz 6c)", () => {
+  it("summary: görünür lead'lerden, test dışı; satışçı kendi + havuz; ay sayısı 1–36'ya sıkıştırılır", async () => {
+    const a = unwrap(await manual()).lead; // rep-1
+    unwrap(await manual({ email: "b@b.co", phone: "", assignedUserId: null, country: "DE" }));
+    const c = unwrap(await manual({ email: "c@c.co", phone: "", assignedUserId: "rep-2" })).lead;
+    unwrap(await manual({ email: "t@t.co", phone: "", isTest: true }));
+    unwrap(await sp.changeLeadStage.execute({ leadId: a.id, target: "CONTACTED", actor: REP }));
+    unwrap(
+      await sp.changeLeadStage.execute({
+        leadId: a.id,
+        target: "WON",
+        actor: REP,
+        qualificationAnswers: YES,
+        value: { amount: 10_000, currency: "USD" },
+      }),
+    );
+    unwrap(
+      await sp.changeLeadStage.execute({ leadId: c.id, target: "LOST", actor: REP2, lostReasonCode: "competitor" }),
+    );
+
+    const all = await sp.reports.summary({ actor: ADMIN, months: 2 });
+    expect(all.months).toEqual(["2026-02", "2026-03"]);
+    expect(all.kpis).toMatchObject({ openCount: 1, closedWon: 1, closedLost: 1, winRate: 0.5 });
+    expect(all.wonByMonth[1]).toEqual({ month: "2026-03", count: 1, totalEur: 9200 });
+    expect(all.lostReasons).toEqual([{ code: "competitor", count: 1 }]);
+    expect(all.leadsBySource).toEqual([{ source: "manual", count: 3, won: 1 }]);
+    expect(all.openByCountry).toEqual([{ country: "DE", count: 1, totalEur: 0 }]);
+
+    const mine = await sp.reports.summary({ actor: REP });
+    expect(mine.months).toHaveLength(12);
+    expect(mine.kpis).toMatchObject({ openCount: 1, closedWon: 1, closedLost: 0, winRate: 1 });
+    expect(mine.lostReasons).toEqual([]);
+
+    expect((await sp.reports.summary({ actor: ADMIN, months: 0 })).months).toHaveLength(1);
+    expect((await sp.reports.summary({ actor: ADMIN, months: 99 })).months).toHaveLength(36);
+  });
+});
+
 describe("UndoStageChange", () => {
   let leadId: string;
   beforeEach(async () => {

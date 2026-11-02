@@ -25,6 +25,7 @@ export {
   type ListLeadsInput,
   type OutboundStageEvent,
 } from "./queries";
+export { ReportQueries, type ReportInputDto } from "./reports";
 export { canAct, canSee, loadActionableLead, territoriesOf } from "./visibility";
 export {
   InMemoryNotificationStore,
@@ -49,6 +50,7 @@ import { AssignLead } from "./assignLead";
 import { ChangeLeadStage } from "./changeLeadStage";
 import { CreateLead } from "./createLead";
 import { LeadQueries } from "./queries";
+import { ReportQueries } from "./reports";
 import type { UseCaseDeps } from "./types";
 import { UndoStageChange } from "./undoStageChange";
 import { UpdateLeadFields } from "./updateLeadFields";
@@ -64,6 +66,7 @@ export interface SalesPipeline {
   deleteActivity: DeleteActivity;
   queries: LeadQueries;
   activities: ActivityQueries;
+  reports: ReportQueries;
 }
 
 /** Modülün dışa açık yüzü: api katmanı ve diğer modüller bunu kullanır. */
@@ -79,5 +82,6 @@ export function createSalesPipeline(deps: UseCaseDeps): SalesPipeline {
     deleteActivity: new DeleteActivity(deps),
     queries: new LeadQueries(deps),
     activities: new ActivityQueries(deps),
+    reports: new ReportQueries(deps),
   };
 }

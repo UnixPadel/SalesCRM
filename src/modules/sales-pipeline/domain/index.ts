@@ -7,5 +7,6 @@ export * from "./undo";
 export * from "./assignment";
 export * from "./activity";
 export * from "./opportunity";
+export * from "./reports";
 export * from "./events";
 export * from "./ports";

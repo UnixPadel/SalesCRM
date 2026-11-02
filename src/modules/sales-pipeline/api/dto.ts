@@ -143,6 +143,27 @@ export interface TodayItemDto {
   };
 }
 
+/** GET /reports?months=12 — raporlar (Faz 6c); aylar YYYY-MM, eskiden yeniye; tutarlar EUR. */
+export interface ReportDto {
+  months: string[];
+  kpis: {
+    openCount: number;
+    openTotalEur: number;
+    wonThisMonth: { count: number; totalEur: number };
+    closedWon: number;
+    closedLost: number;
+    /** 0–1; kapanan yoksa null. */
+    winRate: number | null;
+  };
+  wonByMonth: { month: string; count: number; totalEur: number }[];
+  conversionByStage: { stage: StageCodeDto; reached: number; closed: number; won: number; rate: number | null }[];
+  /** country: ISO-2 ya da "" (bilinmiyor). */
+  openByCountry: { country: string; count: number; totalEur: number }[];
+  /** code: lost_reasons.code ya da "unspecified". */
+  lostReasons: { code: string; count: number }[];
+  leadsBySource: { source: LeadSourceDto; count: number; won: number }[];
+}
+
 /** "Bugün" sayfası: üç küme, her biri vade sırasıyla. */
 export interface TodayDto {
   overdue: TodayItemDto[];

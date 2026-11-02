@@ -13,6 +13,7 @@ import type {
   LeadListDto,
   NotificationsDto,
   ReferenceDto,
+  ReportDto,
   TodayDto,
 } from "./dto";
 
@@ -401,6 +402,26 @@ describe("fırsat alanları ve pano (Faz 6b)", () => {
     expect((await call<BoardDto>("viewer", "GET", "/api/pipeline/board?country=xyz")).status).toBe(200);
     expect((await call("rep1", "GET", "/api/pipeline/board")).status).toBe(200);
     expect((await call(null, "GET", "/api/pipeline/board")).status).toBe(401);
+  });
+});
+
+describe("raporlar (Faz 6c)", () => {
+  it("GET /reports: ay parametresi, boş/dolu veride şekil sabit; görüntüleyici okur; oturumsuz 401", async () => {
+    const r = await call<ReportDto>("admin", "GET", "/api/pipeline/reports?months=6");
+    expect(r.status).toBe(200);
+    expect(r.body.months).toHaveLength(6);
+    expect(r.body.wonByMonth).toHaveLength(6);
+    expect(r.body.conversionByStage.map((c) => c.stage)).toEqual(["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL"]);
+    expect(typeof r.body.kpis.openCount).toBe("number");
+    expect(Array.isArray(r.body.openByCountry)).toBe(true);
+    expect(Array.isArray(r.body.lostReasons)).toBe(true);
+    expect(Array.isArray(r.body.leadsBySource)).toBe(true);
+    // Önceki testlerde en az bir lead Teklif'e taşındı: kaynağa göre satır var, açık hat sayısı ≥ 1.
+    expect(r.body.leadsBySource.length).toBeGreaterThan(0);
+    expect(r.body.kpis.openCount).toBeGreaterThan(0);
+    expect((await call<ReportDto>("viewer", "GET", "/api/pipeline/reports")).body.months).toHaveLength(12);
+    expect((await call<ReportDto>("rep1", "GET", "/api/pipeline/reports?months=abc")).body.months).toHaveLength(12);
+    expect((await call(null, "GET", "/api/pipeline/reports")).status).toBe(401);
   });
 });
 

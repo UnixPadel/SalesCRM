@@ -15,6 +15,7 @@ import type {
   NotificationDto,
   NotificationsDto,
   ReferenceDto,
+  ReportDto,
   SetActivityDoneBody,
   TodayDto,
   TodayItemDto,
@@ -195,6 +196,15 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
     });
     if (!result.ok) return sendError(res, result.error);
     res.status(201).json(activityDto(result.value));
+  });
+
+  // Raporlar (Faz 6c): görünür, test dışı lead'lerden; ay sayısı 1–36.
+  r.get("/reports", async (req, res) => {
+    const a = actor(req, res, false);
+    if (!a) return;
+    const months = Number(req.query["months"]);
+    const report = await pipeline.reports.summary({ actor: a, months: Number.isFinite(months) ? months : undefined });
+    res.json(report as ReportDto);
   });
 
   r.get("/activities/today", async (req, res) => {
