@@ -79,7 +79,8 @@ export function googleSourceAdapter(): SourceAdapter {
         campaign: { campaignId: str(p?.campaign_id), adsetId: str(p?.adgroup_id), adId: str(p?.creative_id) },
         attribution: { gclid: str(p?.gcl_id) },
         isTest: p?.is_test === true || p?.is_test === "true",
-        submittedAt: null,
+        // Google gövdesi gönderim zamanı taşımaz; webhook anında geldiği için inbox'a düşüş anı kullanılır.
+        submittedAt: ctx.receivedAt,
         defaultCountry: ctx.defaultCountry,
         extra: mapped.unmapped.length ? { ignored_columns: mapped.unmapped } : {},
       });

@@ -62,6 +62,15 @@ describe("AcceptInboundEvent", () => {
 });
 
 describe("ProcessInbox", () => {
+  it("lead'in oluşturulma zamanı platformdaki gönderim anıdır, işleme anı değil", async () => {
+    await accept("L-1");
+    await intake.process.runOnce();
+    const lead = sp.uow.state.leads[0];
+    expect(lead?.createdAt.toISOString()).toBe("2026-03-01T09:59:00.000Z"); // sampleDto.submittedAt
+    expect(lead?.updatedAt.toISOString()).toBe(sp.clock.now().toISOString());
+    expect(sp.uow.state.events[0]?.occurredAt.toISOString()).toBe("2026-03-01T09:59:00.000Z");
+  });
+
   it("sırası gelen satır: adaptör → CreateLead; ülke kuralıyla atanır; satır done ve lead_id dolu", async () => {
     await accept("L-1");
     const stats = await intake.process.runOnce();

@@ -35,7 +35,12 @@ const settings = new IntegrationSettings({
   ...new InMemoryIntegrationSettings(SEED.map(([f, t]) => mappingRow("google", f, t))).repos(),
   clock: { now: () => new Date(0) },
 });
-const ctx: AdapterContext = { mappingsFor: (f) => settings.mappingsFor("google", f), defaultCountry: "TR" };
+const RECEIVED = new Date("2026-03-01T09:59:30Z");
+const ctx: AdapterContext = {
+  mappingsFor: (f) => settings.mappingsFor("google", f),
+  defaultCountry: "TR",
+  receivedAt: RECEIVED,
+};
 const KEY = "test-webhook-key";
 const adapter = googleSourceAdapter();
 
@@ -81,6 +86,8 @@ describe("user_column_data → InboundLeadDto", () => {
 
   it("test verisi gönder: is_test → test işaretli, gclid saklanır", async () => {
     const dto = await adapter.toInboundLead(stripGoogleKey(fixture("lead-test.json")), ctx);
+    // Google gövdesinde gönderim zamanı yok: inbox'a düşüş anı kullanılır.
+    expect(dto.submittedAt).toEqual(RECEIVED);
     expect(dto).toMatchObject({
       isTest: true,
       platformLeadId: "TeSter-123-ABCDEF",

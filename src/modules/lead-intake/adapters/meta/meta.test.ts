@@ -50,7 +50,11 @@ const settings = new IntegrationSettings({
   ...new InMemoryIntegrationSettings(SEED.map(([f, t]) => mappingRow("meta", f, t))).repos(),
   clock: { now: () => new Date(0) },
 });
-const ctx: AdapterContext = { mappingsFor: (formId) => settings.mappingsFor("meta", formId), defaultCountry: "TR" };
+const ctx: AdapterContext = {
+  mappingsFor: (formId) => settings.mappingsFor("meta", formId),
+  defaultCountry: "TR",
+  receivedAt: new Date("2026-03-01T10:00:00Z"),
+};
 
 const SECRET = "app-secret-for-tests";
 

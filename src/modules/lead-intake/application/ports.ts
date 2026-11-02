@@ -23,6 +23,8 @@ export interface AdapterContext {
   mappingsFor(formId: string | null): Promise<ResolvedMapping>;
   /** Ülkesiz telefon numaraları için (ISO-3166 alpha-2). */
   defaultCountry: string;
+  /** Bildirimin inbox'a düştüğü an; payload gönderim zamanı taşımıyorsa `submittedAt` için en yakın değer. */
+  receivedAt: Date;
 }
 
 /** Kaynak adaptörü: inbox payload'ı → InboundLeadDto. Platform çağrısı gerekirse burada yapılır. */

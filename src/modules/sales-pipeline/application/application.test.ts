@@ -49,6 +49,22 @@ describe("CreateLead", () => {
     expect(h.events.published.map((e) => e.type)).toEqual(["LeadCreated", "LeadAssigned"]);
   });
 
+  it("createdAt: verilirse lead, NEW olayı ve onay zamanı onu alır; gelecekteki ya da boş tarih şimdiye düşer", async () => {
+    const past = new Date("2026-02-27T08:30:00Z");
+    const r = unwrap(await manual({ createdAt: past, consents: [{ type: "kvkk", granted: true }] }));
+    expect(r.lead.createdAt).toEqual(past);
+    expect(r.lead.updatedAt).toEqual(h.clock.now());
+    expect(h.uow.state.events[0]?.occurredAt).toEqual(past);
+    expect(h.uow.state.consents[0]?.grantedAt).toEqual(past);
+    // Outbox bekleme süresi işleme anından sayılır, geçmiş tarihten değil.
+    expect(h.uow.state.outbox[0]?.nextAttemptAt.toISOString()).toBe("2026-03-01T10:10:00.000Z");
+
+    const future = unwrap(await manual({ email: "b@example.com", phone: null, createdAt: new Date("2030-01-01") }));
+    expect(future.lead.createdAt).toEqual(h.clock.now());
+    const none = unwrap(await manual({ email: "c@example.com", phone: null, createdAt: null }));
+    expect(none.lead.createdAt).toEqual(h.clock.now());
+  });
+
   it("doğrulama: ad, iletişim, ülke, e-posta, telefon", async () => {
     const code = async (over: Record<string, unknown>) => {
       const r = await manual(over);

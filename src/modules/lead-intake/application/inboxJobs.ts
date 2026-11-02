@@ -84,7 +84,7 @@ export class ProcessInbox {
     for (const event of due) {
       const log = logger.child({ inboxId: event.id, provider: event.provider, attempt: event.attempts });
       try {
-        const leadId = await this.handle(event.provider, event.payload, event.dedupeKey);
+        const leadId = await this.handle(event.provider, event.payload, event.dedupeKey, event.receivedAt);
         await inbox.markDone(event.id, leadId, clock.now());
         stats.done += 1;
       } catch (e: unknown) {
@@ -106,7 +106,7 @@ export class ProcessInbox {
     return stats;
   }
 
-  private async handle(provider: string, payload: unknown, dedupeKey: string): Promise<string> {
+  private async handle(provider: string, payload: unknown, dedupeKey: string, receivedAt: Date): Promise<string> {
     const adapter = this.byProvider.get(provider);
     if (!adapter) throw new UnexpectedError(new Error(`adaptör yok: ${provider}`), "intake.unknown_provider");
     if (payload === null || payload === undefined) {
@@ -115,6 +115,7 @@ export class ProcessInbox {
     const ctx: AdapterContext = {
       mappingsFor: (formId) => this.deps.mappings.mappingsFor(provider, formId),
       defaultCountry: this.deps.defaultCountry,
+      receivedAt,
     };
     const dto = await adapter.toInboundLead(payload, ctx);
     if (dedupeKeyFor(dto.provider, dto.platformLeadId) !== dedupeKey) {

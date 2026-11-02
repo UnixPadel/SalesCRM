@@ -46,7 +46,11 @@ const settings = new IntegrationSettings({
   ...new InMemoryIntegrationSettings(SEED.map(([f, t]) => mappingRow("web", f, t))).repos(),
   clock: { now: () => new Date(0) },
 });
-const ctx: AdapterContext = { mappingsFor: (f) => settings.mappingsFor("web", f), defaultCountry: "TR" };
+const ctx: AdapterContext = {
+  mappingsFor: (f) => settings.mappingsFor("web", f),
+  defaultCountry: "TR",
+  receivedAt: new Date("2026-03-01T10:00:00Z"),
+};
 const adapter = webFormSourceAdapter();
 
 const SECRET = "web-form-test-secret";

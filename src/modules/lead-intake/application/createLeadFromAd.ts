@@ -37,6 +37,7 @@ export class CreateLeadFromAd {
       consents: dto.consents,
       isTest: dto.isTest,
       extraAnswers: dto.extraAnswers,
+      createdAt: dto.submittedAt,
       actor: null,
     });
     if (!r.ok) {

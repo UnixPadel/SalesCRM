@@ -40,6 +40,11 @@ export interface CreateLeadInput {
   consents?: ConsentInput[];
   isTest?: boolean;
   extraAnswers?: Record<string, unknown>;
+  /**
+   * Lead'in gerçekte oluştuğu an (platformdaki form gönderimi). Verilmezse ya da gelecekteyse şimdi.
+   * Yedek senkronla saatler sonra işlenen lead'in yaşı ve platform penceresi bu tarihe göre hesaplanır.
+   */
+  createdAt?: Date | null;
   /** Açıkça verilirse ülke kuralı atlanır (admin elle atar). */
   assignedUserId?: string | null;
   /** Elle açan kişi; webhook akışında yok. */
@@ -112,6 +117,9 @@ export class CreateLead {
       }
 
       const now = clock.now();
+      const submitted = input.createdAt;
+      const createdAt =
+        submitted && !Number.isNaN(submitted.getTime()) && submitted.getTime() <= now.getTime() ? submitted : now;
       const { person, matched } = await this.findOrCreatePerson(repos, {
         fullName,
         email,
@@ -141,7 +149,7 @@ export class CreateLead {
         isTest: input.isTest ?? false,
         notes: (input.notes ?? "").trim(),
         extraAnswers: input.extraAnswers ?? {},
-        createdAt: now,
+        createdAt,
         updatedAt: now,
       };
       await repos.leads.insert(lead);
@@ -155,7 +163,7 @@ export class CreateLead {
           type: c.type,
           granted: c.granted,
           textVersion: c.textVersion ?? "",
-          grantedAt: c.grantedAt ?? now,
+          grantedAt: c.grantedAt ?? createdAt,
         }));
         await repos.leads.saveConsents(rows);
       }
@@ -165,7 +173,8 @@ export class CreateLead {
         leadId: lead.id,
         changeId: ids.next(),
         stageCode: "NEW",
-        occurredAt: now,
+        // "Yeni lead" platforma gönderim anıyla gider; outbox bekleme süresi yine işleme anından sayılır.
+        occurredAt: createdAt,
         sequence: 1,
         actorUserId: input.actor?.userId ?? null,
         origin: "system",
