@@ -16,4 +16,6 @@ export interface UseCaseDeps {
   logger: Logger;
   /** Dağıtıcı bekleme süresi = geri al penceresi (Genel plan). */
   undoWindowMs: number;
+  /** Satış ekibinin takvimi ("bugün", otomatik takip saati); verilmezse Europe/Istanbul. */
+  timeZone?: string | undefined;
 }

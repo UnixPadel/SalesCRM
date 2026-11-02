@@ -4,6 +4,8 @@
  */
 import { FixedClock, SequentialIdGenerator, silentLogger } from "../../shared/kernel";
 import type {
+  Activity,
+  ActivityRepository,
   DomainEvent,
   DomainEventPublisher,
   Lead,
@@ -41,6 +43,7 @@ export interface MemoryState {
   events: StageEvent[];
   attributions: Record<string, LeadAttribution>;
   consents: LeadConsent[];
+  activities: Activity[];
   outbox: OutboxRow[];
   territories: TerritoryRule[];
   lostReasons: string[];
@@ -54,6 +57,7 @@ export const emptyState = (): MemoryState => ({
   events: [],
   attributions: {},
   consents: [],
+  activities: [],
   outbox: [],
   territories: [],
   lostReasons: ["price_too_high", "competitor", "no_response", "unqualified"],
@@ -161,6 +165,43 @@ function reposFor(s: MemoryState): Repositories {
       void by;
     },
   };
+  const byDue = (a: Activity, b: Activity) => a.dueAt.getTime() - b.dueAt.getTime();
+  const activities: ActivityRepository = {
+    async findById(id) {
+      const a = s.activities.find((x) => x.id === id);
+      return a ? { ...a } : undefined;
+    },
+    async listByLead(leadId) {
+      return s.activities
+        .filter((a) => a.leadId === leadId)
+        .sort(byDue)
+        .map((a) => ({ ...a }));
+    },
+    async listOpenByLeads(leadIds) {
+      return s.activities
+        .filter((a) => a.doneAt === null && leadIds.includes(a.leadId))
+        .sort(byDue)
+        .map((a) => ({ ...a }));
+    },
+    async insert(a) {
+      if (s.activities.some((x) => x.id === a.id)) throw new Error("duplicate activity id");
+      s.activities.push({ ...a });
+    },
+    async setDone(id, doneAt, updatedAt) {
+      const a = s.activities.find((x) => x.id === id);
+      if (!a) throw new Error("aktivite yok");
+      a.doneAt = doneAt;
+      a.updatedAt = updatedAt;
+    },
+    async remove(id) {
+      s.activities = s.activities.filter((a) => a.id !== id);
+    },
+    async removeAutoCreatedByChange(changeId) {
+      const before = s.activities.length;
+      s.activities = s.activities.filter((a) => !(a.autoCreated && a.createdByChangeId === changeId));
+      return before - s.activities.length;
+    },
+  };
   let outboxSeq = 0;
   const outbox: OutboxWriter = {
     async enqueue(stageEventId, provider, notBefore) {
@@ -184,7 +225,7 @@ function reposFor(s: MemoryState): Repositories {
   };
   const territories: TerritoryRuleSource = { all: async () => s.territories.map((t) => ({ ...t })) };
   const lostReasons: LostReasonSource = { activeCodes: async () => [...s.lostReasons] };
-  return { leads, persons, stageEvents, outbox, territories, lostReasons };
+  return { leads, persons, stageEvents, activities, outbox, territories, lostReasons };
 }
 
 export class InMemoryUnitOfWork implements UnitOfWork {

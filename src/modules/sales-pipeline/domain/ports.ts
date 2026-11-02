@@ -1,3 +1,4 @@
+import type { Activity } from "./activity";
 import type { TerritoryRule } from "./assignment";
 import type { DomainEvent } from "./events";
 import type { Lead, LeadAttribution, LeadConsent, Person, StageEvent } from "./lead";
@@ -60,10 +61,23 @@ export interface LostReasonSource {
   activeCodes(): Promise<string[]>;
 }
 
+export interface ActivityRepository {
+  findById(id: string): Promise<Activity | undefined>;
+  listByLead(leadId: string): Promise<Activity[]>;
+  /** Verilen lead'lerin açık aktiviteleri, vade sırasıyla (Kanban özeti ve "Bugün" için). */
+  listOpenByLeads(leadIds: readonly string[]): Promise<Activity[]>;
+  insert(activity: Activity): Promise<void>;
+  setDone(id: string, doneAt: Date | null, updatedAt: Date): Promise<void>;
+  remove(id: string): Promise<void>;
+  /** Geri al: o aşama değişikliğiyle otomatik açılan aktiviteler silinir; silinen sayısı döner. */
+  removeAutoCreatedByChange(changeId: string): Promise<number>;
+}
+
 export interface Repositories {
   leads: LeadRepository;
   persons: PersonRepository;
   stageEvents: StageEventRepository;
+  activities: ActivityRepository;
   outbox: OutboxWriter;
   territories: TerritoryRuleSource;
   lostReasons: LostReasonSource;

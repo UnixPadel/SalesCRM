@@ -30,7 +30,7 @@ afterAll(() => db.close());
 
 beforeEach(async () => {
   await db.exec(
-    "TRUNCATE user_notifications, inbound_webhook_events, outbound_conversion_events, lead_stage_events, lead_consents, lead_attribution, leads, persons, territory_rules",
+    "TRUNCATE user_notifications, inbound_webhook_events, outbound_conversion_events, lead_stage_events, lead_consents, lead_attribution, activities, leads, persons, territory_rules",
   );
   clock = new FixedClock("2026-03-01T10:00:00Z");
   publisher = new RecordingPublisher();
@@ -64,7 +64,10 @@ describe("Postgres repository'leri + transaction", () => {
     expect(await count("lead_stage_events")).toBe(1);
     expect(await count("outbound_conversion_events")).toBe(2);
     const detail = unwrap(await sp.queries.get(r.lead.id, REP));
-    expect(detail.lead).toEqual(r.lead);
+    expect(detail.lead).toMatchObject(r.lead);
+    // Faz 6a: detaydaki lead aktivite özetini taşır; yeni lead'in aktivitesi yok → takipsiz.
+    expect(detail.lead).toMatchObject({ openActivities: 0, nextActivity: null, rotting: true });
+    expect(detail.activities).toEqual([]);
     expect(detail.events[0]).toMatchObject({
       stageCode: "NEW",
       origin: "system",

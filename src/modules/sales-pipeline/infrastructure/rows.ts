@@ -1,4 +1,6 @@
 import type {
+  Activity,
+  ActivityType,
   Lead,
   LeadAttribution,
   LeadConsent,
@@ -142,6 +144,36 @@ export const personFromRow = (r: PersonRow): Person => ({
   country: r.country,
   company: r.company,
   createdAt: date(r.created_at),
+});
+
+export interface ActivityRow extends Record<string, unknown> {
+  id: string;
+  lead_id: string;
+  type: string;
+  subject: string;
+  due_at: Date | string;
+  done_at: Date | string | null;
+  notes: string;
+  auto_created: boolean;
+  created_by_change_id: string | null;
+  created_by_user_id: string | null;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+
+export const activityFromRow = (r: ActivityRow): Activity => ({
+  id: r.id,
+  leadId: r.lead_id,
+  type: r.type as ActivityType,
+  subject: r.subject,
+  dueAt: date(r.due_at),
+  doneAt: r.done_at === null ? null : date(r.done_at),
+  notes: r.notes,
+  autoCreated: r.auto_created,
+  createdByChangeId: r.created_by_change_id,
+  createdByUserId: r.created_by_user_id,
+  createdAt: date(r.created_at),
+  updatedAt: date(r.updated_at),
 });
 
 export interface StageEventRow extends Record<string, unknown> {

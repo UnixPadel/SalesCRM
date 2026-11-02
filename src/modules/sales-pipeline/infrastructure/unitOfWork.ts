@@ -1,6 +1,7 @@
 import type { Db, Queryable } from "../../shared/db";
 import type { IdGenerator } from "../../shared/kernel";
 import type { Repositories, UnitOfWork } from "../domain";
+import { pgActivityRepository } from "./activityRepository";
 import {
   pgLeadRepository,
   pgLostReasonSource,
@@ -15,6 +16,7 @@ export function repositoriesFor(q: Queryable, ids: IdGenerator): Repositories {
     leads: pgLeadRepository(q),
     persons: pgPersonRepository(q),
     stageEvents: pgStageEventRepository(q),
+    activities: pgActivityRepository(q),
     outbox: pgOutboxWriter(q, ids),
     territories: pgTerritoryRuleSource(q),
     lostReasons: pgLostReasonSource(q),

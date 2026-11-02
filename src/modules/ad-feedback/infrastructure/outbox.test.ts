@@ -23,7 +23,7 @@ beforeAll(async () => {
 afterAll(() => app.close());
 beforeEach(() =>
   db.exec(
-    "TRUNCATE user_notifications, inbound_webhook_events, outbound_conversion_events, lead_stage_events, lead_consents, lead_attribution, leads, persons, territory_rules",
+    "TRUNCATE user_notifications, inbound_webhook_events, outbound_conversion_events, lead_stage_events, lead_consents, lead_attribution, activities, leads, persons, territory_rules",
   ),
 );
 
