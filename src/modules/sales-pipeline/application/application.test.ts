@@ -407,6 +407,121 @@ describe("Aktiviteler (Faz 6a)", () => {
   });
 });
 
+describe("Fırsat alanları ve pano (Faz 6b)", () => {
+  it("UpdateLeadFields: yalnız verilen alanlar değişir, boş değer temizler; aşama ve sorumlu dokunulmaz", async () => {
+    const lead = unwrap(await manual()).lead;
+    h.clock.advance(5 * MINUTE);
+    const u = unwrap(
+      await sp.updateLeadFields.execute({
+        leadId: lead.id,
+        fields: { courtCount: "4", courtModel: " Panoramic ", expectedCloseDate: "2026-12-15", company: "Kulüp A" },
+        actor: REP,
+      }),
+    );
+    expect(u).toMatchObject({
+      courtCount: 4,
+      courtModel: "Panoramic",
+      expectedCloseDate: "2026-12-15",
+      company: "Kulüp A",
+      city: lead.city,
+      currentStage: "NEW",
+      assignedUserId: "rep-1",
+      updatedAt: h.clock.now(),
+    });
+    expect(h.uow.state.leads[0]).toMatchObject({ courtCount: 4, company: "Kulüp A" });
+    const cleared = unwrap(
+      await sp.updateLeadFields.execute({
+        leadId: lead.id,
+        fields: { courtCount: "", expectedCloseDate: null },
+        actor: REP,
+      }),
+    );
+    expect(cleared).toMatchObject({ courtCount: null, expectedCloseDate: null, courtModel: "Panoramic" });
+    // Boş gövde: değişiklik yok, lead olduğu gibi döner.
+    expect(unwrap(await sp.updateLeadFields.execute({ leadId: lead.id, fields: {}, actor: REP }))).toEqual(
+      h.uow.state.leads[0],
+    );
+  });
+
+  it("UpdateLeadFields: doğrulama ve yetki — geçersiz kort sayısı 422 kodu; başkasının lead'i forbidden; admin her lead'i", async () => {
+    const lead = unwrap(await manual()).lead;
+    const bad = await sp.updateLeadFields.execute({ leadId: lead.id, fields: { courtCount: 1000 }, actor: REP });
+    expect(!bad.ok && bad.error.code).toBe("lead.court_count_invalid");
+    const badDate = await sp.updateLeadFields.execute({
+      leadId: lead.id,
+      fields: { expectedCloseDate: "2026-02-30" },
+      actor: REP,
+    });
+    expect(!badDate.ok && badDate.error.code).toBe("lead.expected_close_invalid");
+    const other = await sp.updateLeadFields.execute({ leadId: lead.id, fields: { city: "X" }, actor: REP2 });
+    expect(!other.ok && other.error.code).toBe("lead.forbidden");
+    const missing = await sp.updateLeadFields.execute({ leadId: "yok", fields: { city: "X" }, actor: ADMIN });
+    expect(!missing.ok && missing.error.code).toBe("not_found");
+    expect(
+      unwrap(await sp.updateLeadFields.execute({ leadId: lead.id, fields: { city: "İzmir" }, actor: ADMIN })).city,
+    ).toBe("İzmir");
+    // Hata olunca hiçbir şey yazılmadı.
+    expect(h.uow.state.leads[0]?.courtCount).toBeNull();
+  });
+
+  it("CreateLead: fırsat alanları girişte doğrulanır", async () => {
+    const r = unwrap(await manual({ courtCount: 2, courtModel: "Panoramic", expectedCloseDate: "2026-09-01" }));
+    expect(r.lead).toMatchObject({ courtCount: 2, courtModel: "Panoramic", expectedCloseDate: "2026-09-01" });
+    const bad = await manual({ email: "b@b.co", courtCount: -1 });
+    expect(!bad.ok && bad.error.code).toBe("lead.court_count_invalid");
+  });
+
+  it("board: liste özeti (aşamaya giriş, son tutar), sorumlu · ülke · takipsiz filtreleri ve kolon istatistikleri aynı kümeden", async () => {
+    const a = unwrap(await manual()).lead; // rep-1, TR
+    const b = unwrap(await manual({ email: "b@b.co", phone: "", assignedUserId: null, country: "DE" })).lead; // havuz, DE
+    const c = unwrap(await manual({ email: "c@c.co", phone: "", assignedUserId: "rep-2", country: "TR" })).lead;
+    h.clock.advance(2 * 24 * 60 * MINUTE); // +2 gün
+    unwrap(await sp.changeLeadStage.execute({ leadId: a.id, target: "CONTACTED", actor: REP }));
+    unwrap(
+      await sp.changeLeadStage.execute({
+        leadId: a.id,
+        target: "PROPOSAL",
+        actor: REP,
+        qualificationAnswers: YES,
+        value: { amount: 10_000, currency: "USD" },
+      }),
+    );
+    h.clock.advance(24 * 60 * MINUTE); // +1 gün
+
+    const all = await sp.queries.board({ actor: ADMIN });
+    expect(all.leads.map((l) => l.id).sort()).toEqual([a.id, b.id, c.id].sort());
+    const ai = all.leads.find((l) => l.id === a.id)!;
+    expect(ai.value).toEqual({ amount: 10_000, currency: "USD" });
+    expect(ai.stageEnteredAt.toISOString()).toBe("2026-03-03T10:00:00.000Z");
+    // Teklif takibi otomatik açıldığı için a takipsiz değil; b ve c takipsiz.
+    expect(ai.rotting).toBe(false);
+    const by = Object.fromEntries(all.columns.map((s) => [s.stage, s]));
+    expect(by["NEW"]).toMatchObject({ count: 2, totalEur: 0, avgDays: 3 });
+    expect(by["PROPOSAL"]).toMatchObject({ count: 1, totalEur: 9200, avgDays: 1, unconverted: 0 });
+
+    const pool = await sp.queries.board({ actor: ADMIN, owner: null });
+    expect(pool.leads.map((l) => l.id)).toEqual([b.id]);
+    expect(pool.columns.find((s) => s.stage === "NEW")?.count).toBe(1);
+    expect((await sp.queries.board({ actor: ADMIN, owner: "rep-2" })).leads.map((l) => l.id)).toEqual([c.id]);
+    expect((await sp.queries.board({ actor: ADMIN, country: "tr" })).leads.map((l) => l.id).sort()).toEqual(
+      [a.id, c.id].sort(),
+    );
+    const rotting = await sp.queries.board({ actor: ADMIN, rotting: true });
+    expect(rotting.leads.map((l) => l.id).sort()).toEqual([b.id, c.id].sort());
+    expect(rotting.columns.find((s) => s.stage === "PROPOSAL")?.count).toBe(0);
+
+    // Satışçı yalnız görebildiklerini alır (kendi + havuz).
+    const mine = await sp.queries.board({ actor: REP });
+    expect(mine.leads.map((l) => l.id).sort()).toEqual([a.id, b.id].sort());
+
+    // Kur tablosu uygulama ayarı: farklı kurla toplam değişir.
+    const sp2 = createSalesPipeline({ ...h, eurRates: { EUR: 1, USD: 1 } });
+    expect((await sp2.queries.board({ actor: ADMIN })).columns.find((s) => s.stage === "PROPOSAL")?.totalEur).toBe(
+      10_000,
+    );
+  });
+});
+
 describe("UndoStageChange", () => {
   let leadId: string;
   beforeEach(async () => {

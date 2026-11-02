@@ -23,6 +23,7 @@ import {
   type UserDirectory,
 } from "../modules/sales-pipeline/application";
 import { createSalesPipelineRouter } from "../modules/sales-pipeline/api";
+import { DEFAULT_EUR_RATES, parseEurRates } from "../modules/sales-pipeline/domain";
 import {
   PgUnitOfWork,
   createSmtpEmailSender,
@@ -101,6 +102,10 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
   });
   const notifications = new NotificationQueries(notificationStore, systemClock);
 
+  const ratesR = parseEurRates(config.eurRatesJson);
+  if (!ratesR.ok) logger.warn("EUR_RATES geçersiz, varsayılan kurlar kullanılıyor", { code: ratesR.error.code });
+  const eurRates = ratesR.ok ? ratesR.value : DEFAULT_EUR_RATES;
+
   const pipeline = createSalesPipeline({
     uow,
     clock: systemClock,
@@ -114,6 +119,7 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
     },
     logger,
     undoWindowMs: config.undoWindowMinutes * 60_000,
+    eurRates,
   });
   const router = createSalesPipelineRouter({
     pipeline,
@@ -121,6 +127,7 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
     db,
     logger,
     undoWindowMinutes: config.undoWindowMinutes,
+    eurRates,
     actorOf: (req: Request) => actorFromSession((req as Request & { session?: SessionLike }).session),
   });
   logger.info("sales-pipeline hazır", {

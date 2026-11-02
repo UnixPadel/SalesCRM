@@ -21,6 +21,8 @@ export interface AppConfig {
   smtp: SmtpConfig;
   /** E-posta ve bildirimlerdeki bağlantıların kökü (ör. https://crm.example.com). */
   publicBaseUrl: string;
+  /** Pano toplamları için kurlar, JSON metni ({"USD":0.92,…}); boşsa modülün varsayılanı. Faz 7'de ekrandan. */
+  eurRatesJson: string;
 }
 
 export interface IntakeConfig {
@@ -105,6 +107,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
       passwordSecretName: "SMTP_PASSWORD",
     },
     publicBaseUrl: (env["PUBLIC_BASE_URL"] ?? "").replace(/\/+$/, ""),
+    eurRatesJson: env["EUR_RATES"] ?? "",
   };
 }
 

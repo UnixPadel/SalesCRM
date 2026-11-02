@@ -4,6 +4,7 @@ export { CreateLead, type CreateLeadInput, type CreateLeadResult } from "./creat
 export { ChangeLeadStage, type ChangeLeadStageInput, type ChangeLeadStageResult } from "./changeLeadStage";
 export { UndoStageChange, type UndoStageChangeInput, type UndoStageChangeResult } from "./undoStageChange";
 export { AssignLead, type AssignLeadInput } from "./assignLead";
+export { UpdateLeadFields, type UpdateLeadFieldsInput } from "./updateLeadFields";
 export {
   ActivityQueries,
   AddActivity,
@@ -17,12 +18,14 @@ export {
 } from "./activities";
 export {
   LeadQueries,
+  type Board,
+  type BoardInput,
   type LeadDetail,
   type LeadListItem,
   type ListLeadsInput,
   type OutboundStageEvent,
 } from "./queries";
-export { canAct, canSee, territoriesOf } from "./visibility";
+export { canAct, canSee, loadActionableLead, territoriesOf } from "./visibility";
 export {
   InMemoryNotificationStore,
   LeadNotifier,
@@ -48,12 +51,14 @@ import { CreateLead } from "./createLead";
 import { LeadQueries } from "./queries";
 import type { UseCaseDeps } from "./types";
 import { UndoStageChange } from "./undoStageChange";
+import { UpdateLeadFields } from "./updateLeadFields";
 
 export interface SalesPipeline {
   createLead: CreateLead;
   changeLeadStage: ChangeLeadStage;
   undoStageChange: UndoStageChange;
   assignLead: AssignLead;
+  updateLeadFields: UpdateLeadFields;
   addActivity: AddActivity;
   setActivityDone: SetActivityDone;
   deleteActivity: DeleteActivity;
@@ -68,6 +73,7 @@ export function createSalesPipeline(deps: UseCaseDeps): SalesPipeline {
     changeLeadStage: new ChangeLeadStage(deps),
     undoStageChange: new UndoStageChange(deps),
     assignLead: new AssignLead(deps),
+    updateLeadFields: new UpdateLeadFields(deps),
     addActivity: new AddActivity(deps),
     setActivityDone: new SetActivityDone(deps),
     deleteActivity: new DeleteActivity(deps),

@@ -1,29 +1,12 @@
 import { NotFoundError, RuleError, err, ok, type Result } from "../../shared/kernel";
-import {
-  bucketOf,
-  validateActivity,
-  type Activity,
-  type ActivityBucket,
-  type Lead,
-  type Repositories,
-} from "../domain";
+import { bucketOf, validateActivity, type Activity, type ActivityBucket, type Lead } from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
-import { canAct, territoriesOf } from "./visibility";
+import { loadActionableLead as visibleLead, territoriesOf } from "./visibility";
 
 /**
  * Aktiviteler (Faz 6a). Aşamayı değiştirmezler; yalnız lead'in yapılacaklarını tutarlar. Yetki lead'inkiyle
  * aynı: satışçı kendi ve havuzdaki lead'in aktivitesini açar/kapatır, admin hepsini.
  */
-
-async function visibleLead(repos: Repositories, leadId: string, actor: Actor): Promise<Result<Lead, RuleError>> {
-  const lead = await repos.leads.findById(leadId);
-  if (!lead) return err(new NotFoundError("Lead", leadId));
-  const myCountries = actor.isAdmin ? [] : territoriesOf(actor.userId, await repos.territories.all());
-  if (!canAct(lead, actor, myCountries)) {
-    return err(new RuleError("lead.forbidden", "Bu lead başka bir satışçıya ait.", { leadId: lead.id }));
-  }
-  return ok(lead);
-}
 
 export interface AddActivityInput {
   leadId: string;

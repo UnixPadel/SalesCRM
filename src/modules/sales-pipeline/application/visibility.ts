@@ -1,5 +1,5 @@
-import type { TerritoryRule } from "../domain";
-import type { Lead } from "../domain";
+import { NotFoundError, RuleError, err, ok, type Result } from "../../shared/kernel";
+import type { Lead, Repositories, TerritoryRule } from "../domain";
 import type { Actor } from "./types";
 
 /** Kullanıcının sorumlu ya da yedek olduğu ülkeler. */
@@ -24,4 +24,19 @@ export function canSee(lead: Lead, actor: Actor, myCountries: readonly string[])
 /** Aşama değiştirme ve geri alma: kendi lead'i, ya da havuzdan üstlenerek; admin her zaman. */
 export function canAct(lead: Lead, actor: Actor, myCountries: readonly string[]): boolean {
   return canSee(lead, actor, myCountries);
+}
+
+/** Lead'i yükler; yoksa not_found, kişi üzerinde işlem yapamıyorsa lead.forbidden (aktivite, alan düzenleme). */
+export async function loadActionableLead(
+  repos: Repositories,
+  leadId: string,
+  actor: Actor,
+): Promise<Result<Lead, RuleError>> {
+  const lead = await repos.leads.findById(leadId);
+  if (!lead) return err(new NotFoundError("Lead", leadId));
+  const myCountries = actor.isAdmin ? [] : territoriesOf(actor.userId, await repos.territories.all());
+  if (!canAct(lead, actor, myCountries)) {
+    return err(new RuleError("lead.forbidden", "Bu lead başka bir satışçıya ait.", { leadId: lead.id }));
+  }
+  return ok(lead);
 }

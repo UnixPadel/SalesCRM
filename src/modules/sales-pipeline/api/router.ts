@@ -2,13 +2,14 @@ import { Router, type Request, type Response } from "express";
 import type { Db } from "../../shared/db";
 import { RuleError, isAppError, type Logger, type Result } from "../../shared/kernel";
 import type { Actor, ActivityWithLead, Notification, NotificationQueries, SalesPipeline } from "../application";
-import { QUALIFICATION_QUESTIONS, isStageCode, type Activity } from "../domain";
+import { DEFAULT_EUR_RATES, QUALIFICATION_QUESTIONS, isStageCode, type Activity, type EurRates } from "../domain";
 import { readLostReasons, readStageDefinitions } from "../infrastructure";
 import type {
   ActivityDto,
   AddActivityBody,
   ApiErrorDto,
   AssignBody,
+  BoardDto,
   ChangeStageBody,
   CreateLeadBody,
   NotificationDto,
@@ -17,6 +18,7 @@ import type {
   SetActivityDoneBody,
   TodayDto,
   TodayItemDto,
+  UpdateLeadBody,
 } from "./dto";
 
 export interface RouterDeps {
@@ -25,6 +27,8 @@ export interface RouterDeps {
   db: Db;
   logger: Logger;
   undoWindowMinutes: number;
+  /** Pano toplamları için kurlar; arayüze de verilir. */
+  eurRates?: EurRates | undefined;
   /** Oturumdan kişiyi çıkarır; yoksa undefined (401). `readOnly` görüntüleyici rolü. */
   actorOf(req: Request): (Actor & { readOnly: boolean }) | undefined;
 }
@@ -70,6 +74,7 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
       qualificationQuestions: [...QUALIFICATION_QUESTIONS],
       currencies: CURRENCIES,
       undoWindowMinutes: deps.undoWindowMinutes,
+      eurRates: { ...(deps.eurRates ?? DEFAULT_EUR_RATES) },
     };
     res.json(body);
   });
@@ -84,6 +89,23 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
     res.json(
       await pipeline.queries.list({ actor: a, stage, search, includeTest: req.query["includeTest"] === "1", limit }),
     );
+  });
+
+  // Pano (Faz 6b): filtreler sorgu parametresi; kolon istatistikleri aynı filtrelenmiş kümeden.
+  r.get("/board", async (req, res) => {
+    const a = actor(req, res, false);
+    if (!a) return;
+    const ownerQ = typeof req.query["owner"] === "string" ? req.query["owner"].trim() : "";
+    const owner = ownerQ === "" ? undefined : ownerQ === "pool" ? null : ownerQ === "me" ? a.userId : ownerQ;
+    const countryQ = typeof req.query["country"] === "string" ? req.query["country"].trim().toUpperCase() : "";
+    const board = await pipeline.queries.board({
+      actor: a,
+      owner,
+      country: /^[A-Z]{2}$/.test(countryQ) ? countryQ : undefined,
+      rotting: req.query["rotting"] === "1",
+      includeTest: req.query["includeTest"] === "1",
+    });
+    res.json(board as unknown as BoardDto);
   });
 
   r.get("/leads/:id", async (req, res) => {
@@ -106,11 +128,21 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
       company: b.company ?? "",
       productInterest: b.productInterest ?? "",
       notes: b.notes ?? "",
+      courtCount: b.courtCount ?? null,
+      courtModel: b.courtModel ?? "",
+      expectedCloseDate: b.expectedCloseDate ?? null,
       isTest: b.isTest === true,
       actor: a,
       ...(a.isAdmin && b.assignedUserId !== undefined ? { assignedUserId: b.assignedUserId } : {}),
     };
     send(res, await pipeline.createLead.execute(input), 201);
+  });
+
+  r.patch("/leads/:id", async (req, res) => {
+    const a = actor(req, res, true);
+    if (!a) return;
+    const b = (req.body ?? {}) as UpdateLeadBody & Record<string, unknown>;
+    send(res, await pipeline.updateLeadFields.execute({ leadId: String(req.params["id"]), fields: b, actor: a }));
   });
 
   r.post("/leads/:id/stage", async (req, res) => {

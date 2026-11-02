@@ -7,6 +7,7 @@ import { silentLogger } from "../../shared/kernel";
 import type {
   ActivityDto,
   ApiErrorDto,
+  BoardDto,
   LeadDetailDto,
   LeadDto,
   LeadListDto,
@@ -318,6 +319,88 @@ describe("aktiviteler (Faz 6a)", () => {
     expect((await call("rep2", "DELETE", `/api/pipeline/activities/${activityId}`)).status).toBe(403);
     expect((await call("rep1", "DELETE", `/api/pipeline/activities/${activityId}`)).status).toBe(204);
     expect((await call("rep1", "DELETE", `/api/pipeline/activities/${activityId}`)).status).toBe(404);
+  });
+});
+
+describe("fırsat alanları ve pano (Faz 6b)", () => {
+  let leadId: string;
+
+  it("PATCH /leads/:id: alanlar güncellenir; görüntüleyici 403, başkası 403, geçersiz 422; detay ve liste yeni alanları taşır", async () => {
+    const created = await call<{ lead: LeadDto }>("rep1", "POST", "/api/pipeline/leads", {
+      fullName: "Fırsat Testi",
+      email: "firsat@example.com",
+      country: "tr",
+      courtCount: "3",
+      courtModel: "Panoramic",
+    });
+    expect(created.status).toBe(201);
+    expect(created.body.lead).toMatchObject({ courtCount: 3, courtModel: "Panoramic", expectedCloseDate: null });
+    leadId = created.body.lead.id;
+
+    const ok = await call<LeadDto>("rep1", "PATCH", `/api/pipeline/leads/${leadId}`, {
+      courtCount: 4,
+      expectedCloseDate: "2026-12-15",
+      notes: "fuar",
+    });
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({
+      courtCount: 4,
+      courtModel: "Panoramic",
+      expectedCloseDate: "2026-12-15",
+      notes: "fuar",
+    });
+
+    expect((await call("viewer", "PATCH", `/api/pipeline/leads/${leadId}`, { city: "X" })).status).toBe(403);
+    expect((await call("rep2", "PATCH", `/api/pipeline/leads/${leadId}`, { city: "X" })).status).toBe(403);
+    const bad = await call<ApiErrorDto>("rep1", "PATCH", `/api/pipeline/leads/${leadId}`, {
+      expectedCloseDate: "yarın",
+    });
+    expect(bad.status).toBe(422);
+    expect(bad.body.code).toBe("lead.expected_close_invalid");
+    expect(
+      (await call("rep1", "PATCH", "/api/pipeline/leads/00000000-0000-4000-8000-000000000000", { city: "X" })).status,
+    ).toBe(404);
+
+    const detail = await call<LeadDetailDto>("rep1", "GET", `/api/pipeline/leads/${leadId}`);
+    expect(detail.body.lead).toMatchObject({ courtCount: 4, expectedCloseDate: "2026-12-15", value: null });
+    expect(typeof detail.body.lead.stageEnteredAt).toBe("string");
+  });
+
+  it("GET /board: filtreler ve kolon istatistikleri; reference kurları verir", async () => {
+    const ref = await call<ReferenceDto>("rep1", "GET", "/api/pipeline/reference");
+    expect(ref.body.eurRates).toMatchObject({ EUR: 1, USD: 0.92 });
+
+    await call("rep1", "POST", `/api/pipeline/leads/${leadId}/stage`, { target: "CONTACTED" });
+    await call("rep1", "POST", `/api/pipeline/leads/${leadId}/stage`, {
+      target: "PROPOSAL",
+      qualificationAnswers: { budget_approved: true, site_known: true, install_within_12m: true },
+      value: { amount: 50_000, currency: "EUR" },
+    });
+    const board = await call<BoardDto>("rep1", "GET", "/api/pipeline/board?owner=me&country=tr");
+    expect(board.status).toBe(200);
+    const me = board.body.leads.find((l) => l.id === leadId);
+    expect(me).toMatchObject({ currentStage: "PROPOSAL", value: { amount: 50_000, currency: "EUR" }, rotting: false });
+    expect(board.body.columns.map((c) => c.stage)).toEqual([
+      "NEW",
+      "CONTACTED",
+      "QUALIFIED",
+      "PROPOSAL",
+      "WON",
+      "LOST",
+    ]);
+    const proposal = board.body.columns.find((c) => c.stage === "PROPOSAL")!;
+    expect(proposal.count).toBeGreaterThanOrEqual(1);
+    expect(proposal.totalEur).toBeGreaterThanOrEqual(50_000);
+
+    const pool = await call<BoardDto>("admin", "GET", "/api/pipeline/board?owner=pool");
+    expect(pool.body.leads.every((l) => l.assignedUserId === null)).toBe(true);
+    const rotting = await call<BoardDto>("admin", "GET", "/api/pipeline/board?rotting=1");
+    expect(rotting.body.leads.every((l) => l.rotting)).toBe(true);
+    expect(rotting.body.leads.some((l) => l.id === leadId)).toBe(false);
+    // Geçersiz ülke parametresi yok sayılır; görüntüleyici okuyabilir.
+    expect((await call<BoardDto>("viewer", "GET", "/api/pipeline/board?country=xyz")).status).toBe(200);
+    expect((await call("rep1", "GET", "/api/pipeline/board")).status).toBe(200);
+    expect((await call(null, "GET", "/api/pipeline/board")).status).toBe(401);
   });
 });
 

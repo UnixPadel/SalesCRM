@@ -1,10 +1,13 @@
 import { NotFoundError, RuleError, err, ok, type Result } from "../../shared/kernel";
 import {
   allowedTransitions,
+  columnStats,
   planUndo,
+  stageSummary,
   summarizeActivities,
   type Activity,
   type ActivitySummary,
+  type ColumnStats,
   type Lead,
   type LeadAttribution,
   type LeadConsent,
@@ -13,18 +16,45 @@ import {
   type StageCode,
   type StageEvent,
   type StageEventOrigin,
+  type StageSummary,
 } from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
 import { canSee, territoriesOf } from "./visibility";
 
-/** Liste ve detaydaki lead: aktivite özetiyle (açık sayısı, sonraki, takipsiz). */
-export interface LeadListItem extends Lead, ActivitySummary {}
+/**
+ * Liste ve detaydaki lead: aktivite özeti (açık sayısı, sonraki, takipsiz) ve aşama özeti
+ * (aşamaya giriş anı, son geçerli tutar) ile.
+ */
+export interface LeadListItem extends Lead, ActivitySummary, StageSummary {}
 
-async function withActivitySummary(repos: Repositories, leads: readonly Lead[]): Promise<LeadListItem[]> {
-  const open = await repos.activities.listOpenByLeads(leads.map((l) => l.id));
-  const byLead = new Map<string, Activity[]>();
-  for (const a of open) byLead.set(a.leadId, [...(byLead.get(a.leadId) ?? []), a]);
-  return leads.map((l) => ({ ...l, ...summarizeActivities(l.currentStage, byLead.get(l.id) ?? []) }));
+async function withSummaries(repos: Repositories, leads: readonly Lead[]): Promise<LeadListItem[]> {
+  const ids = leads.map((l) => l.id);
+  const [open, events] = await Promise.all([repos.activities.listOpenByLeads(ids), repos.stageEvents.listByLeads(ids)]);
+  const actsByLead = new Map<string, Activity[]>();
+  for (const a of open) actsByLead.set(a.leadId, [...(actsByLead.get(a.leadId) ?? []), a]);
+  const eventsByLead = new Map<string, StageEvent[]>();
+  for (const e of events) eventsByLead.set(e.leadId, [...(eventsByLead.get(e.leadId) ?? []), e]);
+  return leads.map((l) => ({
+    ...l,
+    ...summarizeActivities(l.currentStage, actsByLead.get(l.id) ?? []),
+    ...stageSummary(l, eventsByLead.get(l.id) ?? []),
+  }));
+}
+
+/** Pano: filtrelenmiş lead'ler ve aynı kümeden hesaplanan kolon istatistikleri (kural 4). */
+export interface Board {
+  leads: LeadListItem[];
+  columns: ColumnStats[];
+}
+
+export interface BoardInput {
+  actor: Actor;
+  /** Sorumlu kimliği; null = ortak havuz; undefined = hepsi. */
+  owner?: string | null | undefined;
+  country?: string | undefined;
+  /** true: yalnız takipsiz lead'ler (kural 1). */
+  rotting?: boolean | undefined;
+  includeTest?: boolean | undefined;
 }
 
 export interface LeadDetail {
@@ -155,7 +185,27 @@ export class LeadQueries {
         includeTest: input.includeTest,
         limit: input.limit,
       });
-      return withActivitySummary(repos, leads);
+      return withSummaries(repos, leads);
+    });
+  }
+
+  /** Kanban verisi: görünürlük + sorumlu · ülke · takipsiz filtreleri; istatistikler filtrelenmiş kümeden. */
+  async board(input: BoardInput): Promise<Board> {
+    return this.deps.uow.run(async (repos) => {
+      const visibleTo = input.actor.isAdmin
+        ? undefined
+        : { userId: input.actor.userId, countries: territoriesOf(input.actor.userId, await repos.territories.all()) };
+      const leads = await withSummaries(
+        repos,
+        await repos.leads.list({
+          visibleTo,
+          owner: input.owner,
+          country: input.country,
+          includeTest: input.includeTest,
+        }),
+      );
+      const filtered = input.rotting ? leads.filter((l) => l.rotting) : leads;
+      return { leads: filtered, columns: columnStats(filtered, this.deps.clock.now(), this.deps.eurRates) };
     });
   }
 
@@ -187,7 +237,7 @@ export class LeadQueries {
       });
       const last = events.filter((e) => !e.undoneAt).sort((a, b) => b.sequence - a.sequence)[0];
       return ok({
-        lead: { ...lead, ...summarizeActivities(lead.currentStage, activities) },
+        lead: { ...lead, ...summarizeActivities(lead.currentStage, activities), ...stageSummary(lead, events) },
         events,
         activities,
         allowedTransitions: allowedTransitions(lead.currentStage),

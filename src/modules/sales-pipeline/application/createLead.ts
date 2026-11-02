@@ -6,6 +6,7 @@ import {
   PlatformLeadId,
   hasAttribution,
   parseConsents,
+  parseLeadFields,
   resolveAssignee,
   type CampaignInfo,
   type ConsentInput,
@@ -33,6 +34,10 @@ export interface CreateLeadInput {
   company?: string;
   productInterest?: string;
   notes?: string;
+  /** Fırsat alanları (Faz 6b); doğrulama parseLeadFields ile. */
+  courtCount?: number | string | null;
+  courtModel?: string | null;
+  expectedCloseDate?: string | null;
   campaign?: Partial<CampaignInfo>;
   /** Tıklama kimlikleri (Faz 2: reklam platformlarından). Hepsi boşsa satır yazılmaz. */
   attribution?: Partial<LeadAttribution>;
@@ -108,6 +113,13 @@ export class CreateLead {
     const consentsR = parseConsents(input.consents ?? []);
     if (!consentsR.ok) return consentsR;
     const consentInputs = consentsR.value;
+    const fieldsR = parseLeadFields({
+      courtCount: input.courtCount ?? null,
+      courtModel: input.courtModel ?? "",
+      expectedCloseDate: input.expectedCloseDate ?? null,
+    });
+    if (!fieldsR.ok) return fieldsR;
+    const fields = fieldsR.value;
 
     const { clock, ids, platforms, uow } = this.deps;
     const outcome = await uow.run(async (repos): Promise<CreateLeadResult & { domainEvents: DomainEvent[] }> => {
@@ -149,9 +161,9 @@ export class CreateLead {
         isTest: input.isTest ?? false,
         notes: (input.notes ?? "").trim(),
         extraAnswers: input.extraAnswers ?? {},
-        courtCount: null,
-        courtModel: "",
-        expectedCloseDate: null,
+        courtCount: fields.courtCount ?? null,
+        courtModel: fields.courtModel ?? "",
+        expectedCloseDate: fields.expectedCloseDate ?? null,
         createdAt,
         updatedAt: now,
       };

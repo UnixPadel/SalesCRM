@@ -129,14 +129,26 @@ describe("migrateLegacy", () => {
       phone_e164: string | null;
       person_id: string;
       company: string;
+      court_count: number | null;
+      court_model: string;
+      product_interest: string;
     }>(
-      "SELECT platform_lead_id, current_stage, assigned_user_id, phone_e164, person_id, company FROM leads ORDER BY platform_lead_id",
+      "SELECT platform_lead_id, current_stage, assigned_user_id, phone_e164, person_id, company, court_count, court_model, product_interest FROM leads ORDER BY platform_lead_id",
     );
     const by = Object.fromEntries(leads.map((l) => [l.platform_lead_id, l]));
     expect(by["l1"]).toMatchObject({ current_stage: "NEW", assigned_user_id: "32", phone_e164: null });
     expect(by["l3"]).toMatchObject({ current_stage: "QUALIFIED", assigned_user_id: null });
-    expect(by["d1"]).toMatchObject({ current_stage: "WON", assigned_user_id: "32", company: "Örnek Kulüp" });
-    expect(by["d2"]).toMatchObject({ current_stage: "LOST" });
+    expect(by["d1"]).toMatchObject({
+      current_stage: "WON",
+      assigned_user_id: "32",
+      company: "Örnek Kulüp",
+      court_count: 2,
+      court_model: "Panoramik",
+      product_interest: "Panoramik",
+    });
+    expect(by["d2"]).toMatchObject({ current_stage: "LOST", court_count: null, court_model: "" });
+    // Form lead'inin kort sayısı metinden sütuna (Faz 6b); ürün ilgisi artık "· 2 kort" eki taşımaz.
+    expect(by["l1"]).toMatchObject({ court_count: 2, product_interest: "Padel Court" });
     // c1 ve c4 aynı e-posta → aynı kişi
     expect(by["d1"]?.person_id).toBe(by["l3"]?.person_id);
     // l1 ve d2 aynı kişi (jane) → aynı kişi, iki lead

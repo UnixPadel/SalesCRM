@@ -32,6 +32,11 @@ export interface LeadDto {
   isTest: boolean;
   notes: string;
   extraAnswers: Record<string, unknown>;
+  /** Fırsat alanları (Faz 6b). */
+  courtCount: number | null;
+  courtModel: string;
+  /** YYYY-MM-DD ya da null. */
+  expectedCloseDate: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -73,6 +78,37 @@ export interface LeadListDto extends LeadDto {
   nextActivity: { id: string; type: ActivityTypeDto; subject: string; dueAt: string } | null;
   /** Açık aşamada, açık aktivitesi yok (kural 1). */
   rotting: boolean;
+  /** Bulunduğu aşamaya giriş anı (ISO); kolon "ort. gün" ve karttaki gün sayacı bundan. */
+  stageEnteredAt: string;
+  /** Son geçerli tutar (Teklif ya da Kazanıldı); yoksa null. */
+  value: { amount: number; currency: string } | null;
+}
+
+/** Kolon istatistiği (kural 4), filtrelenmiş kümeden. */
+export interface ColumnStatsDto {
+  stage: StageCodeDto;
+  count: number;
+  totalEur: number;
+  avgDays: number;
+  /** Kuru bilinmediği için toplama katılamayan tutar sayısı. */
+  unconverted: number;
+}
+
+/** GET /board?owner=me|pool|<id>&country=TR&rotting=1&includeTest=1 */
+export interface BoardDto {
+  leads: LeadListDto[];
+  columns: ColumnStatsDto[];
+}
+
+/** PATCH /leads/:id — yalnız gönderilen anahtarlar değişir; "" ya da null temizler. */
+export interface UpdateLeadBody {
+  courtCount?: number | string | null;
+  courtModel?: string | null;
+  expectedCloseDate?: string | null;
+  company?: string | null;
+  city?: string | null;
+  productInterest?: string | null;
+  notes?: string | null;
 }
 
 export interface LeadDetailDto {
@@ -127,6 +163,8 @@ export interface ReferenceDto {
   qualificationQuestions: string[];
   currencies: string[];
   undoWindowMinutes: number;
+  /** Para birimi → EUR çarpanı (pano toplamları). */
+  eurRates: Record<string, number>;
 }
 
 export interface CreateLeadBody {
@@ -138,6 +176,9 @@ export interface CreateLeadBody {
   company?: string;
   productInterest?: string;
   notes?: string;
+  courtCount?: number | string | null;
+  courtModel?: string;
+  expectedCloseDate?: string | null;
   /** Yalnız admin: belirli bir satışçıya ata ya da null ile havuza bırak. */
   assignedUserId?: string | null;
   isTest?: boolean;
