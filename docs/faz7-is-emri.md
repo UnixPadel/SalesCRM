@@ -75,7 +75,7 @@ inbox failed → pending (yeniden işle). Her işlem log'a `actorUserId` ile yaz
 
 ## 7c — Google requestStatus
 
-- Migration `0012_faz7_outbox_request_id.sql`: `outbound_conversion_events.request_id text` (+ `organizations.archived_at`,
+- Migration `0013_faz7_outbox_request_id.sql` (not: 0012 satış takip işine geçti, `docs/satis-takip-is-emri.md`): `outbound_conversion_events.request_id text` (+ `organizations.archived_at`,
   `persons.merged_into_id` 7d için aynı migration'da).
 - `SendResult ok` → `requestId` taşır (Google istemcisi zaten döndürüyor); `markSent(ids, code, now, requestId)`.
   Meta için boş.
