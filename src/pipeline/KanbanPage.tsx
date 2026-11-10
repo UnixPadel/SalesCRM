@@ -56,6 +56,7 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
   const { board, error, reload } = useBoard({
     owner: filter.owner || undefined,
     country: filter.country || undefined,
+    source: filter.source || undefined,
     rotting: filter.rotting,
   });
   const [dragging, setDragging] = useState<LeadListDto | null>(null);
