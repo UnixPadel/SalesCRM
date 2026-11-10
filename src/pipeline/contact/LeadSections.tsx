@@ -277,10 +277,13 @@ export function ProductPrefsForm({
 export function ProductsPanel({
   lead,
   canEdit,
+  ownerMayEdit = false,
   onSaved,
 }: {
   lead: LeadListDto;
   canEdit: boolean;
+  /** Ayar açık: lead'in sorumlusu satışçı da girer (yetkisizlere ipucu metni buna göre). */
+  ownerMayEdit?: boolean;
   onSaved: (l: LeadDto) => void;
 }) {
   const { t, lang } = useLang();
@@ -342,7 +345,7 @@ export function ProductsPanel({
               {t("lead.product")}: {lead.productInterest}
             </p>
           )}
-          {!canEdit && <p className="field-h">{t("product.adminOnly")}</p>}
+          {!canEdit && <p className="field-h">{t(ownerMayEdit ? "product.ownerOnly" : "product.adminOnly")}</p>}
         </>
       )}
     </div>

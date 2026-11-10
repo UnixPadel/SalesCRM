@@ -34,7 +34,8 @@ Kararlar iş emrindeki D numaralarıyla:
 4. **D4 — Ürün tercihleri sütunlardadır.** `qty_standard`, `qty_panoramic`, `qty_full_panoramic` (1–29, NULL = tercih
    yok), `roof_wanted`, `roof_width_m`, `roof_length_m` (`numeric(5,2)`, > 0; ölçü Kapatma ister). Adet = tercih, bu
    yüzden Excel'in "✔ var adet yok" sarı hücresi oluşamaz; çatı alanı türetilir. Yetki: yalnız yönetici (Faz 7e,
-   `REP_EDITABLE_LEAD_FIELDS = ["notes"]`); tek anahtar `REPS_EDIT_PRODUCTS` (varsayılan kapalı) satışçıya açar.
+   `REP_EDITABLE_LEAD_FIELDS = ["notes"]`); tek anahtar `REPS_EDIT_PRODUCTS` satışçıya açar. **Ek (2026-11-10):**
+   kullanıcı cevabı "Evet, sahibi girsin" — anahtar varsayılan açık (`=0` kapatır), satışçı yalnız kendi lead'inde.
 5. **D5 — Form cevapları kodlu sütunlardır.** `install_site` (7), `install_timeline` (4), `customer_profile` (6),
    `court_count_band` (4), `ad_surface` (opak kod: `ig`, `fb`, `web`, `whatsapp`…; etiketi yalnız `src/i18n`'de).
    Intake doldurur (eşleme hedefleri 0012'de genişler), yönetici düzeltir, satışçıya salt okunurdur. Kampanya

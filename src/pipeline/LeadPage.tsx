@@ -291,7 +291,8 @@ export function LeadPage({ id }: { id: string }) {
           <CustomerStatusField lead={lead} canSet={canSetStatus} onSaved={onChanged} />
           <ProductsPanel
             lead={lead}
-            canEdit={isAdmin || (canAct && !!ref.permissions?.repsEditProducts)}
+            canEdit={isAdmin || (!isViewer && !!ref.permissions?.repsEditProducts && lead.assignedUserId === user?.id)}
+            ownerMayEdit={!!ref.permissions?.repsEditProducts}
             onSaved={onChanged}
           />
           <FormAnswersPanel lead={lead} canEdit={isAdmin} onSaved={onChanged} />

@@ -1314,7 +1314,7 @@ Genel kurallar:
 
 ## 8. Açık sorular (kullanıcıya; varsayılan uygulanır)
 
-1. **Ürün tercihlerini (kort adetleri, çatı ölçüsü) satışçı da girebilsin mi?** Excel'de satışçılar giriyordu; 7e kararıyla bunlar "fırsat alanı" ve yalnız yöneticinin.
+1. **Ürün tercihlerini (kort adetleri, çatı ölçüsü) satışçı da girebilsin mi?** — **Cevap (2026-11-10): "Evet, sahibi girsin."** Uygulandı: `repsEditProducts` varsayılan açık; satışçı yalnız kendi lead'inde (havuzda önce üstlenir, `lead.products_owner_only`); oluştururken ürün yine yönetici. Excel'de satışçılar giriyordu; 7e kararıyla bunlar "fırsat alanı" ve yalnız yöneticinin.
    *Varsayılan:* yalnız yönetici (`REPS_EDIT_PRODUCTS` kapalı); satışçı müşterinin söylediğini temas notuna yazar. *Önerimiz:* evet, yalnız lead'in sahibi satışçı (çağrıda duyduğunu yöneticinin yeniden yazmasına gerek kalmaz); tutar, kapanış ve atama yönetici de kalır. "Evet" denirse tek ayar değişir.
 2. **Kullanıcı tablosunda karşılığı olmayan sorumlular kim?** Enes: satis@ iki aktif kullanıcıda, Mohamed Anas (26) ve Amro Abdulvahit (51). Beyza: sales@ tabloda yok, tek Beyza pasif (45). Mehmet ve Faruk tabloda yok. Almanya Distribütörü dış ortak (3 DE lead'i).
    *Varsayılan:* bu ülkeler için kural yazılmaz; Excel'deki 52 lead ortak havuza düşer, "Excel'deki sorumlu" etiketi kalır, rapor havuz satırını etiketlere göre açar. Kullanıcılar açılınca `--owners` ile yeniden çalıştırılır. Distribütörün DE lead'leri de havuzda kalır; isterseniz `--owners` ile size (yönetici) atanır ki satışçılar üstlenmesin.

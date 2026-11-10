@@ -15,7 +15,7 @@ ve Excel'in sütunları bu kayıtlardan türetilir.
 | TEMAS GEÇMİŞİ | Lead'de **Temas kaydet** (kanal, sonuç, not, sonraki takip, müşteri durumu, aşama tek istekte); **Bugün → Temas geçmişi** sekmesi |
 | N Müşteri durumu | Lead sayfasında, listede satır içinde ve diyalogda; aşamadan bağımsız |
 | O Teklif | "Teklif gönderildi" sonucu ya da Teklif aşaması |
-| P–Y ürünler ve çatı ölçüsü | Lead sayfasında **Ürün tercihleri** (yönetici; `REPS_EDIT_PRODUCTS` ile satışçı) |
+| P–Y ürünler ve çatı ölçüsü | Lead sayfasında **Ürün tercihleri** (yönetici ve lead'in sorumlusu satışçı; `REPS_EDIT_PRODUCTS=0` kapatır) |
 | AD–AI form cevapları | **Form cevapları** bloğu; Meta formundan otomatik dolar |
 | AJ ve sarı hücreler | **Veri uyarıları** (yöneticide panel, ⚠ sayısı, "Uyarılı" süzgeci; satışçıda telefon ve çatı uyarısı satır içinde) |
 | ÖZET RAPOR | **Raporlar → Özet rapor** (5 bölüm, aynı formüller; sıfır olmayan her sayı listede açılır) |

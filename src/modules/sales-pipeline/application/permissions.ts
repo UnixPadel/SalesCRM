@@ -14,8 +14,9 @@ export const ADMIN_ONLY = "admin_only";
 export const REP_EDITABLE_LEAD_FIELDS: readonly (keyof LeadFields)[] = ["notes"];
 
 /**
- * Açık soru 1 (Faz 7g, D4): satışçı ürün tercihlerini düzenleyebilsin mi? Tek anahtar: config `repsEditProducts`
- * (env REPS_EDIT_PRODUCTS=1), varsayılan kapalı.
+ * Açık soru 1 (Faz 7g, D4), cevap 2026-11-10 "Evet, sahibi girsin": satışçı ürün tercihlerini yalnız **kendi**
+ * lead'inde düzenler (havuz lead'inde önce üstlenir; `UpdateLeadFields` sahipliği denetler). Tek anahtar: config
+ * `repsEditProducts` (env REPS_EDIT_PRODUCTS=0 kapatır), varsayılan açık.
  */
 export const repEditableLeadFields = (p: { repsEditProducts: boolean } | undefined): readonly (keyof LeadFields)[] =>
   p?.repsEditProducts ? [...REP_EDITABLE_LEAD_FIELDS, "products"] : REP_EDITABLE_LEAD_FIELDS;

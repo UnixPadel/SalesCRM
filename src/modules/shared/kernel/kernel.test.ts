@@ -88,6 +88,9 @@ describe("config", () => {
     expect(d.enabledProviders).toEqual(["meta", "google"]);
     expect(d.databaseUrl).toBe("postgres://x");
     expect(loadConfig({ UNDO_WINDOW_MINUTES: "abc" }).undoWindowMinutes).toBe(10);
+    // Faz 7g açık soru 1: ürün tercihlerini sorumlu satışçı girer (varsayılan açık, "0" kapatır).
+    expect(loadConfig({}).repsEditProducts).toBe(true);
+    expect(loadConfig({ REPS_EDIT_PRODUCTS: "0" }).repsEditProducts).toBe(false);
   });
   it("secret adıyla okunur", () => {
     expect(readSecret("X", { X: "v" })).toBe("v");

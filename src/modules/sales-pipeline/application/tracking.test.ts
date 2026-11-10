@@ -187,6 +187,26 @@ describe("Alanlar ve oluşturma (S5)", () => {
     ).toBe(true);
   });
 
+  it("açık soru 1 cevabı: satışçı ürünleri yalnız kendi lead'inde girer; havuzda önce üstlenir; başkasınınkine giremez", async () => {
+    const sp2 = createSalesPipeline({ ...h, policy: { repsEditProducts: true } });
+    const mine = await lead();
+    const pool = await lead({ assignedUserId: null });
+    const other = await lead({ assignedUserId: "rep-2" });
+    const products = { standard: 2, roof: { wanted: true, widthM: 10, lengthM: 20 } };
+    expect((await sp2.updateLeadFields.execute({ leadId: mine.id, fields: { products }, actor: REP })).ok).toBe(true);
+    const poolTry = await sp2.updateLeadFields.execute({ leadId: pool.id, fields: { products }, actor: REP });
+    expect(!poolTry.ok && poolTry.error.code).toBe("lead.products_owner_only");
+    const otherTry = await sp2.updateLeadFields.execute({ leadId: other.id, fields: { products }, actor: REP });
+    expect(!otherTry.ok && otherTry.error.code).toBe("lead.forbidden");
+    // Satışçı yine yalnız notu ve ürünleri değiştirir; form cevapları ve ülke yöneticinin.
+    const siteTry = await sp2.updateLeadFields.execute({
+      leadId: mine.id,
+      fields: { installSite: "rooftop" },
+      actor: REP,
+    });
+    expect(!siteTry.ok && siteTry.error.code).toBe("admin_only");
+  });
+
   it("ülke değişince köken bilgisi ve kontrol işaretleri düşer; geçersiz kod lead.<alan>", async () => {
     const a = await lead({ extraAnswers: { country_source: "phone", country_raw: "Türkiye" } });
     unwrap(await sp.checkWarning.execute({ leadId: a.id, code: "country_from_phone", checked: true, actor: ADMIN }));

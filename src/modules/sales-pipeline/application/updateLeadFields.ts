@@ -30,6 +30,18 @@ export class UpdateLeadFields {
       const lead = await loadActionableLead(repos, input.leadId, input.actor);
       if (!lead.ok) return lead;
       if (Object.keys(fields).length === 0) return lead;
+      // Ürün tercihlerini satışçı yalnız kendi lead'inde girer; havuz lead'ini önce üstlenir (açık soru 1 cevabı).
+      if (!input.actor.isAdmin && "products" in fields && lead.value.assignedUserId !== input.actor.userId) {
+        return err(
+          new RuleError(
+            "lead.products_owner_only",
+            "Ürün tercihlerini lead'in sorumlusu girer; önce lead'i üstlenin.",
+            {
+              leadId: lead.value.id,
+            },
+          ),
+        );
+      }
       if (fields.organizationId && !(await repos.organizations.findById(fields.organizationId))) {
         return err(
           new RuleError("lead.organization_not_found", "Kuruluş bulunamadı.", {

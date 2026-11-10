@@ -23,7 +23,10 @@ export interface AppConfig {
   publicBaseUrl: string;
   /** Pano toplamları için kurlar, JSON metni ({"USD":0.92,…}); boşsa modülün varsayılanı. Faz 7'de ekrandan. */
   eurRatesJson: string;
-  /** Faz 7g, D4 (açık soru 1): satışçı ürün tercihlerini düzenleyebilir mi; REPS_EDIT_PRODUCTS=1, varsayılan kapalı. */
+  /**
+   * Faz 7g, D4 (açık soru 1, 2026-11-10 cevabı "Evet, sahibi girsin"): lead'in sorumlusu satışçı ürün tercihlerini
+   * düzenler. Varsayılan açık; REPS_EDIT_PRODUCTS=0 yalnız yöneticiye bırakır.
+   */
   repsEditProducts: boolean;
 }
 
@@ -110,7 +113,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
     },
     publicBaseUrl: (env["PUBLIC_BASE_URL"] ?? "").replace(/\/+$/, ""),
     eurRatesJson: env["EUR_RATES"] ?? "",
-    repsEditProducts: env["REPS_EDIT_PRODUCTS"] === "1",
+    repsEditProducts: env["REPS_EDIT_PRODUCTS"] !== "0",
   };
 }
 

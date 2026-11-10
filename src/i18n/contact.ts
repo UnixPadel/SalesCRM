@@ -60,6 +60,10 @@ export const CONTACT_DICT = {
     "Çatı ölçüsü için Kapatma'yı işaretleyin.",
     "Tick Cover (roof) to enter a roof size.",
   ],
+  "err.lead.products_owner_only": [
+    "Ürün tercihlerini lead'in sorumlusu girer; önce lead'i üstlenin.",
+    "The lead's owner enters product preferences; take the lead first.",
+  ],
   "err.lead.install_site": ["Kurulum yeri listede yok.", "Install site is not in the list."],
   "err.lead.install_timeline": ["Kurulum zamanı listede yok.", "Install timeline is not in the list."],
   "err.lead.customer_profile": ["Müşteri profili listede yok.", "Customer profile is not in the list."],
@@ -157,6 +161,10 @@ export const CONTACT_DICT = {
   "product.length": ["Uzunluk", "Length"],
   "product.area": ["Çatı alanı: {area} m²", "Roof area: {area} m²"],
   "product.none": ["Ürün tercihi girilmedi", "No product preference"],
+  "product.ownerOnly": [
+    "Ürün tercihlerini lead'in sorumlusu girer; havuzdaki lead'i önce üstlenin.",
+    "The lead's owner enters product preferences; take a pool lead first.",
+  ],
   "product.adminOnly": [
     "Ürün bilgilerini yönetici günceller; müşterinin söylediğini temas notuna yazın.",
     "An admin updates products; write what the customer said in the contact note.",

@@ -184,7 +184,8 @@ sütunları bu kayıtlardan türetilir.
   listesi"; sıfır olmayan her sayı o lead'leri listede açar.
 - **Aktarım:** `npm run db:import-excel -- <dosya.xlsx> [--dry-run] [--owners owners.json] [--verify]`
   (`docs/runbooks/excel-aktarimi.md`).
-- `REPS_EDIT_PRODUCTS=1`: satışçı ürün tercihlerini düzenleyebilir (varsayılan kapalı).
+- Ürün tercihlerini lead'in sorumlusu satışçı da girer (havuz lead'ini önce üstlenir); `REPS_EDIT_PRODUCTS=0` yalnız
+  yöneticiye bırakır.
 
 ## Geliştirme kuralları (Faz 0'dan itibaren)
 
