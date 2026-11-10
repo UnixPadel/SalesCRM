@@ -35,8 +35,12 @@ Yedek: `server/data/pglite-backup-2026-11-10` (migration 12 öncesi). Migration 
 4. İkinci koşu: "Değişiklik yok."
 
 Sorumlu eşleşmesi: Yusa Bedir → 32 (44) · Simon Sharpe → 28 (31) · Ahlem → 47 (22) · Salah → 46 (11).
-Çözülemeyenler ortak havuzda, "Excel'deki sorumlu" etiketiyle: Enes 24 (satis@ iki aktif kullanıcıda: 26, 51) ·
-Faruk 8 · ATANMADI 7 · Mehmet 6 · Beyza 4 (yalnız pasif kullanıcı) · Almanya Distribütörü 3.
+Çözülemeyenler ortak havuzda, "Excel'deki sorumlu" etiketiyle: Faruk 8 · ATANMADI 7 · Mehmet 6 · Beyza 4 (yalnız pasif
+kullanıcı) · Almanya Distribütörü 3.
+
+**Enes (2026-11-10, kullanıcı kararı):** satis@ adresi iki aktif kullanıcıdaydı (26, 51); Enes → **Amro Abdulvahit (51)**.
+`--owners {"Enes": "51"}` ile yeniden koşu: 23 havuz lead'i 51'e atandı (24. lead zaten ondaydı), 7 bölge kuralı yazıldı
+(US AE BG CA QA NO CH; toplam 22), 23 takip planlandı. `--verify` ✔; ikinci koşu "Değişiklik yok".
 
 ### Excel ↔ CRM (kapsam: Excel listesi)
 
@@ -51,7 +55,8 @@ Faruk 8 · ATANMADI 7 · Mehmet 6 · Beyza 4 (yalnız pasif kullanıcı) · Alma
 | Standard tercih eden | 0 | 1 | A2: adet var, ✔ yok |
 | Kapatma potansiyeli | 52 | 52 | |
 | 3 ay içinde · hiç | 21 | 21 | §5'in diğer satırları da aynı |
-| Ortak havuz | 52 (çözülemeyen etiketler) | 51 + Amro 1 | A3, A4: zenginleştirilen lead CRM sahibinde kaldı |
+| Enes → Amro (51) | 24 · mail 16 · WA 0 · hiç 8 · dönüş 1 | 24 · 16 · 1 · 8 · 1 | A1 (WhatsApp dönüşü bu satırda) |
+| Ortak havuz | 28 · mail 18 · hiç 10 (kalan etiketler) | 28 · 18 · 0 · 10 · 0 | A3 |
 
 ## Tarayıcı kontrolleri (yerel, 2026-11-10)
 
