@@ -40,6 +40,13 @@ export {
 } from "./organizations";
 export { canAct, canSee, loadActionableLead, territoriesOf } from "./visibility";
 export {
+  ADMIN_ONLY,
+  REP_EDITABLE_LEAD_FIELDS,
+  fieldsForbiddenForRep,
+  requireAdmin,
+  requireFieldAccess,
+} from "./permissions";
+export {
   InMemoryNotificationStore,
   LeadNotifier,
   NotificationQueries,

@@ -95,6 +95,8 @@ export function LeadPage({ id }: { id: string }) {
   const forward = allowedTransitions.filter((s) => s !== "LOST");
   const next = forward[0];
   const canAct = !isViewer && (isAdmin || !lead.assignedUserId || lead.assignedUserId === user?.id);
+  // Müşteri bilgileri (kişi, kuruluş, fırsat alanları) yalnız yönetici (Faz 7e); satışçı notu değiştirir.
+  const canEditCustomer = isAdmin;
   const undoLeft = undo.available && undo.untilIso ? Math.max(0, new Date(undo.untilIso).getTime() - now) : 0;
   const mmss = `${Math.floor(undoLeft / 60_000)}:${String(Math.floor((undoLeft % 60_000) / 1000)).padStart(2, "0")}`;
 
@@ -190,7 +192,7 @@ export function LeadPage({ id }: { id: string }) {
           <div className="panel">
             <h2 className="sec-h">
               {t("lead.contact")}
-              {canAct && !editingContact && (
+              {canEditCustomer && !editingContact && (
                 <span className="end">
                   <Button size="sm" icon="edit" onClick={() => setEditingContact(true)}>
                     {t("lead.edit")}
@@ -252,7 +254,7 @@ export function LeadPage({ id }: { id: string }) {
               {canAct && !editing && (
                 <span className="end">
                   <Button size="sm" icon="edit" onClick={() => setEditing(true)}>
-                    {t("lead.edit")}
+                    {canEditCustomer ? t("lead.edit") : t("lead.editNotes")}
                   </Button>
                 </span>
               )}
@@ -260,6 +262,7 @@ export function LeadPage({ id }: { id: string }) {
             {editing ? (
               <LeadFieldsForm
                 lead={lead}
+                notesOnly={!canEditCustomer}
                 onCancel={() => setEditing(false)}
                 onSaved={(l) => {
                   setEditing(false);

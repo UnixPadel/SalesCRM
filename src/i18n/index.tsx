@@ -94,6 +94,11 @@ const DICT = {
   "lead.inStage": ["Bu aşamada", "In this stage"],
   "lead.inStageHint": ["Bu aşamaya girişten bu yana geçen gün", "Days since entering this stage"],
   "lead.editContact": ["Kişi bilgilerini düzenle", "Edit contact details"],
+  "lead.editNotes": ["Not düzenle", "Edit notes"],
+  "lead.adminOnlyHint": [
+    "Kişi, kuruluş ve fırsat bilgilerini yalnız yönetici değiştirir; siz notu güncelleyebilirsiniz.",
+    "Only the admin can change contact, organization and opportunity details; you can update the notes.",
+  ],
   "lead.organization": ["Kuruluş", "Organization"],
   "people.tabs": ["Kayıt tipi", "Record type"],
   "people.orgs": ["Kuruluşlar", "Organizations"],
@@ -323,6 +328,7 @@ const DICT = {
   "err.read_only": ["Görüntüleyici hesabı değişiklik yapamaz.", "Viewer accounts cannot make changes."],
   "err.not_found": ["Kayıt bulunamadı.", "Record not found."],
   "err.lead.forbidden": ["Bu lead başka bir satışçıya ait.", "This lead belongs to another rep."],
+  "err.admin_only": ["Bu bilgiyi yalnız yönetici değiştirebilir.", "Only the admin can change this."],
   "err.assign.forbidden": [
     "Satışçı lead'i yalnız üstlenebilir ya da havuza bırakabilir.",
     "A rep may only take a lead or release it to the pool.",

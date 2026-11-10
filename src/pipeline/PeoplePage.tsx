@@ -28,7 +28,9 @@ const PAGE = 50;
  */
 export function PeoplePage({ initialQuery = "" }: { initialQuery?: string }) {
   const { t } = useLang();
-  const { toast, isViewer } = useCrm();
+  const { toast, isViewer, isAdmin } = useCrm();
+  // Kuruluş kayıtlarını yalnız yönetici düzenler (Faz 7e); satışçı ve görüntüleyici okur.
+  const canEditOrg = isAdmin && !isViewer;
   const errText = useErrorText();
   const [tab, setTab] = useState<Tab>(() => {
     try {
@@ -143,7 +145,7 @@ export function PeoplePage({ initialQuery = "" }: { initialQuery?: string }) {
               }}
             />
           </label>
-          {!isViewer && tab === "orgs" && (
+          {canEditOrg && tab === "orgs" && (
             <Button variant="pri" icon="plus" onClick={() => setDialog({})}>
               {t("org.new")}
             </Button>
@@ -198,7 +200,7 @@ export function PeoplePage({ initialQuery = "" }: { initialQuery?: string }) {
                         {o.website && <div className="muted mono">{o.website}</div>}
                       </td>
                       <td>
-                        {isViewer ? (
+                        {!canEditOrg ? (
                           t(`org.type.${o.type}`)
                         ) : (
                           <select
@@ -222,7 +224,7 @@ export function PeoplePage({ initialQuery = "" }: { initialQuery?: string }) {
                       <td className="num">{row.wonCount}</td>
                       <td>
                         <div className="row-actions">
-                          {!isViewer && (
+                          {canEditOrg && (
                             <Button size="sm" variant="ghost" icon="edit" onClick={() => setDialog({ initial: o })}>
                               {t("lead.edit")}
                             </Button>

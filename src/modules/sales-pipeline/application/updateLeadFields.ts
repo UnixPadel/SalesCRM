@@ -1,6 +1,7 @@
 import { RuleError, err, type Result } from "../../shared/kernel";
 import { parseLeadFields, type Lead } from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
+import { requireFieldAccess } from "./permissions";
 import { loadActionableLead } from "./visibility";
 
 export interface UpdateLeadFieldsInput {
@@ -12,8 +13,8 @@ export interface UpdateLeadFieldsInput {
 
 /**
  * Fırsat ve serbest metin alanlarını düzenler (Faz 6b). Aşamayı, sorumluyu ve kimlik alanlarını (e-posta,
- * telefon) değiştirmez; bunlar kendi komutlarıyla değişir. Yetki aktivitelerle aynı: sahibi, havuzdan
- * erişen satışçı ya da admin.
+ * telefon) değiştirmez; bunlar kendi komutlarıyla değişir. Lead'i görebilen satışçı yalnız **notu** değiştirir
+ * (Faz 7e); diğer alanlar yöneticiye aittir (`admin_only`).
  */
 export class UpdateLeadFields {
   constructor(private readonly deps: UseCaseDeps) {}
@@ -22,6 +23,8 @@ export class UpdateLeadFields {
     const parsed = parseLeadFields(input.fields);
     if (!parsed.ok) return parsed;
     const fields = parsed.value;
+    const access = requireFieldAccess(input.actor, fields);
+    if (!access.ok) return access;
     const { uow, clock, logger } = this.deps;
     return uow.run(async (repos): Promise<Result<Lead, RuleError>> => {
       const lead = await loadActionableLead(repos, input.leadId, input.actor);

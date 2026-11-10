@@ -415,7 +415,7 @@ describe("Fırsat alanları ve pano (Faz 6b)", () => {
       await sp.updateLeadFields.execute({
         leadId: lead.id,
         fields: { courtCount: "4", courtModel: " Panoramic ", expectedCloseDate: "2026-12-15", company: "Kulüp A" },
-        actor: REP,
+        actor: ADMIN,
       }),
     );
     expect(u).toMatchObject({
@@ -433,7 +433,7 @@ describe("Fırsat alanları ve pano (Faz 6b)", () => {
       await sp.updateLeadFields.execute({
         leadId: lead.id,
         fields: { courtCount: "", expectedCloseDate: null },
-        actor: REP,
+        actor: ADMIN,
       }),
     );
     expect(cleared).toMatchObject({ courtCount: null, expectedCloseDate: null, courtModel: "Panoramic" });
@@ -445,15 +445,15 @@ describe("Fırsat alanları ve pano (Faz 6b)", () => {
 
   it("UpdateLeadFields: doğrulama ve yetki — geçersiz kort sayısı 422 kodu; başkasının lead'i forbidden; admin her lead'i", async () => {
     const lead = unwrap(await manual()).lead;
-    const bad = await sp.updateLeadFields.execute({ leadId: lead.id, fields: { courtCount: 1000 }, actor: REP });
+    const bad = await sp.updateLeadFields.execute({ leadId: lead.id, fields: { courtCount: 1000 }, actor: ADMIN });
     expect(!bad.ok && bad.error.code).toBe("lead.court_count_invalid");
     const badDate = await sp.updateLeadFields.execute({
       leadId: lead.id,
       fields: { expectedCloseDate: "2026-02-30" },
-      actor: REP,
+      actor: ADMIN,
     });
     expect(!badDate.ok && badDate.error.code).toBe("lead.expected_close_invalid");
-    const other = await sp.updateLeadFields.execute({ leadId: lead.id, fields: { city: "X" }, actor: REP2 });
+    const other = await sp.updateLeadFields.execute({ leadId: lead.id, fields: { notes: "X" }, actor: REP2 });
     expect(!other.ok && other.error.code).toBe("lead.forbidden");
     const missing = await sp.updateLeadFields.execute({ leadId: "yok", fields: { city: "X" }, actor: ADMIN });
     expect(!missing.ok && missing.error.code).toBe("not_found");
@@ -462,6 +462,41 @@ describe("Fırsat alanları ve pano (Faz 6b)", () => {
     ).toBe("İzmir");
     // Hata olunca hiçbir şey yazılmadı.
     expect(h.uow.state.leads[0]?.courtCount).toBeNull();
+  });
+
+  it("Faz 7e: satışçı yalnız notu değiştirir; fırsat alanları, kimlik ve kuruluş yöneticiye ait (admin_only)", async () => {
+    const lead = unwrap(await manual()).lead;
+    const note = unwrap(
+      await sp.updateLeadFields.execute({ leadId: lead.id, fields: { notes: "fuarda görüştük" }, actor: REP }),
+    );
+    expect(note.notes).toBe("fuarda görüştük");
+    const fields = await sp.updateLeadFields.execute({
+      leadId: lead.id,
+      fields: { notes: "x", courtCount: 2, city: "İzmir" },
+      actor: REP,
+    });
+    expect(!fields.ok && fields.error.code).toBe("admin_only");
+    expect(!fields.ok && fields.error.details).toMatchObject({ fields: ["courtCount", "city"] });
+    expect(h.uow.state.leads[0]).toMatchObject({ notes: "fuarda görüştük", courtCount: null });
+    const contact = await sp.updateLeadContact.execute({ leadId: lead.id, fullName: "Başka Ad", actor: REP });
+    expect(!contact.ok && contact.error.code).toBe("admin_only");
+    const org = await sp.createOrganization.execute({ fields: { name: "Kulüp X", country: "TR" }, actor: REP });
+    expect(!org.ok && org.error.code).toBe("admin_only");
+    const o = unwrap(await sp.createOrganization.execute({ fields: { name: "Kulüp X", country: "TR" }, actor: ADMIN }));
+    const upd = await sp.updateOrganization.execute({
+      organizationId: o.id,
+      fields: { website: "x.example" },
+      actor: REP,
+    });
+    expect(!upd.ok && upd.error.code).toBe("admin_only");
+    // Yönetici aynı işlemleri yapar.
+    expect(
+      unwrap(await sp.updateLeadFields.execute({ leadId: lead.id, fields: { courtCount: 2 }, actor: ADMIN }))
+        .courtCount,
+    ).toBe(2);
+    expect(
+      unwrap(await sp.updateLeadContact.execute({ leadId: lead.id, fullName: "Başka Ad", actor: ADMIN })).fullName,
+    ).toBe("Başka Ad");
   });
 
   it("CreateLead: fırsat alanları girişte doğrulanır", async () => {
@@ -562,29 +597,33 @@ describe("Raporlar (Faz 6c)", () => {
 
 describe("Kuruluşlar ve kişiler (Faz 6d)", () => {
   it("CreateOrganization: ad zorunlu, varsayılan tür kulüp, aynı ad+ülke ikinci kez açılmaz; UpdateOrganization kısmi", async () => {
-    const bad = await sp.createOrganization.execute({ fields: { country: "TR" }, actor: REP });
+    const bad = await sp.createOrganization.execute({ fields: { country: "TR" }, actor: ADMIN });
     expect(!bad.ok && bad.error.code).toBe("organization.name_required");
     const o = unwrap(
-      await sp.createOrganization.execute({ fields: { name: " Padel Kulübü ", country: "tr" }, actor: REP }),
+      await sp.createOrganization.execute({ fields: { name: " Padel Kulübü ", country: "tr" }, actor: ADMIN }),
     );
     expect(o).toMatchObject({ name: "Padel Kulübü", type: "club", country: "TR", website: "", legacyId: null });
     const dup = await sp.createOrganization.execute({ fields: { name: "padel kulübü", country: "TR" }, actor: ADMIN });
     expect(!dup.ok && dup.error.code).toBe("organization.duplicate");
     // Farklı ülkede aynı ad serbest.
-    unwrap(await sp.createOrganization.execute({ fields: { name: "Padel Kulübü", country: "DE" }, actor: REP }));
+    unwrap(await sp.createOrganization.execute({ fields: { name: "Padel Kulübü", country: "DE" }, actor: ADMIN }));
 
     h.clock.advance(MINUTE);
     const u = unwrap(
       await sp.updateOrganization.execute({
         organizationId: o.id,
         fields: { type: "investor", website: "p.example" },
-        actor: REP,
+        actor: ADMIN,
       }),
     );
     expect(u).toMatchObject({ name: "Padel Kulübü", type: "investor", website: "p.example", updatedAt: h.clock.now() });
-    const clash = await sp.updateOrganization.execute({ organizationId: o.id, fields: { country: "DE" }, actor: REP });
+    const clash = await sp.updateOrganization.execute({
+      organizationId: o.id,
+      fields: { country: "DE" },
+      actor: ADMIN,
+    });
     expect(!clash.ok && clash.error.code).toBe("organization.duplicate");
-    const missing = await sp.updateOrganization.execute({ organizationId: "yok", fields: { name: "X" }, actor: REP });
+    const missing = await sp.updateOrganization.execute({ organizationId: "yok", fields: { name: "X" }, actor: ADMIN });
     expect(!missing.ok && missing.error.code).toBe("not_found");
   });
 
@@ -596,7 +635,7 @@ describe("Kuruluşlar ve kişiler (Faz 6d)", () => {
         leadId: a.id,
         fullName: " Ayşe D. ",
         email: "AYSE.D@Example.com",
-        actor: REP,
+        actor: ADMIN,
       }),
     );
     expect(u).toMatchObject({ fullName: "Ayşe D.", email: "ayse.d@example.com", phoneE164: "+905321234567" });
@@ -604,24 +643,26 @@ describe("Kuruluşlar ve kişiler (Faz 6d)", () => {
       fullName: "Ayşe D.",
       emailNormalized: "ayse.d@example.com",
     });
-    const taken = await sp.updateLeadContact.execute({ leadId: a.id, email: "b@b.co", actor: REP });
+    const taken = await sp.updateLeadContact.execute({ leadId: a.id, email: "b@b.co", actor: ADMIN });
     expect(!taken.ok && taken.error.code).toBe("person.email_taken");
-    const takenPhone = await sp.updateLeadContact.execute({ leadId: a.id, phone: "0532 999 88 77", actor: REP });
+    const takenPhone = await sp.updateLeadContact.execute({ leadId: a.id, phone: "0532 999 88 77", actor: ADMIN });
     expect(!takenPhone.ok && takenPhone.error.code).toBe("person.phone_taken");
-    const none = await sp.updateLeadContact.execute({ leadId: a.id, email: "", phone: null, actor: REP });
+    const none = await sp.updateLeadContact.execute({ leadId: a.id, email: "", phone: null, actor: ADMIN });
     expect(!none.ok && none.error.code).toBe("lead.contact_required");
-    const badMail = await sp.updateLeadContact.execute({ leadId: a.id, email: "bozuk", actor: REP });
+    const badMail = await sp.updateLeadContact.execute({ leadId: a.id, email: "bozuk", actor: ADMIN });
     expect(!badMail.ok && badMail.error.code).toBe("email.invalid");
     const other = await sp.updateLeadContact.execute({ leadId: a.id, fullName: "X", actor: REP2 });
-    expect(!other.ok && other.error.code).toBe("lead.forbidden");
+    expect(!other.ok && other.error.code).toBe("admin_only");
     // Telefonu kaldır, e-posta kalır.
-    const onlyMail = unwrap(await sp.updateLeadContact.execute({ leadId: a.id, phone: "", actor: REP }));
+    const onlyMail = unwrap(await sp.updateLeadContact.execute({ leadId: a.id, phone: "", actor: ADMIN }));
     expect(onlyMail.phoneE164).toBeNull();
     expect(h.uow.state.persons.find((p) => p.id === a.personId)?.phoneE164).toBeNull();
   });
 
   it("PeopleQueries: kuruluş özetleri görünür lead'lerle; kişi listesi lead'leri ve kuruluş adıyla; arama üç küme", async () => {
-    const org = unwrap(await sp.createOrganization.execute({ fields: { name: "Kulüp A", country: "TR" }, actor: REP }));
+    const org = unwrap(
+      await sp.createOrganization.execute({ fields: { name: "Kulüp A", country: "TR" }, actor: ADMIN }),
+    );
     const a = unwrap(await manual({ organizationId: org.id })).lead; // rep-1
     const b = unwrap(
       await manual({ email: "b@b.co", phone: "", organizationId: org.id, assignedUserId: "rep-2" }),
@@ -677,14 +718,14 @@ describe("Kuruluşlar ve kişiler (Faz 6d)", () => {
     const unknownOrg = await sp.updateLeadFields.execute({
       leadId: a.id,
       fields: { organizationId: "yok" },
-      actor: REP,
+      actor: ADMIN,
     });
     expect(!unknownOrg.ok && unknownOrg.error.code).toBe("lead.organization_not_found");
     const unknownOnCreate = await manual({ email: "z@z.co", phone: "", organizationId: "yok" });
     expect(!unknownOnCreate.ok && unknownOnCreate.error.code).toBe("lead.organization_not_found");
     const detail = unwrap(await sp.queries.get(a.id, REP));
     expect(detail.organization?.name).toBe("Kulüp A");
-    unwrap(await sp.updateLeadFields.execute({ leadId: a.id, fields: { organizationId: null }, actor: REP }));
+    unwrap(await sp.updateLeadFields.execute({ leadId: a.id, fields: { organizationId: null }, actor: ADMIN }));
     expect(unwrap(await sp.queries.get(a.id, REP)).organization).toBeNull();
   });
 });

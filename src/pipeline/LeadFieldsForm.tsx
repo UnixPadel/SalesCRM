@@ -16,10 +16,13 @@ export function LeadFieldsForm({
   lead,
   onSaved,
   onCancel,
+  notesOnly = false,
 }: {
   lead: LeadDto;
   onSaved: (lead: LeadDto) => void;
   onCancel: () => void;
+  /** Satışçı görünümü (Faz 7e): yalnız not alanı gönderilir; diğer alanlar yöneticiye ait. */
+  notesOnly?: boolean;
 }) {
   const { t } = useLang();
   const { toast } = useCrm();
@@ -37,11 +40,12 @@ export function LeadFieldsForm({
   const [orgs, setOrgs] = useState<OrganizationDto[]>([]);
   const [newOrg, setNewOrg] = useState(false);
   useEffect(() => {
+    if (notesOnly) return;
     pipelineApi
       .organizations()
       .then((rows) => setOrgs(rows.map((r) => r.organization)))
       .catch(() => setOrgs([]));
-  }, []);
+  }, [notesOnly]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<{ field: string; text: string } | null>(null);
   const set =
@@ -54,16 +58,18 @@ export function LeadFieldsForm({
     setErr(null);
     setBusy(true);
     try {
-      const body: UpdateLeadBody = {
-        courtCount: f.courtCount.trim() === "" ? null : f.courtCount.trim(),
-        courtModel: f.courtModel,
-        expectedCloseDate: f.expectedCloseDate || null,
-        company: f.company,
-        city: f.city,
-        productInterest: f.productInterest,
-        notes: f.notes,
-        organizationId: f.organizationId || null,
-      };
+      const body: UpdateLeadBody = notesOnly
+        ? { notes: f.notes }
+        : {
+            courtCount: f.courtCount.trim() === "" ? null : f.courtCount.trim(),
+            courtModel: f.courtModel,
+            expectedCloseDate: f.expectedCloseDate || null,
+            company: f.company,
+            city: f.city,
+            productInterest: f.productInterest,
+            notes: f.notes,
+            organizationId: f.organizationId || null,
+          };
       const saved = await pipelineApi.update(lead.id, body);
       toast(t("lead.saved"));
       onSaved(saved);
@@ -94,65 +100,75 @@ export function LeadFieldsForm({
   };
 
   return (
-    <form className="act-form lead-edit" onSubmit={submit} noValidate aria-label={t("lead.editTitle")}>
-      <Field label={t("lead.courtCount")} error={fieldErr("courtCount")}>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          max={999}
-          step={1}
-          value={f.courtCount}
-          onChange={set("courtCount")}
-        />
-      </Field>
-      <Field label={t("lead.courtModel")} error={fieldErr("courtModel")}>
-        <input list="court-models-edit" value={f.courtModel} onChange={set("courtModel")} maxLength={64} />
-        <datalist id="court-models-edit">
-          {COURT_MODELS.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
-      </Field>
-      <Field label={t("lead.expectedClose")} error={fieldErr("expectedCloseDate")}>
-        <input type="date" value={f.expectedCloseDate} onChange={set("expectedCloseDate")} />
-      </Field>
-      <Field label={t("lead.product")} error={fieldErr("productInterest")}>
-        <input value={f.productInterest} onChange={set("productInterest")} maxLength={200} />
-      </Field>
-      <Field label={t("lead.company")} error={fieldErr("company")}>
-        <input value={f.company} onChange={set("company")} maxLength={200} />
-      </Field>
-      <Field label={t("lead.city")} error={fieldErr("city")}>
-        <input value={f.city} onChange={set("city")} maxLength={200} />
-      </Field>
-      <div className="wide org-pick">
-        <Field label={t("lead.organization")} error={fieldErr("organizationId")}>
-          <select value={f.organizationId} onChange={set("organizationId")}>
-            <option value="">—</option>
-            {orgs.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-                {o.country ? ` (${o.country})` : ""}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Button size="sm" icon="plus" onClick={() => setNewOrg(true)}>
-          {t("org.new")}
-        </Button>
-      </div>
-      {newOrg && (
-        <OrganizationDialog
-          onClose={() => setNewOrg(false)}
-          onSaved={(o) => {
-            setNewOrg(false);
-            setOrgs((list) =>
-              [...list.filter((x) => x.id !== o.id), o].sort((a, b) => a.name.localeCompare(b.name, "tr")),
-            );
-            setF((s) => ({ ...s, organizationId: o.id }));
-          }}
-        />
+    <form
+      className="act-form lead-edit"
+      onSubmit={submit}
+      noValidate
+      aria-label={notesOnly ? t("lead.editNotes") : t("lead.editTitle")}
+    >
+      {notesOnly && <p className="muted wide">{t("lead.adminOnlyHint")}</p>}
+      {!notesOnly && (
+        <>
+          <Field label={t("lead.courtCount")} error={fieldErr("courtCount")}>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={999}
+              step={1}
+              value={f.courtCount}
+              onChange={set("courtCount")}
+            />
+          </Field>
+          <Field label={t("lead.courtModel")} error={fieldErr("courtModel")}>
+            <input list="court-models-edit" value={f.courtModel} onChange={set("courtModel")} maxLength={64} />
+            <datalist id="court-models-edit">
+              {COURT_MODELS.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
+          </Field>
+          <Field label={t("lead.expectedClose")} error={fieldErr("expectedCloseDate")}>
+            <input type="date" value={f.expectedCloseDate} onChange={set("expectedCloseDate")} />
+          </Field>
+          <Field label={t("lead.product")} error={fieldErr("productInterest")}>
+            <input value={f.productInterest} onChange={set("productInterest")} maxLength={200} />
+          </Field>
+          <Field label={t("lead.company")} error={fieldErr("company")}>
+            <input value={f.company} onChange={set("company")} maxLength={200} />
+          </Field>
+          <Field label={t("lead.city")} error={fieldErr("city")}>
+            <input value={f.city} onChange={set("city")} maxLength={200} />
+          </Field>
+          <div className="wide org-pick">
+            <Field label={t("lead.organization")} error={fieldErr("organizationId")}>
+              <select value={f.organizationId} onChange={set("organizationId")}>
+                <option value="">—</option>
+                {orgs.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                    {o.country ? ` (${o.country})` : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Button size="sm" icon="plus" onClick={() => setNewOrg(true)}>
+              {t("org.new")}
+            </Button>
+          </div>
+          {newOrg && (
+            <OrganizationDialog
+              onClose={() => setNewOrg(false)}
+              onSaved={(o) => {
+                setNewOrg(false);
+                setOrgs((list) =>
+                  [...list.filter((x) => x.id !== o.id), o].sort((a, b) => a.name.localeCompare(b.name, "tr")),
+                );
+                setF((s) => ({ ...s, organizationId: o.id }));
+              }}
+            />
+          )}
+        </>
       )}
       <div className="wide">
         <Field label={t("lead.notes")} error={fieldErr("notes")}>

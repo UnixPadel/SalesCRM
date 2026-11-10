@@ -9,14 +9,15 @@ import {
   type Person,
   type Repositories,
 } from "../domain";
+import { requireAdmin } from "./permissions";
 import { withSummaries, type LeadListItem } from "./queries";
 import type { Actor, UseCaseDeps } from "./types";
 import { loadActionableLead, territoriesOf } from "./visibility";
 
 /**
- * Kuruluşlar ve kişiler (Faz 6d). Kuruluş ve kişi kayıtları ekibin ortak defteridir: her satışçı görür ve düzenler,
- * görüntüleyici yalnız okur (api katmanı). Lead'ler ise görünürlük kuralına tabidir; kişi/kuruluş özetlerinde
- * yalnız görünür lead'ler sayılır.
+ * Kuruluşlar ve kişiler (Faz 6d). Kuruluş ve kişi kayıtları ekibin ortak defteridir: herkes görür; **yalnız yönetici
+ * düzenler** (Faz 7e, `admin_only`). Lead'ler ise görünürlük kuralına tabidir; kişi/kuruluş özetlerinde yalnız
+ * görünür lead'ler sayılır.
  */
 
 export interface CreateOrganizationInput {
@@ -28,6 +29,8 @@ export class CreateOrganization {
   constructor(private readonly deps: UseCaseDeps) {}
 
   async execute(input: CreateOrganizationInput): Promise<Result<Organization, RuleError>> {
+    const allowed = requireAdmin(input.actor, "organization");
+    if (!allowed.ok) return allowed;
     const parsed = parseOrganizationFields(input.fields, { requireName: true });
     if (!parsed.ok) return parsed;
     const f = parsed.value;
@@ -70,6 +73,8 @@ export class UpdateOrganization {
   constructor(private readonly deps: UseCaseDeps) {}
 
   async execute(input: UpdateOrganizationInput): Promise<Result<Organization, RuleError>> {
+    const allowed = requireAdmin(input.actor, "organization");
+    if (!allowed.ok) return allowed;
     const parsed = parseOrganizationFields(input.fields);
     if (!parsed.ok) return parsed;
     const f = parsed.value;
@@ -106,13 +111,15 @@ export interface UpdateLeadContactInput {
 
 /**
  * Lead'in kimlik alanları: ad, e-posta, telefon. Lead ve bağlı kişi kaydı birlikte güncellenir (aynı transaction).
- * Kural: e-posta ya da telefondan en az biri kalır; başka bir kişiye ait e-posta/telefon verilemez (mükerrer kişi
- * kuralı; birleştirme 6d kapsamı dışında).
+ * Yalnız yönetici (Faz 7e). Kural: e-posta ya da telefondan en az biri kalır; başka bir kişiye ait e-posta/telefon
+ * verilemez (mükerrer kişi kuralı; birleştirme Faz 7d).
  */
 export class UpdateLeadContact {
   constructor(private readonly deps: UseCaseDeps) {}
 
   async execute(input: UpdateLeadContactInput): Promise<Result<Lead, RuleError>> {
+    const allowed = requireAdmin(input.actor, "contact");
+    if (!allowed.ok) return allowed;
     const { uow, clock, logger } = this.deps;
     return uow.run(async (repos): Promise<Result<Lead, RuleError>> => {
       const leadR = await loadActionableLead(repos, input.leadId, input.actor);

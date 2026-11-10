@@ -169,7 +169,7 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
     );
   });
 
-  // ---- Kuruluşlar ve kişiler (Faz 6d): ortak defter; görüntüleyici okur, satışçı ve admin yazar.
+  // ---- Kuruluşlar ve kişiler (Faz 6d): ortak defter; herkes okur, yalnız admin yazar (Faz 7e, application katmanı).
   r.get("/organizations", async (req, res) => {
     const a = actor(req, res, false);
     if (!a) return;
@@ -394,6 +394,7 @@ function notificationDto(n: Notification): NotificationDto {
 
 const STATUS: Record<string, number> = {
   not_found: 404,
+  admin_only: 403,
   "lead.forbidden": 403,
   "assign.forbidden": 403,
   "undo.not_owner": 403,

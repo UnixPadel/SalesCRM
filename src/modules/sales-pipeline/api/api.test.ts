@@ -342,7 +342,13 @@ describe("fırsat alanları ve pano (Faz 6b)", () => {
     expect(created.body.lead).toMatchObject({ courtCount: 3, courtModel: "Panoramic", expectedCloseDate: null });
     leadId = created.body.lead.id;
 
-    const ok = await call<LeadDto>("rep1", "PATCH", `/api/pipeline/leads/${leadId}`, {
+    // Satışçı yalnız not yazar (Faz 7e); diğer alanlar 403 admin_only.
+    const repNote = await call<LeadDto>("rep1", "PATCH", `/api/pipeline/leads/${leadId}`, { notes: "fuar" });
+    expect(repNote.status).toBe(200);
+    const repFields = await call<ApiErrorDto>("rep1", "PATCH", `/api/pipeline/leads/${leadId}`, { courtCount: 4 });
+    expect(repFields.status).toBe(403);
+    expect(repFields.body.code).toBe("admin_only");
+    const ok = await call<LeadDto>("admin", "PATCH", `/api/pipeline/leads/${leadId}`, {
       courtCount: 4,
       expectedCloseDate: "2026-12-15",
       notes: "fuar",
@@ -355,15 +361,15 @@ describe("fırsat alanları ve pano (Faz 6b)", () => {
       notes: "fuar",
     });
 
-    expect((await call("viewer", "PATCH", `/api/pipeline/leads/${leadId}`, { city: "X" })).status).toBe(403);
-    expect((await call("rep2", "PATCH", `/api/pipeline/leads/${leadId}`, { city: "X" })).status).toBe(403);
-    const bad = await call<ApiErrorDto>("rep1", "PATCH", `/api/pipeline/leads/${leadId}`, {
+    expect((await call("viewer", "PATCH", `/api/pipeline/leads/${leadId}`, { notes: "X" })).status).toBe(403);
+    expect((await call("rep2", "PATCH", `/api/pipeline/leads/${leadId}`, { notes: "X" })).status).toBe(403);
+    const bad = await call<ApiErrorDto>("admin", "PATCH", `/api/pipeline/leads/${leadId}`, {
       expectedCloseDate: "yarın",
     });
     expect(bad.status).toBe(422);
     expect(bad.body.code).toBe("lead.expected_close_invalid");
     expect(
-      (await call("rep1", "PATCH", "/api/pipeline/leads/00000000-0000-4000-8000-000000000000", { city: "X" })).status,
+      (await call("admin", "PATCH", "/api/pipeline/leads/00000000-0000-4000-8000-000000000000", { city: "X" })).status,
     ).toBe(404);
 
     const detail = await call<LeadDetailDto>("rep1", "GET", `/api/pipeline/leads/${leadId}`);
@@ -433,8 +439,11 @@ describe("kuruluşlar ve kişiler (Faz 6d)", () => {
   let orgId: string;
   let leadId: string;
 
-  it("POST/PATCH /organizations; görüntüleyici 403; aynı ad 422; GET listesi özetlerle", async () => {
-    const created = await call<OrganizationDto>("rep1", "POST", "/api/pipeline/organizations", {
+  it("POST/PATCH /organizations yalnız admin (Faz 7e); görüntüleyici ve satışçı 403; aynı ad 422; GET listesi özetlerle", async () => {
+    const repTry = await call<ApiErrorDto>("rep1", "POST", "/api/pipeline/organizations", { name: "Kulüp API" });
+    expect(repTry.status).toBe(403);
+    expect(repTry.body.code).toBe("admin_only");
+    const created = await call<OrganizationDto>("admin", "POST", "/api/pipeline/organizations", {
       name: "Kulüp API",
       country: "tr",
       type: "club",
@@ -449,14 +458,17 @@ describe("kuruluşlar ve kişiler (Faz 6d)", () => {
     });
     expect(dup.status).toBe(422);
     expect(dup.body.code).toBe("organization.duplicate");
-    const noName = await call<ApiErrorDto>("rep1", "POST", "/api/pipeline/organizations", {});
+    const noName = await call<ApiErrorDto>("admin", "POST", "/api/pipeline/organizations", {});
     expect(noName.status).toBe(422);
-    const upd = await call<OrganizationDto>("rep1", "PATCH", `/api/pipeline/organizations/${orgId}`, {
+    expect((await call("rep1", "PATCH", `/api/pipeline/organizations/${orgId}`, { website: "k.example" })).status).toBe(
+      403,
+    );
+    const upd = await call<OrganizationDto>("admin", "PATCH", `/api/pipeline/organizations/${orgId}`, {
       website: "k.example",
     });
     expect(upd.body.website).toBe("k.example");
     expect(
-      (await call("rep1", "PATCH", "/api/pipeline/organizations/00000000-0000-4000-8000-000000000000", { name: "Y" }))
+      (await call("admin", "PATCH", "/api/pipeline/organizations/00000000-0000-4000-8000-000000000000", { name: "Y" }))
         .status,
     ).toBe(404);
 
@@ -475,8 +487,11 @@ describe("kuruluşlar ve kişiler (Faz 6d)", () => {
     expect(detail.body.organization?.id).toBe(orgId);
   });
 
-  it("PATCH /leads/:id/contact; GET /persons; GET /search", async () => {
-    const ok = await call<LeadDto>("rep1", "PATCH", `/api/pipeline/leads/${leadId}/contact`, {
+  it("PATCH /leads/:id/contact yalnız admin (Faz 7e); GET /persons; GET /search", async () => {
+    const repTry = await call<ApiErrorDto>("rep1", "PATCH", `/api/pipeline/leads/${leadId}/contact`, { fullName: "X" });
+    expect(repTry.status).toBe(403);
+    expect(repTry.body.code).toBe("admin_only");
+    const ok = await call<LeadDto>("admin", "PATCH", `/api/pipeline/leads/${leadId}/contact`, {
       fullName: "Kuruluş Testi 2",
       phone: "+90 532 111 22 33",
     });
@@ -486,7 +501,7 @@ describe("kuruluşlar ve kişiler (Faz 6d)", () => {
       phoneE164: "+905321112233",
       email: "kurulus@example.com",
     });
-    const bad = await call<ApiErrorDto>("rep1", "PATCH", `/api/pipeline/leads/${leadId}/contact`, {
+    const bad = await call<ApiErrorDto>("admin", "PATCH", `/api/pipeline/leads/${leadId}/contact`, {
       email: "",
       phone: "",
     });
