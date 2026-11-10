@@ -4,4 +4,4 @@ export { queryOne } from "./db";
 export { createPgDb } from "./pg";
 export { createPgliteDb } from "./pglite";
 export { migrate, readMigrations, type Migration, type MigrateResult } from "./migrate";
-export { MIGRATIONS_DIR, openDatabase } from "./open";
+export { MIGRATIONS_DIR, openDatabase, schemaVersion } from "./open";

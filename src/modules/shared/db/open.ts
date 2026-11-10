@@ -15,11 +15,22 @@ export const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), ".."
  */
 export async function openDatabase(
   config: Pick<AppConfig, "databaseUrl" | "pgliteDir">,
-  opts: { memory?: boolean } = {},
+  opts: { memory?: boolean; migrate?: boolean; pgliteDir?: string } = {},
 ): Promise<Db> {
   const db = config.databaseUrl
     ? createPgDb(config.databaseUrl, { ssl: /sslmode=require/.test(config.databaseUrl) })
-    : await createPgliteDb(opts.memory ? undefined : config.pgliteDir);
-  await migrate(db, readMigrations(MIGRATIONS_DIR));
+    : await createPgliteDb(opts.memory ? undefined : (opts.pgliteDir ?? config.pgliteDir));
+  // Faz 7g: içe aktarmanın kuru çalıştırması ve doğrulaması şemaya dokunmaz (`migrate: false`).
+  if (opts.migrate !== false) await migrate(db, readMigrations(MIGRATIONS_DIR));
   return db;
+}
+
+/** Uygulanmış en yüksek migration sürümü; tablo yoksa 0. */
+export async function schemaVersion(db: Db): Promise<number> {
+  try {
+    const rows = await db.query<{ v: number | string | null }>("SELECT max(version) AS v FROM schema_migrations");
+    return Number(rows[0]?.v ?? 0);
+  } catch {
+    return 0;
+  }
 }
