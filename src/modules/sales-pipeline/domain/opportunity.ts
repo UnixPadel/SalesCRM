@@ -1,5 +1,17 @@
 import { RuleError, err, ok, type Result } from "../../shared/kernel";
 import type { Lead, StageEvent } from "./lead";
+import {
+  isAdSurface,
+  isCourtCountBand,
+  isCustomerProfile,
+  isInstallSite,
+  isInstallTimeline,
+  type CourtCountBand,
+  type CustomerProfile,
+  type InstallSite,
+  type InstallTimeline,
+} from "./leadProfile";
+import { hasAnyProduct, parseProductPrefs, type ProductPrefs } from "./products";
 import { STAGE_CODES, type StageCode } from "./stage";
 
 /**
@@ -19,7 +31,27 @@ export interface LeadFields {
   notes: string;
   /** Kuruluş bağı; null = bağı kaldır. */
   organizationId: string | null;
+  /** Faz 7g: lead ülkesi (ISO-2); provenance temizliği uygulama katmanında. */
+  country: string | null;
+  /** Ürün tercihleri ve çatı ölçüsü (D4). */
+  products: ProductPrefs;
+  /** Form cevapları (D5): intake doldurur, yönetici düzeltir. */
+  installSite: InstallSite | null;
+  installTimeline: InstallTimeline | null;
+  customerProfile: CustomerProfile | null;
+  courtCountBand: CourtCountBand | null;
+  adSurface: string | null;
 }
+
+/** Faz 7g kod alanları (geçersiz kod katı modda `lead.<alan>`, esnek modda düşer). */
+export const LEAD_CODE_FIELDS = {
+  installSite: { check: isInstallSite, code: "lead.install_site" },
+  installTimeline: { check: isInstallTimeline, code: "lead.install_timeline" },
+  customerProfile: { check: isCustomerProfile, code: "lead.customer_profile" },
+  courtCountBand: { check: isCourtCountBand, code: "lead.court_count_band" },
+  adSurface: { check: isAdSurface, code: "lead.ad_surface" },
+} as const;
+type LeadCodeField = keyof typeof LEAD_CODE_FIELDS;
 
 export const LEAD_FIELD_KEYS = [
   "courtCount",
@@ -30,6 +62,13 @@ export const LEAD_FIELD_KEYS = [
   "productInterest",
   "notes",
   "organizationId",
+  "country",
+  "products",
+  "installSite",
+  "installTimeline",
+  "customerProfile",
+  "courtCountBand",
+  "adSurface",
 ] as const satisfies readonly (keyof LeadFields)[];
 
 /**
@@ -135,7 +174,58 @@ export function parseLeadFields(raw: Record<string, unknown>): Result<Partial<Le
       return err(new RuleError("lead.organization_invalid", "Kuruluş kimliği geçersiz.", { value: v }));
     } else out.organizationId = v.trim();
   }
+  // Faz 7g alanları.
+  if ("country" in raw) {
+    const v = raw["country"];
+    if (v === null || v === "" || v === undefined) out.country = null;
+    else if (typeof v !== "string" || !/^[A-Za-z]{2}$/.test(v.trim())) {
+      return err(new RuleError("lead.country_invalid", "Ülke iki harfli kod olmalı (ör. TR).", { value: v }));
+    } else out.country = v.trim().toUpperCase();
+  }
+  if ("products" in raw) {
+    const r = parseProductPrefs(raw["products"]);
+    if (!r.ok) return r;
+    out.products = r.value;
+  }
+  for (const key of Object.keys(LEAD_CODE_FIELDS) as LeadCodeField[]) {
+    if (!(key in raw)) continue;
+    const v = raw[key];
+    if (v === null || v === "" || v === undefined) {
+      out[key] = null;
+      continue;
+    }
+    if (!LEAD_CODE_FIELDS[key].check(v)) {
+      return err(new RuleError(LEAD_CODE_FIELDS[key].code, "Değer listede yok.", { field: key, value: v }));
+    }
+    (out as Record<string, unknown>)[key] = v;
+  }
   return ok(out);
+}
+
+/**
+ * Esnek mod (intake, içe aktarma): geçersiz kod ve biçimsiz değer lead'i durdurmaz; alan düşer ve `dropped`'a yazılır.
+ * Metin alanları katı moddaki gibi doğrulanır (uzunsa kırpılmaz, düşer).
+ */
+export function parseLeadFieldsLenient(raw: Record<string, unknown>): {
+  fields: Partial<LeadFields>;
+  dropped: { key: string; raw: unknown }[];
+} {
+  const fields: Partial<LeadFields> = {};
+  const dropped: { key: string; raw: unknown }[] = [];
+  for (const [key, value] of Object.entries(raw)) {
+    if (value === undefined) continue;
+    const one = parseLeadFields({ [key]: value });
+    if (one.ok) Object.assign(fields, one.value);
+    else dropped.push({ key, raw: value });
+  }
+  return { fields, dropped };
+}
+
+/** Ürün adedi varken kort sayısı ayrıca yazılmaz (§3.4, `court_count.derived`). */
+export function courtCountConflict(fields: Partial<LeadFields>, current: ProductPrefs): boolean {
+  if (!("courtCount" in fields)) return false;
+  const products = fields.products ?? current;
+  return hasAnyProduct({ ...products, roof: { wanted: false, widthM: null, lengthM: null } });
 }
 
 const snake = (s: string) => s.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase());

@@ -1,6 +1,8 @@
 import { NotFoundError, RuleError, err, ok, type Result } from "../../shared/kernel";
 import { Email, PhoneNumber } from "../../shared/normalization";
 import {
+  PROVENANCE_KEYS,
+  WARNINGS_CLEARED_BY,
   isTerminal,
   parseOrganizationFields,
   toEur,
@@ -175,8 +177,22 @@ export class UpdateLeadContact {
       const now = clock.now();
       await repos.leads.updateIdentity(lead.id, { fullName, email, phoneE164 }, now);
       await repos.persons.update(lead.personId, { fullName, emailNormalized: email, phoneE164 });
+      // Faz 7g (D6): telefon düzeltilince köken bilgisi ve telefon uyarılarının "kontrol edildi" işareti düşer.
+      let extraAnswers = lead.extraAnswers;
+      let checkedWarnings = lead.checkedWarnings;
+      if (phoneE164 !== lead.phoneE164) {
+        const keys: readonly string[] = PROVENANCE_KEYS.phone;
+        await repos.leads.removeExtraAnswerKeys(lead.id, keys, now);
+        extraAnswers = Object.fromEntries(Object.entries(extraAnswers).filter(([k]) => !keys.includes(k)));
+        const cleared: readonly string[] = WARNINGS_CLEARED_BY.phone;
+        const kept = checkedWarnings.filter((c) => !cleared.includes(c));
+        if (kept.length !== checkedWarnings.length) {
+          await repos.leads.setCheckedWarnings(lead.id, kept, now);
+          checkedWarnings = kept;
+        }
+      }
       logger.info("lead kimliği güncellendi", { leadId: lead.id, actorUserId: input.actor.userId });
-      return ok({ ...lead, fullName, email, phoneE164, updatedAt: now });
+      return ok({ ...lead, fullName, email, phoneE164, extraAnswers, checkedWarnings, updatedAt: now });
     });
   }
 }
@@ -261,7 +277,7 @@ export class PeopleQueries {
       if (!persons.length) return [];
       const ids = new Set(persons.map((p) => p.id));
       const leads = (await this.visibleLeads(repos, input.actor)).filter((l) => ids.has(l.personId));
-      const items = await withSummaries(repos, leads);
+      const items = await withSummaries(repos, leads, { isAdmin: input.actor.isAdmin, timeZone: this.deps.timeZone });
       const orgIds = [...new Set(persons.map((p) => p.organizationId).filter((x): x is string => x !== null))];
       const orgs = new Map((await repos.organizations.findByIds(orgIds)).map((o) => [o.id, o]));
       return persons.map((person) => {

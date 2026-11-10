@@ -317,7 +317,12 @@ describe("aktiviteler (Faz 6a)", () => {
     const done = await call<ActivityDto>("rep1", "POST", `/api/pipeline/activities/${activityId}/done`, { done: true });
     expect(done.status).toBe(200);
     expect(typeof done.body.doneAt).toBe("string");
-    const reopen = await call<ActivityDto>("rep1", "POST", `/api/pipeline/activities/${activityId}/done`, {
+    // Faz 7g (§4.1): tamamlanmışı satışçı yeniden açamaz ve silemez; yönetici açar.
+    expect((await call("rep1", "POST", `/api/pipeline/activities/${activityId}/done`, { done: false })).status).toBe(
+      403,
+    );
+    expect((await call("rep1", "DELETE", `/api/pipeline/activities/${activityId}`)).status).toBe(403);
+    const reopen = await call<ActivityDto>("admin", "POST", `/api/pipeline/activities/${activityId}/done`, {
       done: false,
     });
     expect(reopen.body.doneAt).toBeNull();
@@ -331,10 +336,12 @@ describe("fırsat alanları ve pano (Faz 6b)", () => {
   let leadId: string;
 
   it("PATCH /leads/:id: alanlar güncellenir; görüntüleyici 403, başkası 403, geçersiz 422; detay ve liste yeni alanları taşır", async () => {
-    const created = await call<{ lead: LeadDto }>("rep1", "POST", "/api/pipeline/leads", {
+    // Faz 7g: fırsat alanlarıyla lead'i yönetici açar (satışçı açarken veremez).
+    const created = await call<{ lead: LeadDto }>("admin", "POST", "/api/pipeline/leads", {
       fullName: "Fırsat Testi",
       email: "firsat@example.com",
       country: "tr",
+      assignedUserId: "rep-1",
       courtCount: "3",
       courtModel: "Panoramic",
     });
@@ -476,10 +483,11 @@ describe("kuruluşlar ve kişiler (Faz 6d)", () => {
         .status,
     ).toBe(404);
 
-    const lead = await call<{ lead: LeadDto }>("rep1", "POST", "/api/pipeline/leads", {
+    const lead = await call<{ lead: LeadDto }>("admin", "POST", "/api/pipeline/leads", {
       fullName: "Kuruluş Testi",
       email: "kurulus@example.com",
       country: "tr",
+      assignedUserId: "rep-1",
       organizationId: orgId,
     });
     leadId = lead.body.lead.id;

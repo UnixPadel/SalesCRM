@@ -32,6 +32,14 @@ export function pgContactLogRepository(q: Queryable): ContactLogRepository {
       const r = await queryOne<ContactLogRow>(q, `SELECT ${COLS} FROM contact_logs WHERE id = $1`, [id]);
       return r && contactLogFromRow(r);
     },
+    async listByLead(leadId) {
+      return (
+        await q.query<ContactLogRow>(
+          `SELECT ${COLS} FROM contact_logs WHERE lead_id = $1 ORDER BY created_at DESC, id DESC`,
+          [leadId],
+        )
+      ).map(contactLogFromRow);
+    },
     async remove(id) {
       await q.query("DELETE FROM contact_logs WHERE id = $1", [id]);
     },

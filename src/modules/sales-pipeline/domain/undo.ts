@@ -9,6 +9,8 @@ export interface UndoRequest {
   windowMs: number;
   actorUserId: string;
   actorIsAdmin: boolean;
+  /** Verilirse yalnız bu değişiklik geri alınır; son değişiklik başkasıysa `undo.stale`. */
+  changeId?: string | undefined;
 }
 
 export interface UndoPlan {
@@ -28,6 +30,10 @@ export function planUndo(req: UndoRequest): Result<UndoPlan, RuleError> {
   const last = live[0];
   if (!last || last.origin === "system") {
     return err(new RuleError("undo.nothing", "Geri alınacak aşama değişikliği yok.", {}));
+  }
+  // Faz 7g [M-I1]: temas kaydının geri alması kendi değişikliğini adıyla ister; sonra başka değişiklik geldiyse dokunmaz.
+  if (req.changeId !== undefined && last.changeId !== req.changeId) {
+    return err(new RuleError("undo.stale", "Aşama bu kayıttan sonra yeniden değişti; aşama geri alınmadı.", {}));
   }
   const group = live.filter((e) => e.changeId === last.changeId).sort((a, b) => a.sequence - b.sequence);
   const previous = live.find((e) => e.changeId !== last.changeId);

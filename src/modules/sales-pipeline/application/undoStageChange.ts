@@ -6,6 +6,8 @@ import { canAct, territoriesOf } from "./visibility";
 export interface UndoStageChangeInput {
   leadId: string;
   actor: Actor;
+  /** Faz 7g: yalnız bu değişiklik (temas kaydı ve telafi); son değişiklik başkasıysa `undo.stale`. */
+  changeId?: string | undefined;
 }
 
 export interface UndoStageChangeResult {
@@ -34,6 +36,7 @@ export class UndoStageChange {
         windowMs: undoWindowMs,
         actorUserId: input.actor.userId,
         actorIsAdmin: input.actor.isAdmin,
+        changeId: input.changeId,
       });
       if (!plan.ok) return plan;
 

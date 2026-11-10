@@ -20,4 +20,16 @@ export interface UseCaseDeps {
   timeZone?: string | undefined;
   /** Pano toplamları için para birimi → EUR çarpanları; verilmezse DEFAULT_EUR_RATES. */
   eurRates?: EurRates | undefined;
+  /** Ekip dizini (Faz 7g): rapor satırları ve bölge atamasında pasif kullanıcı. Yoksa ya da null dönerse süzme yok. */
+  team?: TeamDirectory | undefined;
+  /** Yetki anahtarları (Faz 7g, D4); verilmezse hepsi kapalı. */
+  policy?: { repsEditProducts: boolean } | undefined;
+}
+
+/** Kullanıcı tablosundan okunan ekip bilgisi; hata ya da kapalı DB'de null (fail-open). */
+export interface TeamDirectory {
+  /** Aktif satış kullanıcıları (yönetici + temsilci). */
+  activeSalesUserIds(): Promise<string[] | null>;
+  /** Pasif kullanıcılar (bölge kuralında atlanır). */
+  inactiveUserIds?(): Promise<ReadonlySet<string> | null>;
 }

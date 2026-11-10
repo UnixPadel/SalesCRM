@@ -13,7 +13,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { authDbEnabled, authDbLabel, checkLogin, checkTable, listTeam } from "./authDb.mjs";
+import { authDbEnabled, authDbLabel, checkLogin, checkTable, listDirectory, listTeam } from "./authDb.mjs";
 import { emailsOf, USERS, userFor } from "./users.mjs";
 import { bootSalesPipeline } from "../src/bootstrap/salesPipeline.ts";
 import { bootLeadIntake } from "../src/bootstrap/leadIntake.ts";
@@ -208,6 +208,38 @@ function userDirectory() {
   };
 }
 
+/**
+ * Ekip dizini (Faz 7g): Özet rapor satırları (aktif satış kullanıcıları) ve bölge atamasında pasif kullanıcı.
+ * 5 dk önbellek; tablo kapalıysa ya da okunamazsa null (fail-open: süzme yapılmaz).
+ */
+function teamDirectory() {
+  let cache = { at: 0, rows: null };
+  const rows = async () => {
+    if (!authDbEnabled()) return null;
+    if (Date.now() - cache.at > 5 * 60_000) {
+      try {
+        cache = { at: Date.now(), rows: await listDirectory() };
+      } catch (e) {
+        console.warn("[crm] ekip dizini okunamadı:", e?.message || e);
+        cache = { at: Date.now(), rows: cache.rows };
+      }
+    }
+    return cache.rows;
+  };
+  return {
+    async activeSalesUserIds() {
+      const r = await rows();
+      return r ? r.filter((u) => u.active && u.role !== "viewer").map((u) => u.id) : null;
+    },
+    async inactiveUserIds() {
+      const r = await rows();
+      return r ? new Set(r.filter((u) => !u.active).map((u) => u.id)) : null;
+    },
+    rows,
+  };
+}
+const team = teamDirectory();
+
 /* ---------------- app ---------------- */
 
 const app = express();
@@ -216,7 +248,7 @@ app.disable("x-powered-by");
 /* ---- satış pipeline'ı ve gelen lead akışı (src/modules) ----
  * Webhook'lar ve web formu ucu oturumsuzdur ve imza için ham gövde ister: genel JSON ayrıştırıcıdan
  * ÖNCE bağlanır. İnternete yalnız /webhooks/* ve /forms/* açılır (ADR-0005). */
-const salesPipeline = await bootSalesPipeline({ users: userDirectory() });
+const salesPipeline = await bootSalesPipeline({ users: userDirectory(), team });
 const leadIntake = bootLeadIntake(salesPipeline);
 app.use("/webhooks", leadIntake.webhooks);
 app.use("/forms", leadIntake.forms);
@@ -423,7 +455,28 @@ app.get("/api/mail/body", auth, mailOn, async (req, res) => {
 
 let teamCache = { at: 0, list: null };
 /** Active sales users from the user table; falls back to the static USERS list without a database. */
-app.get("/api/users", auth, async (_req, res) => {
+app.get("/api/users", auth, async (req, res) => {
+  // Faz 7g: ?all=1 pasifler dahil bütün dizin (ad gösterimi "Sena (pasif)"); yalnız yönetici ve görüntüleyici.
+  if (req.query.all === "1") {
+    const role = req.session?.role;
+    if (role !== "admin" && role !== "viewer")
+      return res.status(403).json({ error: "Yalnız yönetici.", code: "admin_only" });
+    const rows = await team.rows();
+    if (!rows) {
+      return res.json(
+        USERS.filter((u) => !u.local).map((u) => ({
+          id: u.emails[0],
+          name: u.name,
+          email: u.emails[0],
+          role: u.role,
+          active: true,
+        })),
+      );
+    }
+    return res.json(
+      rows.map((r) => ({ id: r.id, name: r.first || r.login, email: r.email, role: r.role, active: r.active })),
+    );
+  }
   if (!authDbEnabled()) {
     return res.json(
       USERS.filter((u) => !u.local).map((u) => ({ id: u.emails[0], name: u.name, email: u.emails[0], role: u.role })),

@@ -1,10 +1,17 @@
 import { NotFoundError, RuleError, err, ok, type Result } from "../../shared/kernel";
 import {
+  DEFAULT_TIME_ZONE,
+  aggregateContacts,
   allowedTransitions,
   columnStats,
+  leadTracking,
   planUndo,
   stageSummary,
   summarizeActivities,
+  visibleWarnings,
+  type ContactAggregateRow,
+  type InstallTimeline,
+  type LeadTracking,
   type Activity,
   type ActivitySummary,
   type ColumnStats,
@@ -22,24 +29,88 @@ import {
 import type { Actor, UseCaseDeps } from "./types";
 import { canSee, territoriesOf } from "./visibility";
 
-/**
- * Liste ve detaydaki lead: aktivite özeti (açık sayısı, sonraki, takipsiz) ve aşama özeti
- * (aşamaya giriş anı, son geçerli tutar) ile.
- */
-export interface LeadListItem extends Lead, ActivitySummary, StageSummary {}
+/** Sıcak lead ön süzgeci (SQL); kesin tanım `isHotLead` (açık aşama da ister). */
+const hotTimelines: readonly InstallTimeline[] = ["m0_3"];
 
-export async function withSummaries(repos: Repositories, leads: readonly Lead[]): Promise<LeadListItem[]> {
+/**
+ * Liste ve detaydaki lead: aktivite özeti (açık sayısı, sonraki, takipsiz), aşama özeti (aşamaya giriş anı, son
+ * geçerli tutar) ve satış takip bilgisi (Faz 7g: temas özeti, teklif, uyarılar, sıcak, ürün toplamları) ile.
+ */
+export interface LeadListItem extends Lead, ActivitySummary, StageSummary, LeadTracking {}
+
+function groupByLead<T extends { leadId: string }>(rows: readonly T[]): Map<string, T[]> {
+  const by = new Map<string, T[]>();
+  for (const r of rows) {
+    const list = by.get(r.leadId);
+    if (list) list.push(r);
+    else by.set(r.leadId, [r]);
+  }
+  return by;
+}
+
+/**
+ * Üç sorgu (açık aktiviteler, aşama olayları, temas toplamları) ve lead başına tek türetme yolu (`leadTracking`).
+ * `isAdmin: false` verilirse uyarılar satışçıya göre süzülür (`visibleWarnings`); verilmezse hepsi kalır.
+ */
+export async function withSummaries(
+  repos: Repositories,
+  leads: readonly Lead[],
+  opts: { isAdmin?: boolean | undefined; timeZone?: string | undefined } = {},
+): Promise<LeadListItem[]> {
   const ids = leads.map((l) => l.id);
-  const [open, events] = await Promise.all([repos.activities.listOpenByLeads(ids), repos.stageEvents.listByLeads(ids)]);
-  const actsByLead = new Map<string, Activity[]>();
-  for (const a of open) actsByLead.set(a.leadId, [...(actsByLead.get(a.leadId) ?? []), a]);
-  const eventsByLead = new Map<string, StageEvent[]>();
-  for (const e of events) eventsByLead.set(e.leadId, [...(eventsByLead.get(e.leadId) ?? []), e]);
-  return leads.map((l) => ({
-    ...l,
-    ...summarizeActivities(l.currentStage, actsByLead.get(l.id) ?? []),
-    ...stageSummary(l, eventsByLead.get(l.id) ?? []),
-  }));
+  const [open, events, aggregates] = await Promise.all([
+    repos.activities.listOpenByLeads(ids),
+    repos.stageEvents.listByLeads(ids),
+    repos.activities.contactAggregatesByLeads(ids),
+  ]);
+  const actsByLead = groupByLead<Activity>(open);
+  const eventsByLead = groupByLead<StageEvent>(events);
+  const aggByLead = groupByLead<ContactAggregateRow>(aggregates);
+  const tz = opts.timeZone ?? DEFAULT_TIME_ZONE;
+  return leads.map((l) => {
+    const evs = eventsByLead.get(l.id) ?? [];
+    const t = leadTracking(l, evs, aggByLead.get(l.id) ?? [], tz);
+    return {
+      ...l,
+      ...summarizeActivities(l.currentStage, actsByLead.get(l.id) ?? []),
+      ...stageSummary(l, evs),
+      ...t,
+      warnings: opts.isAdmin === false ? visibleWarnings(t.warnings, false) : t.warnings,
+    };
+  });
+}
+
+/** Ortak lead süzgecinin temas değerleri (iş emri §4.2); `no_reply` = ulaşıldı ve dönüş yok. */
+export const CONTACT_FILTERS = ["never", "legacy", "contacted", "no_reply", "replied"] as const;
+export type ContactFilter = (typeof CONTACT_FILTERS)[number];
+export const isContactFilter = (v: unknown): v is ContactFilter =>
+  typeof v === "string" && (CONTACT_FILTERS as readonly string[]).includes(v);
+
+/** Bellek içi süzgeçler: SQL'de olmayan, türetilen bilgiye bakanlar. */
+export interface TrackingFilter {
+  rotting?: boolean | undefined;
+  contact?: ContactFilter | undefined;
+  hot?: boolean | undefined;
+  /** Kontrol edilmemiş "warn" uyarısı olanlar; yalnız yöneticide uygulanır. */
+  warning?: boolean | undefined;
+}
+
+export function matchesTracking(item: LeadListItem, f: TrackingFilter, isAdmin: boolean): boolean {
+  if (f.rotting && !item.rotting) return false;
+  if (f.hot && !item.hot) return false;
+  if (f.warning && isAdmin && !item.warnings.some((w) => w.severity === "warn" && !w.checked)) return false;
+  switch (f.contact) {
+    case undefined:
+      return true;
+    case "never":
+    case "legacy":
+    case "contacted":
+      return item.contact.state === f.contact;
+    case "no_reply":
+      return item.contact.state === "contacted" && !item.contact.replied;
+    case "replied":
+      return item.contact.replied;
+  }
 }
 
 /** Pano: filtrelenmiş lead'ler ve aynı kümeden hesaplanan kolon istatistikleri (kural 4). */
@@ -48,20 +119,39 @@ export interface Board {
   columns: ColumnStats[];
 }
 
-export interface BoardInput {
-  actor: Actor;
+/**
+ * Ortak lead süzgeci (Faz 7g, iş emri §4.2): `/leads` ve `/board` aynı ayrıştırıcıyla (`parseLeadFilter`) gelir.
+ * Sorumlu, ülke ve kaynak tek değer ya da liste alır; liste "bunlardan biri"dir.
+ */
+export interface LeadFilterInput extends TrackingFilter {
   /** Sorumlu kimliği; null = ortak havuz; undefined = hepsi. */
-  owner?: string | null | undefined;
-  country?: string | undefined;
-  /** true: yalnız takipsiz lead'ler (kural 1). */
-  rotting?: boolean | undefined;
+  owner?: string | null | readonly (string | null)[] | undefined;
+  country?: string | readonly string[] | undefined;
   /** Lead kaynağı (Faz 7). */
-  source?: LeadSource | undefined;
+  source?: LeadSource | readonly LeadSource[] | undefined;
+  scope?: "excel" | undefined;
+  campaign?: string | undefined;
+  search?: string | undefined;
   includeTest?: boolean | undefined;
+}
+
+export interface BoardInput extends LeadFilterInput {
+  actor: Actor;
+}
+
+export interface ContactLogRef {
+  id: string;
+  /** Kaydın tamamladığı ya da eklediği temas satırı. */
+  activityId: string | null;
+  createdAt: Date;
+  undoUntil: Date;
+  canUndo: boolean;
 }
 
 export interface LeadDetail {
   lead: LeadListItem;
+  /** Geri alınabilir temas kayıtları (Faz 7g): satışçıya kendi kaydı pencere içinde, yöneticiye hepsi. */
+  contactLogs: ContactLogRef[];
   /** Bağlı kuruluş (Faz 6d); yoksa null. */
   organization: Organization | null;
   events: StageEvent[];
@@ -69,20 +159,15 @@ export interface LeadDetail {
   activities: Activity[];
   /** Arayüz aşama kuralını tekrar yazmaz; izinli geçişleri buradan okur. */
   allowedTransitions: readonly StageCode[];
-  undo: { available: boolean; reason?: string; untilIso?: string };
+  /** `contactLogId`: son aşama değişikliği bir temas kaydıyla yapıldıysa o kayıt (Geri al ikisini birlikte alır). */
+  undo: { available: boolean; reason?: string; untilIso?: string; contactLogId?: string | null };
 }
 
-export interface ListLeadsInput {
+export interface ListLeadsInput extends LeadFilterInput {
   actor: Actor;
-  stage?: StageCode | undefined;
-  /** Sorumlu kimliği; null = ortak havuz; undefined = hepsi. */
-  owner?: string | null | undefined;
-  country?: string | undefined;
+  stage?: StageCode | readonly StageCode[] | undefined;
   organizationId?: string | undefined;
   personId?: string | undefined;
-  source?: LeadSource | undefined;
-  search?: string | undefined;
-  includeTest?: boolean | undefined;
   limit?: number | undefined;
 }
 
@@ -194,9 +279,13 @@ export class LeadQueries {
         source: input.source,
         search: input.search,
         includeTest: input.includeTest,
+        scope: input.scope,
+        campaign: input.campaign,
+        installTimeline: input.hot ? hotTimelines : undefined,
         limit: input.limit,
       });
-      return withSummaries(repos, leads);
+      const items = await withSummaries(repos, leads, { isAdmin: input.actor.isAdmin, timeZone: this.deps.timeZone });
+      return items.filter((l) => matchesTracking(l, input, input.actor.isAdmin));
     });
   }
 
@@ -213,10 +302,15 @@ export class LeadQueries {
           owner: input.owner,
           country: input.country,
           source: input.source,
+          search: input.search,
           includeTest: input.includeTest,
+          scope: input.scope,
+          campaign: input.campaign,
+          installTimeline: input.hot ? hotTimelines : undefined,
         }),
+        { isAdmin: input.actor.isAdmin, timeZone: this.deps.timeZone },
       );
-      const filtered = input.rotting ? leads.filter((l) => l.rotting) : leads;
+      const filtered = leads.filter((l) => matchesTracking(l, input, input.actor.isAdmin));
       return { leads: filtered, columns: columnStats(filtered, this.deps.clock.now(), this.deps.eurRates) };
     });
   }
@@ -249,8 +343,36 @@ export class LeadQueries {
         actorIsAdmin: actor.isAdmin,
       });
       const last = events.filter((e) => !e.undoneAt).sort((a, b) => b.sequence - a.sequence)[0];
+      const logs = await repos.contactLogs.listByLead(lead.id);
+      const contactLogs: ContactLogRef[] = logs
+        .map((l) => {
+          const undoUntil = new Date(l.createdAt.getTime() + this.deps.undoWindowMs);
+          const canUndo = actor.isAdmin || (l.actorUserId === actor.userId && undoUntil.getTime() >= now.getTime());
+          return {
+            id: l.id,
+            activityId: l.completedActivityId ?? activities.find((a) => a.logId === l.id)?.id ?? null,
+            createdAt: l.createdAt,
+            undoUntil,
+            canUndo,
+          };
+        })
+        .filter((l) => l.canUndo);
+      const stageLog = last ? logs.find((l) => l.stageChangeId === last.changeId) : undefined;
+      const tracking = leadTracking(
+        lead,
+        events,
+        aggregateContacts(activities),
+        this.deps.timeZone ?? DEFAULT_TIME_ZONE,
+      );
       return ok({
-        lead: { ...lead, ...summarizeActivities(lead.currentStage, activities), ...stageSummary(lead, events) },
+        lead: {
+          ...lead,
+          ...summarizeActivities(lead.currentStage, activities),
+          ...stageSummary(lead, events),
+          ...tracking,
+          warnings: actor.isAdmin ? tracking.warnings : visibleWarnings(tracking.warnings, false),
+        },
+        contactLogs,
         events,
         organization: organization ?? null,
         activities,
@@ -259,6 +381,7 @@ export class LeadQueries {
           ? {
               available: true,
               untilIso: new Date((last?.occurredAt.getTime() ?? 0) + this.deps.undoWindowMs).toISOString(),
+              ...(stageLog ? { contactLogId: stageLog.id } : {}),
             }
           : { available: false, reason: undo.error.code },
       });

@@ -160,6 +160,7 @@ export function webFormSourceAdapter(): SourceAdapter {
       return buildInboundLead({
         source: "web_form",
         provider: WEB_PROVIDER,
+        adSurface: "web",
         platformLeadId: submissionId,
         formId,
         mapped,

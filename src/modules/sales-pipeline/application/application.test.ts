@@ -325,8 +325,9 @@ describe("Aktiviteler (Faz 6a)", () => {
     unwrap(await sp.setActivityDone.execute({ activityId: b.id, done: true, actor: REP }));
     unwrap(await sp.setActivityDone.execute({ activityId: a.id, done: true, actor: REP }));
     expect((await sp.queries.list({ actor: REP }))[0]).toMatchObject({ openActivities: 0, rotting: true });
-    // Yeniden aç.
-    const reopened = unwrap(await sp.setActivityDone.execute({ activityId: a.id, done: false, actor: REP }));
+    // Yeniden aç (Faz 7g: yalnız yönetici, iş emri §4.1).
+    expect((await sp.setActivityDone.execute({ activityId: a.id, done: false, actor: REP })).ok).toBe(false);
+    const reopened = unwrap(await sp.setActivityDone.execute({ activityId: a.id, done: false, actor: ADMIN }));
     expect(reopened.doneAt).toBeNull();
     expect((await sp.queries.list({ actor: REP }))[0]?.rotting).toBe(false);
 
@@ -500,9 +501,14 @@ describe("Fırsat alanları ve pano (Faz 6b)", () => {
   });
 
   it("CreateLead: fırsat alanları girişte doğrulanır", async () => {
-    const r = unwrap(await manual({ courtCount: 2, courtModel: "Panoramic", expectedCloseDate: "2026-09-01" }));
+    // Faz 7g: fırsat alanlarını oluştururken yalnız yönetici verir; satışçıya admin_only.
+    const r = unwrap(
+      await manual({ actor: ADMIN, courtCount: 2, courtModel: "Panoramic", expectedCloseDate: "2026-09-01" }),
+    );
     expect(r.lead).toMatchObject({ courtCount: 2, courtModel: "Panoramic", expectedCloseDate: "2026-09-01" });
-    const bad = await manual({ email: "b@b.co", courtCount: -1 });
+    const rep = await manual({ email: "r@r.co", courtCount: 2 });
+    expect(!rep.ok && rep.error.code).toBe("admin_only");
+    const bad = await manual({ actor: ADMIN, email: "b@b.co", courtCount: -1 });
     expect(!bad.ok && bad.error.code).toBe("lead.court_count_invalid");
   });
 
@@ -663,9 +669,9 @@ describe("Kuruluşlar ve kişiler (Faz 6d)", () => {
     const org = unwrap(
       await sp.createOrganization.execute({ fields: { name: "Kulüp A", country: "TR" }, actor: ADMIN }),
     );
-    const a = unwrap(await manual({ organizationId: org.id })).lead; // rep-1
+    const a = unwrap(await manual({ actor: ADMIN, assignedUserId: "rep-1", organizationId: org.id })).lead; // rep-1
     const b = unwrap(
-      await manual({ email: "b@b.co", phone: "", organizationId: org.id, assignedUserId: "rep-2" }),
+      await manual({ actor: ADMIN, email: "b@b.co", phone: "", organizationId: org.id, assignedUserId: "rep-2" }),
     ).lead;
     unwrap(await manual({ email: "c@c.co", phone: "", country: "DE", assignedUserId: null }));
     await h.uow.run((r) => r.persons.update(a.personId, { organizationId: org.id }));
@@ -721,7 +727,7 @@ describe("Kuruluşlar ve kişiler (Faz 6d)", () => {
       actor: ADMIN,
     });
     expect(!unknownOrg.ok && unknownOrg.error.code).toBe("lead.organization_not_found");
-    const unknownOnCreate = await manual({ email: "z@z.co", phone: "", organizationId: "yok" });
+    const unknownOnCreate = await manual({ actor: ADMIN, email: "z@z.co", phone: "", organizationId: "yok" });
     expect(!unknownOnCreate.ok && unknownOnCreate.error.code).toBe("lead.organization_not_found");
     const detail = unwrap(await sp.queries.get(a.id, REP));
     expect(detail.organization?.name).toBe("Kulüp A");

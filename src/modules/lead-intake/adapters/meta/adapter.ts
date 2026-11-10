@@ -47,6 +47,8 @@ export async function graphLeadToDto(lead: GraphLead, ctx: AdapterContext): Prom
   return buildInboundLead({
     source: "meta_form",
     provider: META_PROVIDER,
+    // Faz 7g: reklam yüzeyi opak kod olarak (ig, fb); etiket yalnız arayüzde.
+    adSurface: lead.platform ? String(lead.platform).toLowerCase() : null,
     platformLeadId: String(lead.id),
     formId,
     mapped,

@@ -44,7 +44,7 @@ const LEAD_PLACEHOLDERS = LEAD_COLS.split(",")
   .map((c, i) => (c.trim() === "checked_warnings" ? `$${i + 1}::text[]` : `$${i + 1}`))
   .join(",");
 
-const FIELD_COLUMN: Record<keyof LeadFields, string> = {
+const FIELD_COLUMN: Record<Exclude<keyof LeadFields, "products">, string> = {
   courtCount: "court_count",
   courtModel: "court_model",
   expectedCloseDate: "expected_close_date",
@@ -53,6 +53,13 @@ const FIELD_COLUMN: Record<keyof LeadFields, string> = {
   productInterest: "product_interest",
   notes: "notes",
   organizationId: "organization_id",
+  // Faz 7g.
+  country: "country",
+  installSite: "install_site",
+  installTimeline: "install_timeline",
+  customerProfile: "customer_profile",
+  courtCountBand: "court_count_band",
+  adSurface: "ad_surface",
 };
 const PERSON_COLS = "id, full_name, email_normalized, phone_e164, country, company, organization_id, created_at";
 
@@ -110,6 +117,12 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
           `(lower(full_name) LIKE ${like} OR lower(coalesce(email,'')) LIKE ${like} OR lower(company) LIKE ${like} OR coalesce(phone_e164,'') LIKE ${like})`,
         );
       }
+      if (f.scope === "excel") where.push("extra_answers ? 'excel_no'");
+      if (f.campaign) where.push(`campaign_name = ${p(f.campaign)}`);
+      const timelines = filterValues(f.installTimeline);
+      if (timelines) where.push(`install_timeline = ANY(${p([...timelines])}::text[])`);
+      if (f.createdFrom) where.push(`created_at >= ${p(f.createdFrom)}`);
+      if (f.createdTo) where.push(`created_at < ${p(f.createdTo)}`);
       const sql = `SELECT ${LEAD_SELECT} FROM leads ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY created_at DESC, id ${
         f.limit ? `LIMIT ${p(f.limit)}` : ""
       }`;
@@ -180,10 +193,25 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
     async updateFields(id, fields, updatedAt) {
       const sets: string[] = [];
       const params: unknown[] = [id, updatedAt];
-      for (const key of Object.keys(FIELD_COLUMN) as (keyof LeadFields)[]) {
+      for (const key of Object.keys(FIELD_COLUMN) as (keyof typeof FIELD_COLUMN)[]) {
         if (!(key in fields)) continue;
         params.push(fields[key] ?? null);
         sets.push(`${FIELD_COLUMN[key]} = $${params.length}`);
+      }
+      // Ürünler altı sütuna açılır (Faz 7g, D4).
+      if (fields.products) {
+        const pr = fields.products;
+        for (const [col, v] of [
+          ["qty_standard", pr.standard],
+          ["qty_panoramic", pr.panoramic],
+          ["qty_full_panoramic", pr.fullPanoramic],
+          ["roof_wanted", pr.roof.wanted],
+          ["roof_width_m", pr.roof.widthM],
+          ["roof_length_m", pr.roof.lengthM],
+        ] as const) {
+          params.push(v);
+          sets.push(`${col} = $${params.length}`);
+        }
       }
       if (!sets.length) return;
       await q.query(`UPDATE leads SET ${sets.join(", ")}, updated_at = $2 WHERE id = $1`, params);
@@ -230,6 +258,31 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
           c.grantedAt,
         ]);
       }
+    },
+    async setCustomerStatus(id, status, updatedAt) {
+      await q.query("UPDATE leads SET customer_status = $2, updated_at = $3 WHERE id = $1", [id, status, updatedAt]);
+    },
+    async setCheckedWarnings(id, codes, updatedAt) {
+      await q.query("UPDATE leads SET checked_warnings = $2::text[], updated_at = $3 WHERE id = $1", [
+        id,
+        [...codes],
+        updatedAt,
+      ]);
+    },
+    async removeExtraAnswerKeys(id, keys, updatedAt) {
+      if (!keys.length) return;
+      await q.query("UPDATE leads SET extra_answers = extra_answers - $2::text[], updated_at = $3 WHERE id = $1", [
+        id,
+        [...keys],
+        updatedAt,
+      ]);
+    },
+    async mergeExtraAnswers(id, patch, updatedAt) {
+      await q.query("UPDATE leads SET extra_answers = extra_answers || $2::jsonb, updated_at = $3 WHERE id = $1", [
+        id,
+        JSON.stringify(patch),
+        updatedAt,
+      ]);
     },
     async findConsents(leadId) {
       return (

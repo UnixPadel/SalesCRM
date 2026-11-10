@@ -1,4 +1,9 @@
-import { parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js";
+import {
+  getCountryCallingCode,
+  isSupportedCountry,
+  parsePhoneNumberFromString,
+  type CountryCode,
+} from "libphonenumber-js";
 import { RuleError, err, ok, type Result } from "../kernel";
 
 /**
@@ -12,6 +17,13 @@ export class PhoneNumber {
     readonly e164: string,
     /** ISO-3166 alpha-2, bilinmiyorsa "" */
     readonly country: string,
+    /**
+     * Numara planına uyuyor mu (Faz 7g, `phone_invalid` uyarısı). `parse` yalnız olası uzunluğu ister;
+     * olası ama geçersiz numara kaydedilir, uyarı ayrıca hesaplanır.
+     */
+    readonly valid: boolean,
+    /** Ülke arama kodu, yalnız rakam ("90"); `phone_country_mismatch` ülkeyi değil bunu karşılaştırır. */
+    readonly callingCode: string,
   ) {}
 
   static parse(raw: string, defaultCountry?: string): Result<PhoneNumber, RuleError> {
@@ -35,7 +47,19 @@ export class PhoneNumber {
         }),
       );
     }
-    return ok(new PhoneNumber(parsed.number, parsed.country ?? ""));
+    return ok(new PhoneNumber(parsed.number, parsed.country ?? "", parsed.isValid(), parsed.countryCallingCode));
+  }
+
+  /**
+   * Ülkenin arama kodu, yalnız rakam ("TR" → "90"); bilinmeyen ya da desteklenmeyen kodda null.
+   * Aynı arama kodunu paylaşan ülkeler (US/CA → "1") eşit sayılır.
+   */
+  static callingCodeFor(country: string | null | undefined): string | null {
+    const cc = String(country ?? "")
+      .trim()
+      .toUpperCase();
+    if (!/^[A-Z]{2}$/.test(cc) || !isSupportedCountry(cc)) return null;
+    return getCountryCallingCode(cc);
   }
 
   /** Meta CAPI biçimi: ülke kodu dahil yalnız rakam. */

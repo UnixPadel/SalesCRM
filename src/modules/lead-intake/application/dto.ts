@@ -61,6 +61,17 @@ export interface InboundLeadDto {
   extraAnswers: Record<string, unknown>;
   /** Platformdaki gönderim zamanı; bilinmiyorsa null. */
   submittedAt: Date | null;
+  /** Faz 7g (D5): form cevaplarından çözülen kodlar; çözülemeyen alan null (ham cevap extraAnswers'ta). */
+  profile?: {
+    installSite: string | null;
+    installTimeline: string | null;
+    customerProfile: string | null;
+    courtCountBand: string | null;
+  };
+  /** Formdaki kesin kort sayısı (aralık değilse). */
+  courtCount?: number | null;
+  /** Reklam yüzeyi, opak kod (`ig`, `fb`, `web`). */
+  adSurface?: string | null;
 }
 
 export type InboxKind = "webhook" | "backfill";

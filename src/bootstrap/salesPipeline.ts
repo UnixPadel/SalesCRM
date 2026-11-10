@@ -20,6 +20,7 @@ import {
   createSalesPipeline,
   type EmailSender,
   type SalesPipeline,
+  type TeamDirectory,
   type UserDirectory,
 } from "../modules/sales-pipeline/application";
 import { createSalesPipelineRouter } from "../modules/sales-pipeline/api";
@@ -68,6 +69,8 @@ export interface BootOptions {
   env?: Env;
   /** Kullanıcı rehberi (ad, e-posta); sunucu şirket kullanıcı tablosundan verir. Yoksa e-posta gönderilmez. */
   users?: UserDirectory;
+  /** Ekip dizini (Faz 7g): Özet rapor satırları, bölge atamasında pasif kullanıcı. Yoksa süzme yapılmaz. */
+  team?: TeamDirectory;
   /** Testler: sahte gönderici. Verilmezse SMTP_HOST varsa SMTP, yoksa yalnız log. */
   email?: EmailSender;
 }
@@ -120,6 +123,8 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
     logger,
     undoWindowMs: config.undoWindowMinutes * 60_000,
     eurRates,
+    team: opts.team,
+    policy: { repsEditProducts: config.repsEditProducts },
   });
   const router = createSalesPipelineRouter({
     pipeline,
@@ -128,6 +133,7 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
     logger,
     undoWindowMinutes: config.undoWindowMinutes,
     eurRates,
+    policy: { repsEditProducts: config.repsEditProducts },
     actorOf: (req: Request) => actorFromSession((req as Request & { session?: SessionLike }).session),
   });
   logger.info("sales-pipeline hazır", {

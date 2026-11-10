@@ -4,7 +4,7 @@
  * hatası lead akışını bozmaz; loglanır (olaylar transaction sonrası yayınlanır).
  */
 import type { Clock, IdGenerator, Logger } from "../../shared/kernel";
-import type { DomainEvent, DomainEventPublisher, Lead, UnitOfWork } from "../domain";
+import { isHotLead, type DomainEvent, type DomainEventPublisher, type Lead, type UnitOfWork } from "../domain";
 import type { Actor } from "./types";
 
 export type NotificationType = "lead_assigned";
@@ -91,7 +91,7 @@ export class LeadNotifier implements DomainEventPublisher {
       userId,
       type: "lead_assigned",
       leadId: lead.id,
-      title: `Yeni lead: ${lead.fullName}`,
+      title: `${titlePrefix(lead)}: ${lead.fullName}`,
       body: JSON.stringify(bodyOf(lead)),
       createdAt: now,
       readAt: null,
@@ -120,13 +120,16 @@ export class LeadNotifier implements DomainEventPublisher {
       "Bu ileti Unixpadel CRM tarafından otomatik gönderildi.",
     ];
     try {
-      await email.send({ to: user.email, subject: `Yeni lead: ${lead.fullName}`, text: lines.join("\n") });
+      await email.send({ to: user.email, subject: `${titlePrefix(lead)}: ${lead.fullName}`, text: lines.join("\n") });
       logger.info("e-posta bildirimi gönderildi", { leadId: lead.id, userId });
     } catch (err: unknown) {
       logger.warn("e-posta bildirimi gönderilemedi", { leadId: lead.id, userId, error: err });
     }
   }
 }
+
+/** Faz 7g (§4.8): kurulumu "3 ay içinde" olan açık lead "Sıcak lead:" ile başlar; başka değişiklik yok. */
+export const titlePrefix = (lead: Lead): string => (isHotLead(lead) ? "Sıcak lead" : "Yeni lead");
 
 export const bodyOf = (lead: Lead) => ({
   leadName: lead.fullName,

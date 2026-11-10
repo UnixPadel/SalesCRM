@@ -2,9 +2,18 @@
  * API sözleşmesi: arayüz yalnız bu tipleri bilir. Tarihler ISO metin; para { amount, currency }.
  * Bu dosya tarayıcı tarafından da import edilir (tip olarak); Node'a bağımlılığı yoktur.
  */
-export type StageCodeDto = "NEW" | "CONTACTED" | "QUALIFIED" | "PROPOSAL" | "WON" | "LOST";
-export type LeadSourceDto = "meta_form" | "google_form" | "web_form" | "manual" | "import";
-export type StageEventOriginDto = "manual" | "auto_fill" | "system";
+import type {
+  ActivityOutcomeDto,
+  ActivityTypeDto,
+  LeadSourceDto,
+  StageCodeDto,
+  StageEventOriginDto,
+} from "./dto.codes";
+import type { ContactLogRefDto, LeadTrackingDto, TrackingReferenceDto } from "./dto.tracking";
+
+export type * from "./dto.codes";
+// Faz 7g okuma sözleşmesi (yaprak + bu dosyanın kullandıkları); temas kaydı yazma sözleşmesi `dto.contact.ts`'te.
+export type * from "./dto.tracking";
 
 export interface LeadDto {
   id: string;
@@ -153,11 +162,6 @@ export interface StageEventDto {
   undoneAt: string | null;
 }
 
-export type ActivityTypeDto = "call" | "email" | "whatsapp" | "meeting" | "proposal_sent" | "site_visit" | "other";
-/** Temas sonucu (Faz 7g). */
-export type ActivityOutcomeDto =
-  "reply_received" | "awaiting_reply" | "proposal_sent" | "follow_up" | "negative" | "agreed";
-
 export interface ActivityDto {
   id: string;
   leadId: string;
@@ -182,8 +186,8 @@ export interface ActivityDto {
   nextOfLogId: string | null;
 }
 
-/** Liste ve detaydaki lead: aktivite özetiyle. Komut yanıtları yalın LeadDto döner. */
-export interface LeadListDto extends LeadDto {
+/** Liste ve detaydaki lead: aktivite özeti ve satış takip bilgisiyle (Faz 7g). Komut yanıtları yalın LeadDto döner. */
+export interface LeadListDto extends LeadDto, LeadTrackingDto {
   openActivities: number;
   nextActivity: { id: string; type: ActivityTypeDto; subject: string; dueAt: string } | null;
   /** Açık aşamada, açık aktivitesi yok (kural 1). */
@@ -221,6 +225,14 @@ export interface UpdateLeadBody {
   notes?: string | null;
   /** Kuruluş bağı; null bağı kaldırır. */
   organizationId?: string | null;
+  /** Faz 7g (yönetici; satışçıya ürünler yalnız `permissions.repsEditProducts` açıkken). */
+  country?: string | null;
+  products?: ProductPrefsDto;
+  installSite?: InstallSiteDto | null;
+  installTimeline?: InstallTimelineDto | null;
+  customerProfile?: CustomerProfileDto | null;
+  courtCountBand?: CourtCountBandDto | null;
+  adSurface?: string | null;
 }
 
 export interface LeadDetailDto {
@@ -229,7 +241,10 @@ export interface LeadDetailDto {
   events: StageEventDto[];
   activities: ActivityDto[];
   allowedTransitions: StageCodeDto[];
-  undo: { available: boolean; reason?: string; untilIso?: string };
+  /** `contactLogId`: son aşama değişikliği temas kaydıyla yapıldıysa o kayıt; Geri al ikisini birlikte alır. */
+  undo: { available: boolean; reason?: string; untilIso?: string; contactLogId?: string | null };
+  /** Geri alınabilir temas kayıtları (Faz 7g). */
+  contactLogs: ContactLogRefDto[];
 }
 
 export interface AddActivityBody {
@@ -253,6 +268,9 @@ export interface TodayItemDto {
     country: string | null;
     currentStage: StageCodeDto;
     assignedUserId: string | null;
+    /** Son temasın sonucu ve kanalı (Faz 7g). */
+    lastOutcome?: ActivityOutcomeDto | null;
+    lastType?: ActivityTypeDto | null;
   };
 }
 
@@ -282,9 +300,11 @@ export interface TodayDto {
   overdue: TodayItemDto[];
   today: TodayItemDto[];
   upcoming: TodayItemDto[];
+  /** Faz 7g: hiç ulaşılmamış sıcak lead sayısı (= /leads?hot=1&contact=never). */
+  hotUncontacted: number;
 }
 
-export interface ReferenceDto {
+export interface ReferenceDto extends TrackingReferenceDto {
   stages: {
     code: StageCodeDto;
     nameTr: string;
@@ -317,6 +337,13 @@ export interface CreateLeadBody {
   /** Yalnız admin: belirli bir satışçıya ata ya da null ile havuza bırak. */
   assignedUserId?: string | null;
   isTest?: boolean;
+  /** Faz 7g: müşteri durumu (satışçı da verir); ürün ve form cevapları yalnız yönetici. */
+  customerStatus?: CustomerStatusDto | null;
+  products?: ProductPrefsDto;
+  installSite?: InstallSiteDto | null;
+  installTimeline?: InstallTimelineDto | null;
+  customerProfile?: CustomerProfileDto | null;
+  courtCountBand?: CourtCountBandDto | null;
 }
 
 export interface ChangeStageBody {

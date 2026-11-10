@@ -5,10 +5,15 @@ import {
   EMPTY_CAMPAIGN,
   PlatformLeadId,
   emptyTrackingFields,
+  hasAnyProduct,
   hasAttribution,
+  isCustomerStatus,
+  isTerminal,
   parseConsents,
   parseLeadFields,
+  parseLeadFieldsLenient,
   resolveAssignee,
+  type LeadFields,
   type CampaignInfo,
   type ConsentInput,
   type DomainEvent,
@@ -20,7 +25,29 @@ import {
   type Repositories,
   type StageEvent,
 } from "../domain";
+import { ADMIN_ONLY } from "./permissions";
 import type { Actor, UseCaseDeps } from "./types";
+
+/**
+ * Satışçının lead açarken verebildiği alanlar (Faz 7g, 7e ile tutarlı): ad, e-posta, telefon, ülke ve bunlar.
+ * Fırsat alanları, ürünler, form cevapları ve sorumlu yöneticinindir (`admin_only`).
+ */
+export const REP_CREATABLE_LEAD_FIELDS = ["notes", "company", "city", "productInterest", "customerStatus"] as const;
+
+/** Satışçıya kapalı oluşturma alanları (dolu verilmişse). */
+const REP_FORBIDDEN_CREATE = [
+  "courtCount",
+  "courtModel",
+  "expectedCloseDate",
+  "organizationId",
+  "installSite",
+  "installTimeline",
+  "customerProfile",
+  "courtCountBand",
+  "adSurface",
+] as const;
+
+const isBlank = (v: unknown) => v === undefined || v === null || (typeof v === "string" && v.trim() === "");
 
 export interface CreateLeadInput {
   source: LeadSource;
@@ -57,6 +84,26 @@ export interface CreateLeadInput {
   assignedUserId?: string | null;
   /** Elle açan kişi; webhook akışında yok. */
   actor?: Actor | null;
+  /** Faz 7g: müşteri durumu (D1). */
+  customerStatus?: unknown;
+  /** Ürün tercihleri (D4) ve form cevapları (D5). */
+  products?: unknown;
+  installSite?: unknown;
+  installTimeline?: unknown;
+  customerProfile?: unknown;
+  courtCountBand?: unknown;
+  adSurface?: unknown;
+  /** "lenient" (intake, içe aktarma): geçersiz kod lead'i durdurmaz, alan düşer (`extraAnswers.dropped_fields`). */
+  parseMode?: "strict" | "lenient";
+  /** "drop": bozuk telefon + geçerli e-posta → telefon boş, ham değer `extraAnswers.phone_raw`. */
+  invalidPhone?: "reject" | "drop";
+  /** Temas geçmişi bilinmeyen eski kayıt (eski liste aktarımı). */
+  contactHistoryUnknown?: boolean;
+  /**
+   * Intake: eşleşen kişinin Excel'den gelen açık lead'i varsa ve kampanya aynı ya da boşsa yeni lead açılmaz; boş
+   * alanlar doldurulur, platform kimliği yazılır [M-I12][K-M15].
+   */
+  adoptImportLead?: boolean;
 }
 
 export interface CreateLeadResult {
@@ -65,6 +112,8 @@ export interface CreateLeadResult {
   created: boolean;
   /** true: kişi e-posta/telefonla eşleşti, yeni lead mevcut kişiye bağlandı. */
   personMatched: boolean;
+  /** true: Excel'den gelen açık lead benimsendi (yeni lead açılmadı). */
+  adopted?: boolean;
 }
 
 /**
@@ -91,10 +140,12 @@ export class CreateLead {
       email = r.value;
     }
     let phone: PhoneNumber | null = null;
+    let phoneRaw: string | null = null;
     if ((input.phone ?? "").trim()) {
       const r = PhoneNumber.parse(input.phone ?? "", country ?? undefined);
-      if (!r.ok) return r;
-      phone = r.value;
+      if (r.ok) phone = r.value;
+      else if (input.invalidPhone === "drop" && email) phoneRaw = String(input.phone).trim().slice(0, 64);
+      else return r;
     }
     if (!email && !phone) {
       return err(new RuleError("lead.contact_required", "E-posta ya da telefon zorunlu.", {}));
@@ -116,14 +167,64 @@ export class CreateLead {
     const consentsR = parseConsents(input.consents ?? []);
     if (!consentsR.ok) return consentsR;
     const consentInputs = consentsR.value;
-    const fieldsR = parseLeadFields({
+
+    // Faz 7g: satışçı oluştururken fırsat alanı, ürün ya da form cevabı veremez (7e ile tutarlı).
+    if (input.actor && !input.actor.isAdmin) {
+      const given = REP_FORBIDDEN_CREATE.filter((k) => !isBlank(input[k]));
+      const products = input.products as Parameters<typeof hasAnyProduct>[0] | undefined;
+      if (
+        products &&
+        typeof products === "object" &&
+        hasAnyProduct({ ...products, roof: products.roof ?? { wanted: false, widthM: null, lengthM: null } })
+      ) {
+        given.push("products" as never);
+      }
+      // Sorumlu alanını api katmanı yalnız yöneticiden geçirir; burada yalnız alanlar denetlenir.
+      if (given.length) {
+        return err(
+          new RuleError(ADMIN_ONLY, "Bu alanları yalnız yönetici girebilir.", { what: "lead_create", fields: given }),
+        );
+      }
+    }
+    if (input.customerStatus !== undefined && input.customerStatus !== null && input.customerStatus !== "") {
+      if (!isCustomerStatus(input.customerStatus)) {
+        if (input.parseMode !== "lenient") {
+          return err(
+            new RuleError("lead.customer_status", "Müşteri durumu listede yok.", {
+              customerStatus: input.customerStatus,
+            }),
+          );
+        }
+      }
+    }
+    const customerStatus = isCustomerStatus(input.customerStatus) ? input.customerStatus : null;
+    const rawFields: Record<string, unknown> = {
       courtCount: input.courtCount ?? null,
       courtModel: input.courtModel ?? "",
       expectedCloseDate: input.expectedCloseDate ?? null,
       organizationId: input.organizationId ?? null,
-    });
-    if (!fieldsR.ok) return fieldsR;
-    const fields = fieldsR.value;
+    };
+    for (const k of [
+      "products",
+      "installSite",
+      "installTimeline",
+      "customerProfile",
+      "courtCountBand",
+      "adSurface",
+    ] as const) {
+      if (input[k] !== undefined) rawFields[k] = input[k];
+    }
+    let fields: Partial<LeadFields>;
+    const dropped: { key: string; raw: unknown }[] = [];
+    if (input.parseMode === "lenient") {
+      const r = parseLeadFieldsLenient(rawFields);
+      fields = r.fields;
+      dropped.push(...r.dropped);
+    } else {
+      const fieldsR = parseLeadFields(rawFields);
+      if (!fieldsR.ok) return fieldsR;
+      fields = fieldsR.value;
+    }
     if (fields.organizationId) {
       const org = await this.deps.uow.run((r) => r.organizations.findById(fields.organizationId!));
       if (!org) {
@@ -136,10 +237,27 @@ export class CreateLead {
     }
 
     const { clock, ids, platforms, uow } = this.deps;
+    const unavailable = (await this.deps.team?.inactiveUserIds?.()) ?? null;
+    const extraAnswers: Record<string, unknown> = { ...(input.extraAnswers ?? {}) };
+    if (phoneRaw) extraAnswers["phone_raw"] = phoneRaw;
+    if (dropped.length)
+      extraAnswers["dropped_fields"] = dropped.map((d) => ({ key: d.key, raw: String(d.raw).slice(0, 200) }));
+
     const outcome = await uow.run(async (repos): Promise<CreateLeadResult & { domainEvents: DomainEvent[] }> => {
       if (platformId) {
         const existing = await repos.leads.findByPlatformId(input.source, platformId.value);
         if (existing) return { lead: existing, created: false, personMatched: false, domainEvents: [] };
+      }
+      if (input.adoptImportLead) {
+        const adopted = await this.adopt(repos, {
+          email,
+          phone,
+          campaignName: input.campaign?.campaignName ?? null,
+          platformLeadId: platformId?.value ?? null,
+          fields,
+          extraAnswers,
+        });
+        if (adopted) return { lead: adopted, created: false, personMatched: true, adopted: true, domainEvents: [] };
       }
 
       const now = clock.now();
@@ -154,7 +272,7 @@ export class CreateLead {
         company: input.company ?? "",
         now,
       });
-      const assignedUserId = await this.resolveAssignment(repos, input, country);
+      const assignedUserId = await this.resolveAssignment(repos, input, country, unavailable);
 
       const lead: Lead = {
         id: ids.next(),
@@ -174,13 +292,21 @@ export class CreateLead {
         currentStage: "NEW",
         isTest: input.isTest ?? false,
         notes: (input.notes ?? "").trim(),
-        extraAnswers: input.extraAnswers ?? {},
+        extraAnswers,
         courtCount: fields.courtCount ?? null,
         courtModel: fields.courtModel ?? "",
         expectedCloseDate: fields.expectedCloseDate ?? null,
         organizationId: fields.organizationId ?? null,
-        // Satış takip alanları (Faz 7g): oluşturma girdileri S5'te gelir; şimdilik boş.
+        // Satış takip alanları (Faz 7g).
         ...emptyTrackingFields(),
+        customerStatus,
+        ...(fields.products ? { products: fields.products } : {}),
+        installSite: fields.installSite ?? null,
+        installTimeline: fields.installTimeline ?? null,
+        customerProfile: fields.customerProfile ?? null,
+        courtCountBand: fields.courtCountBand ?? null,
+        adSurface: fields.adSurface ?? null,
+        contactHistoryUnknown: input.contactHistoryUnknown === true,
         createdAt,
         updatedAt: now,
       };
@@ -247,13 +373,62 @@ export class CreateLead {
     });
 
     if (outcome.domainEvents.length) await this.deps.events.publish(outcome.domainEvents);
-    this.deps.logger.info(outcome.created ? "lead oluşturuldu" : "lead zaten vardı", {
-      leadId: outcome.lead.id,
-      source: input.source,
+    this.deps.logger.info(
+      outcome.adopted ? "Excel lead'i benimsendi" : outcome.created ? "lead oluşturuldu" : "lead zaten vardı",
+      {
+        leadId: outcome.lead.id,
+        source: input.source,
+        personMatched: outcome.personMatched,
+        assignedUserId: outcome.lead.assignedUserId,
+      },
+    );
+    return ok({
+      lead: outcome.lead,
+      created: outcome.created,
       personMatched: outcome.personMatched,
-      assignedUserId: outcome.lead.assignedUserId,
+      ...(outcome.adopted ? { adopted: true } : {}),
     });
-    return ok({ lead: outcome.lead, created: outcome.created, personMatched: outcome.personMatched });
+  }
+
+  /**
+   * Excel'den gelen açık lead'i benimseme: aynı kişi, `extra_answers.excel_no` var, aşama açık, kampanya aynı ya da
+   * boş. Boş alanlar doldurulur (esnek), platform kimliği `extra_answers.platform_lead_id`'ye yazılır.
+   */
+  private async adopt(
+    repos: Repositories,
+    a: {
+      email: Email | null;
+      phone: PhoneNumber | null;
+      campaignName: string | null;
+      platformLeadId: string | null;
+      fields: Partial<LeadFields>;
+      extraAnswers: Record<string, unknown>;
+    },
+  ): Promise<Lead | null> {
+    const person = await repos.persons.findByEmailOrPhone(a.email?.value ?? null, a.phone?.e164 ?? null);
+    if (!person) return null;
+    const candidates = (await repos.leads.list({ personId: person.id, includeTest: true })).filter(
+      (l) =>
+        "excel_no" in l.extraAnswers &&
+        !isTerminal(l.currentStage) &&
+        (!l.campaign.campaignName || !a.campaignName || l.campaign.campaignName === a.campaignName),
+    );
+    const lead = candidates[0];
+    if (!lead) return null;
+    const now = this.deps.clock.now();
+    const fill: Partial<LeadFields> = {};
+    for (const k of ["installSite", "installTimeline", "customerProfile", "courtCountBand", "adSurface"] as const) {
+      if (lead[k] === null && a.fields[k] != null) (fill as Record<string, unknown>)[k] = a.fields[k];
+    }
+    if (lead.courtCount === null && a.fields.courtCount != null && !hasAnyProduct(lead.products)) {
+      fill.courtCount = a.fields.courtCount;
+    }
+    if (Object.keys(fill).length) await repos.leads.updateFields(lead.id, fill, now);
+    if (a.platformLeadId) {
+      // extra_answers'a yalnız ekleme: kaldırma metodu var, ekleme alan güncellemesiyle değil kimlik kaydıyla yapılır.
+      await repos.leads.mergeExtraAnswers(lead.id, { platform_lead_id: a.platformLeadId }, now);
+    }
+    return { ...lead, ...fill, updatedAt: now };
   }
 
   private async findOrCreatePerson(
@@ -283,14 +458,18 @@ export class CreateLead {
     return { person, matched: false };
   }
 
-  /** Öncelik: açık atama > elle açan satışçı (admin değilse) > ülke kuralı > havuz. */
+  /**
+   * Öncelik: açık atama > elle açan satışçı (admin değilse) > ülke kuralı > havuz. Faz 7g (D7): pasif kural
+   * kullanıcısı atlanır (yedeğe ya da havuza); dizin bilinmiyorsa (null) süzme yapılmaz (fail-open).
+   */
   private async resolveAssignment(
     repos: Repositories,
     input: CreateLeadInput,
     country: string | null,
+    unavailable: ReadonlySet<string> | null,
   ): Promise<string | null> {
     if (input.assignedUserId !== undefined) return input.assignedUserId;
     if (input.actor && !input.actor.isAdmin) return input.actor.userId;
-    return resolveAssignee(country, await repos.territories.all());
+    return resolveAssignee(country, await repos.territories.all(), unavailable ?? new Set());
   }
 }

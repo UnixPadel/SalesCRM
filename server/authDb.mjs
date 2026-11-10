@@ -106,6 +106,29 @@ export async function listTeam() {
     .filter((r) => r.role !== "viewer");
 }
 
+/**
+ * Whole user table for name display and owner matching (Faz 7g): [{ id, login, email, first, last, role, active }].
+ * Inactive users are included (past owners keep their name). No password and no phone leave this function.
+ */
+export async function listDirectory() {
+  const d = await connect();
+  const q = d.quote;
+  const rows = await d.query(
+    `select ${q(COL.id)} as id, ${q(COL.user)} as login, ${q(COL.email)} as email, ${q(COL.first)} as first, ${q(COL.last)} as last, ${q(COL.role)} as role, ${q(COL.active)} as active
+       from ${q(TABLE)} order by ${q(COL.first)}`,
+  );
+  return rows.map((r) => ({
+    id: String(r.id ?? r.login ?? ""),
+    login: String(r.login ?? ""),
+    email: String(r.email ?? "").toLowerCase(),
+    first: String(r.first ?? "").trim(),
+    last: String(r.last ?? "").trim(),
+    role: roleKind(r.role),
+    roleLabel: String(r.role ?? ""),
+    active: String(r.active ?? "").toLowerCase() === ACTIVE_VALUE,
+  }));
+}
+
 /** Quick connectivity + column check for the startup log. Returns the row count. */
 export async function checkTable() {
   const d = await connect();

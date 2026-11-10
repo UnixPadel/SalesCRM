@@ -198,7 +198,8 @@ describe("fields → InboundLeadDto", () => {
     expect(dto.submittedAt).toBeNull();
     expect(Object.values(dto.attribution).every((v) => v === null)).toBe(true);
     expect(dto.consents).toEqual([]);
-    expect(dto.extraAnswers).toEqual({});
+    // Faz 7g (D6): ülke formda yoktu, yerel numara varsayılan ülke koduyla okundu → köken işaretleri.
+    expect(dto.extraAnswers).toEqual({ country_source: "phone", dial_code_assumed: "+90" });
   });
 
   it("tanınmayan alanlar ek yanıt olur (dizi korunur, nesne JSON); honeypot alanı sızmaz; bozuk tarih null", async () => {

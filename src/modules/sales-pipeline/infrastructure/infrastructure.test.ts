@@ -342,7 +342,7 @@ describe("Postgres repository'leri + transaction", () => {
     expect((await uow.run((r) => r.organizations.list({ search: "padel" }))).map((o) => o.id)).toEqual([org.id]);
     expect(await uow.run((r) => r.organizations.list({ country: "DE" }))).toEqual([]);
 
-    const a = unwrap(await manual({ organizationId: org.id })).lead;
+    const a = unwrap(await manual({ actor: ADMIN, assignedUserId: REP.userId, organizationId: org.id })).lead;
     expect(a.organizationId).toBe(org.id);
     const people = await uow.run((r) => r.persons.list({ search: "ayse@" }));
     expect(people).toHaveLength(1);

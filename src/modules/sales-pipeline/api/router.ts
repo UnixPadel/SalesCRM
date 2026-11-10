@@ -2,17 +2,12 @@ import { Router, type Request, type Response } from "express";
 import type { Db } from "../../shared/db";
 import { RuleError, isAppError, type Logger, type Result } from "../../shared/kernel";
 import type { Actor, ActivityWithLead, Notification, NotificationQueries, SalesPipeline } from "../application";
-import {
-  DEFAULT_EUR_RATES,
-  QUALIFICATION_QUESTIONS,
-  isLeadSource,
-  isStageCode,
-  type Activity,
-  type EurRates,
-} from "../domain";
+import { DEFAULT_EUR_RATES, QUALIFICATION_QUESTIONS, isStageCode, type EurRates } from "../domain";
 import { readLostReasons, readStageDefinitions } from "../infrastructure";
+import { registerContactRoutes } from "./contactRoutes";
+import { parseLeadFilter, registerTrackingRoutes, trackingReference } from "./trackingRoutes";
+import { activityDto } from "./mappers";
 import type {
-  ActivityDto,
   AddActivityBody,
   ApiErrorDto,
   AssignBody,
@@ -43,6 +38,10 @@ export interface RouterDeps {
   undoWindowMinutes: number;
   /** Pano toplamları için kurlar; arayüze de verilir. */
   eurRates?: EurRates | undefined;
+  /** Yetki anahtarları (Faz 7g, D4); arayüze `/reference.permissions` olarak gider. */
+  policy?: { repsEditProducts: boolean } | undefined;
+  /** Satış ekibinin saat dilimi; verilmezse Europe/Istanbul. */
+  timeZone?: string | undefined;
   /** Oturumdan kişiyi çıkarır; yoksa undefined (401). `readOnly` görüntüleyici rolü. */
   actorOf(req: Request): (Actor & { readOnly: boolean }) | undefined;
 }
@@ -72,6 +71,10 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
     return sendError(res, result.error);
   };
 
+  // Faz 7g: temas kaydı uçları ayrı dosyada (iş emri §4.4).
+  registerContactRoutes(r, { pipeline, actor, send, sendError });
+  registerTrackingRoutes(r, { pipeline, actor, sendError });
+
   r.get("/reference", async (req, res) => {
     if (!actor(req, res, false)) return;
     const [stages, lostReasons] = await Promise.all([readStageDefinitions(deps.db), readLostReasons(deps.db)]);
@@ -89,6 +92,7 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
       currencies: CURRENCIES,
       undoWindowMinutes: deps.undoWindowMinutes,
       eurRates: { ...(deps.eurRates ?? DEFAULT_EUR_RATES) },
+      ...trackingReference(deps.policy ?? { repsEditProducts: false }, deps.timeZone),
     };
     res.json(body);
   });
@@ -96,39 +100,18 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
   r.get("/leads", async (req, res) => {
     const a = actor(req, res, false);
     if (!a) return;
-    const stage =
-      typeof req.query["stage"] === "string" && isStageCode(req.query["stage"]) ? req.query["stage"] : undefined;
-    const search = typeof req.query["q"] === "string" ? req.query["q"].trim() || undefined : undefined;
+    // Faz 7g: ortak süzgeç (Lead listesi başlık menüleri, rapor hücresinden açılan liste).
     const limit = Math.min(Number(req.query["limit"]) || 500, 2000);
-    const sourceQ = req.query["source"];
-    res.json(
-      await pipeline.queries.list({
-        actor: a,
-        stage,
-        search,
-        source: isLeadSource(sourceQ) ? sourceQ : undefined,
-        includeTest: req.query["includeTest"] === "1",
-        limit,
-      }),
-    );
+    res.json(await pipeline.queries.list({ actor: a, ...parseLeadFilter(req.query, a), limit }));
   });
 
   // Pano (Faz 6b): filtreler sorgu parametresi; kolon istatistikleri aynı filtrelenmiş kümeden.
   r.get("/board", async (req, res) => {
     const a = actor(req, res, false);
     if (!a) return;
-    const ownerQ = typeof req.query["owner"] === "string" ? req.query["owner"].trim() : "";
-    const owner = ownerQ === "" ? undefined : ownerQ === "pool" ? null : ownerQ === "me" ? a.userId : ownerQ;
-    const countryQ = typeof req.query["country"] === "string" ? req.query["country"].trim().toUpperCase() : "";
-    const sourceQ = req.query["source"];
-    const board = await pipeline.queries.board({
-      actor: a,
-      owner,
-      country: /^[A-Z]{2}$/.test(countryQ) ? countryQ : undefined,
-      source: isLeadSource(sourceQ) ? sourceQ : undefined,
-      rotting: req.query["rotting"] === "1",
-      includeTest: req.query["includeTest"] === "1",
-    });
+    // Aşama süzgeci panoda yok (kolonlar aşamadır).
+    const { stage: _stage, ...filter } = parseLeadFilter(req.query, a);
+    const board = await pipeline.queries.board({ actor: a, ...filter });
     res.json(board as unknown as BoardDto);
   });
 
@@ -157,6 +140,13 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
       expectedCloseDate: b.expectedCloseDate ?? null,
       organizationId: b.organizationId ?? null,
       isTest: b.isTest === true,
+      // Faz 7g: durum (satışçı da verir), ürün ve form cevapları (yalnız yönetici; kural application'da).
+      ...(b.customerStatus !== undefined ? { customerStatus: b.customerStatus } : {}),
+      ...(b.products !== undefined ? { products: b.products } : {}),
+      ...(b.installSite !== undefined ? { installSite: b.installSite } : {}),
+      ...(b.installTimeline !== undefined ? { installTimeline: b.installTimeline } : {}),
+      ...(b.customerProfile !== undefined ? { customerProfile: b.customerProfile } : {}),
+      ...(b.courtCountBand !== undefined ? { courtCountBand: b.courtCountBand } : {}),
       actor: a,
       ...(a.isAdmin && b.assignedUserId !== undefined ? { assignedUserId: b.assignedUserId } : {}),
     };
@@ -256,7 +246,15 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
   r.post("/leads/:id/undo", async (req, res) => {
     const a = actor(req, res, true);
     if (!a) return;
-    send(res, await pipeline.undoStageChange.execute({ leadId: String(req.params["id"]), actor: a }));
+    const b = (req.body ?? {}) as { changeId?: unknown };
+    send(
+      res,
+      await pipeline.undoStageChange.execute({
+        leadId: String(req.params["id"]),
+        actor: a,
+        changeId: typeof b.changeId === "string" && b.changeId ? b.changeId : undefined,
+      }),
+    );
   });
 
   r.post("/leads/:id/assign", async (req, res) => {
@@ -302,6 +300,7 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
       overdue: list.overdue.map(todayItemDto),
       today: list.today.map(todayItemDto),
       upcoming: list.upcoming.map(todayItemDto),
+      hotUncontacted: list.hotUncontacted,
     });
   });
 
@@ -367,28 +366,6 @@ const parseBody = (raw: string): Record<string, unknown> => {
   }
 };
 
-function activityDto(a: Activity): ActivityDto {
-  return {
-    id: a.id,
-    leadId: a.leadId,
-    type: a.type,
-    subject: a.subject,
-    dueAt: a.dueAt.toISOString(),
-    doneAt: a.doneAt === null ? null : a.doneAt.toISOString(),
-    notes: a.notes,
-    autoCreated: a.autoCreated,
-    createdByUserId: a.createdByUserId,
-    createdAt: a.createdAt.toISOString(),
-    outcome: a.outcome,
-    customerReplied: a.customerReplied,
-    resultNote: a.resultNote,
-    doneByUserId: a.doneByUserId,
-    dateEstimated: a.dateEstimated,
-    logId: a.logId,
-    nextOfLogId: a.nextOfLogId,
-  };
-}
-
 function todayItemDto(x: ActivityWithLead): TodayItemDto {
   return {
     activity: activityDto(x.activity),
@@ -399,6 +376,8 @@ function todayItemDto(x: ActivityWithLead): TodayItemDto {
       country: x.lead.country,
       currentStage: x.lead.currentStage,
       assignedUserId: x.lead.assignedUserId,
+      lastOutcome: x.lastOutcome ?? null,
+      lastType: x.lastType ?? null,
     },
   };
 }

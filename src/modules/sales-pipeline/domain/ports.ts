@@ -1,4 +1,6 @@
-import type { Activity, ContactLog } from "./activity";
+import type { Activity, ActivityOutcome, ActivityType, ContactLog } from "./activity";
+import type { ContactAggregateRow } from "./contact";
+import type { CustomerStatus, InstallTimeline } from "./leadProfile";
 import type { TerritoryRule } from "./assignment";
 import type { DomainEvent } from "./events";
 import type { Lead, LeadAttribution, LeadConsent, LeadSource, Person, StageEvent } from "./lead";
@@ -27,6 +29,15 @@ export interface LeadListFilter {
   includeTest?: boolean | undefined;
   search?: string | undefined;
   limit?: number | undefined;
+  /** Faz 7g: "excel" = Excel satış takip listesinden gelenler (`extra_answers ? 'excel_no'`). */
+  scope?: "excel" | undefined;
+  /** Kampanya adı, tam eşleşme. */
+  campaign?: string | undefined;
+  /** Kurulum zamanı (Sıcak lead ön süzgeci). */
+  installTimeline?: InstallTimeline | readonly InstallTimeline[] | undefined;
+  /** Lead oluşturulma anı: alt (dahil) ve üst (hariç) sınır. */
+  createdFrom?: Date | undefined;
+  createdTo?: Date | undefined;
 }
 
 export interface LeadRepository {
@@ -50,6 +61,14 @@ export interface LeadRepository {
   /** Onay kayıtları (1:N, yalnız ekleme); lead ile aynı transaction'da yazılır. */
   saveConsents(consents: readonly LeadConsent[]): Promise<void>;
   findConsents(leadId: string): Promise<LeadConsent[]>;
+  /** Müşteri durumu (Faz 7g, D1): aşamadan bağımsız; null = "Durum girilmedi". */
+  setCustomerStatus(id: string, status: CustomerStatus | null, updatedAt: Date): Promise<void>;
+  /** Yöneticinin "Kontrol edildi" dediği uyarı kodları; liste olduğu gibi yazılır. */
+  setCheckedWarnings(id: string, codes: readonly string[], updatedAt: Date): Promise<void>;
+  /** `extra_answers` içinden anahtar siler (ülke/telefon düzeltilince köken bilgisi). */
+  removeExtraAnswerKeys(id: string, keys: readonly string[], updatedAt: Date): Promise<void>;
+  /** `extra_answers`'a anahtar ekler ya da günceller (içe aktarma, Excel lead'inin benimsenmesi). */
+  mergeExtraAnswers(id: string, patch: Record<string, unknown>, updatedAt: Date): Promise<void>;
 }
 
 export interface PersonListFilter {
@@ -131,12 +150,52 @@ export interface ActivityRepository {
   removeAutoCreatedByChange(changeId: string): Promise<number>;
   /** Taşıma: eski kimlikle daha önce açılmış mı. */
   findByLegacyId(legacyId: string): Promise<Activity | undefined>;
+  /** Planı temasla tamamlar (Faz 7g): tür, sonuç, not ve kayıt bağı aynı satıra yazılır. */
+  complete(id: string, patch: ActivityCompletion, updatedAt: Date): Promise<void>;
+  /** Tamamlanmışı yeniden açar: temas alanları temizlenir, tür ve konu verilen değere döner. */
+  reopen(id: string, back: { type: ActivityType; subject: string }, updatedAt: Date): Promise<void>;
+  /** Temas kaydının eklediği satırlar (`log_id = logId`), `exceptId` hariç; silinen sayısı. */
+  removeCreatedByLog(logId: string, exceptId: string | null): Promise<number>;
+  /** Temas kaydının açık "sonraki takip"i (`next_of_log_id = logId AND done_at IS NULL`); silinen sayısı. */
+  removeOpenNextOfLog(logId: string): Promise<number>;
+  /** Lead başına temas toplamı; SQL `GROUP BY` ile `aggregateContacts` aynı anahtarı kullanır. */
+  contactAggregatesByLeads(leadIds: readonly string[]): Promise<ContactAggregateRow[]>;
+  /** Temas geçmişi: tamamlanmış satırlar `(done_at DESC, id DESC)` anahtar kümesiyle. */
+  listDone(filter: DoneActivityFilter): Promise<Activity[]>;
+}
+
+export interface ActivityCompletion {
+  doneAt: Date;
+  type: ActivityType;
+  outcome: ActivityOutcome;
+  customerReplied: boolean;
+  resultNote: string;
+  doneByUserId: string;
+  logId: string;
+  dateEstimated: boolean;
+}
+
+export interface DoneActivityFilter {
+  leadIds: readonly string[];
+  /** done_at alt (dahil) ve üst (hariç) sınırı. */
+  from?: Date | undefined;
+  to?: Date | undefined;
+  type?: ActivityType | undefined;
+  outcome?: ActivityOutcome | undefined;
+  doneBy?: string | undefined;
+  /** Görüşme notunda arama (küçük harf duyarsız). */
+  note?: string | undefined;
+  /** Anahtar kümesi: bu (done_at, id) çiftinden sonrakiler. */
+  before?: { at: Date; id: string } | undefined;
+  limit: number;
 }
 
 /** Temas kayıtları (Faz 7g, `contact_logs`): tek "Temas kaydet" işleminin geri alma bilgisi. */
 export interface ContactLogRepository {
   insert(log: ContactLog): Promise<void>;
   findById(id: string): Promise<ContactLog | undefined>;
+  /** Lead'in kayıtları, en yeni önce (lead detayındaki "Geri al" bağları). */
+  listByLead(leadId: string): Promise<ContactLog[]>;
   /** Geri almada silinir; bağlı aktivitelerin `log_id` / `next_of_log_id` alanı DB'de NULL olur. */
   remove(id: string): Promise<void>;
 }

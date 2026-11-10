@@ -39,6 +39,14 @@ export class CreateLeadFromAd {
       extraAnswers: dto.extraAnswers,
       createdAt: dto.submittedAt,
       actor: null,
+      // Faz 7g (§4.7): form cevapları esnek modda; bozuk telefon + geçerli e-posta lead'i durdurmaz; Excel'den gelen
+      // açık lead benimsenir (çift kayıt açılmaz).
+      ...(dto.profile ?? {}),
+      ...(dto.courtCount != null ? { courtCount: dto.courtCount } : {}),
+      ...(dto.adSurface ? { adSurface: dto.adSurface } : {}),
+      parseMode: "lenient",
+      invalidPhone: "drop",
+      adoptImportLead: true,
     });
     if (!r.ok) {
       return err(

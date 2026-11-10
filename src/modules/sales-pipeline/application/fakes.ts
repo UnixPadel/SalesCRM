@@ -3,7 +3,7 @@
  * `InMemoryUnitOfWork` gerçek transaction gibi davranır: fn fırlatırsa hiçbir yazma kalmaz.
  */
 import { FixedClock, SequentialIdGenerator, silentLogger } from "../../shared/kernel";
-import { filterValues } from "../domain";
+import { aggregateContacts, filterValues } from "../domain";
 import type {
   Activity,
   ActivityRepository,
@@ -104,6 +104,12 @@ function reposFor(s: MemoryState): Repositories {
       if (f.personId) rows = rows.filter((l) => l.personId === f.personId);
       const sources = filterValues(f.source);
       if (sources) rows = rows.filter((l) => sources.includes(l.source));
+      if (f.scope === "excel") rows = rows.filter((l) => "excel_no" in l.extraAnswers);
+      if (f.campaign) rows = rows.filter((l) => l.campaign.campaignName === f.campaign);
+      const timelines = filterValues(f.installTimeline);
+      if (timelines) rows = rows.filter((l) => l.installTimeline !== null && timelines.includes(l.installTimeline));
+      if (f.createdFrom) rows = rows.filter((l) => l.createdAt >= f.createdFrom!);
+      if (f.createdTo) rows = rows.filter((l) => l.createdAt < f.createdTo!);
       if (f.search) {
         const q = f.search.toLowerCase();
         rows = rows.filter((l) =>
@@ -161,6 +167,31 @@ function reposFor(s: MemoryState): Repositories {
     },
     async findConsents(leadId) {
       return s.consents.filter((c) => c.leadId === leadId).map((c) => ({ ...c }));
+    },
+    async setCustomerStatus(id, status, updatedAt) {
+      const l = s.leads.find((x) => x.id === id);
+      if (!l) throw new Error("lead yok");
+      l.customerStatus = status;
+      l.updatedAt = updatedAt;
+    },
+    async setCheckedWarnings(id, codes, updatedAt) {
+      const l = s.leads.find((x) => x.id === id);
+      if (!l) throw new Error("lead yok");
+      l.checkedWarnings = [...codes];
+      l.updatedAt = updatedAt;
+    },
+    async mergeExtraAnswers(id, patch, updatedAt) {
+      const l = s.leads.find((x) => x.id === id);
+      if (!l) throw new Error("lead yok");
+      l.extraAnswers = { ...l.extraAnswers, ...structuredClone(patch) };
+      l.updatedAt = updatedAt;
+    },
+    async removeExtraAnswerKeys(id, keys, updatedAt) {
+      const l = s.leads.find((x) => x.id === id);
+      if (!l) throw new Error("lead yok");
+      if (!keys.length) return;
+      l.extraAnswers = Object.fromEntries(Object.entries(l.extraAnswers).filter(([k]) => !keys.includes(k)));
+      l.updatedAt = updatedAt;
     },
   };
   const persons: PersonRepository = {
@@ -310,6 +341,72 @@ function reposFor(s: MemoryState): Repositories {
       if (!a) throw new Error("aktivite yok");
       a.doneAt = doneAt;
       a.updatedAt = updatedAt;
+      if (doneAt === null) {
+        a.outcome = null;
+        a.customerReplied = false;
+        a.resultNote = "";
+        a.doneByUserId = null;
+        a.dateEstimated = false;
+      }
+    },
+    async complete(id, c, updatedAt) {
+      const a = s.activities.find((x) => x.id === id);
+      if (!a) throw new Error("aktivite yok");
+      Object.assign(a, { ...c, updatedAt });
+    },
+    async reopen(id, back, updatedAt) {
+      const a = s.activities.find((x) => x.id === id);
+      if (!a) throw new Error("aktivite yok");
+      Object.assign(a, {
+        doneAt: null,
+        outcome: null,
+        customerReplied: false,
+        resultNote: "",
+        doneByUserId: null,
+        dateEstimated: false,
+        logId: null,
+        type: back.type,
+        subject: back.subject,
+        updatedAt,
+      });
+    },
+    async removeCreatedByLog(logId, exceptId) {
+      const removed = new Set(s.activities.filter((a) => a.logId === logId && a.id !== exceptId).map((a) => a.id));
+      s.activities = s.activities.filter((a) => !removed.has(a.id));
+      unlinkCompleted(removed);
+      return removed.size;
+    },
+    async removeOpenNextOfLog(logId) {
+      const removed = new Set(
+        s.activities.filter((a) => a.nextOfLogId === logId && a.doneAt === null).map((a) => a.id),
+      );
+      s.activities = s.activities.filter((a) => !removed.has(a.id));
+      unlinkCompleted(removed);
+      return removed.size;
+    },
+    async contactAggregatesByLeads(leadIds) {
+      return aggregateContacts(s.activities.filter((a) => leadIds.includes(a.leadId)));
+    },
+    async listDone(f) {
+      const note = f.note?.toLocaleLowerCase("tr-TR");
+      return s.activities
+        .filter(
+          (a) =>
+            a.doneAt !== null &&
+            f.leadIds.includes(a.leadId) &&
+            (!f.from || a.doneAt >= f.from) &&
+            (!f.to || a.doneAt < f.to) &&
+            (!f.type || a.type === f.type) &&
+            (!f.outcome || a.outcome === f.outcome) &&
+            (!f.doneBy || (a.doneByUserId ?? a.createdByUserId) === f.doneBy) &&
+            (!note || `${a.resultNote} ${a.notes}`.toLocaleLowerCase("tr-TR").includes(note)) &&
+            (!f.before ||
+              a.doneAt.getTime() < f.before.at.getTime() ||
+              (a.doneAt.getTime() === f.before.at.getTime() && a.id < f.before.id)),
+        )
+        .sort((a, b) => b.doneAt!.getTime() - a.doneAt!.getTime() || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0))
+        .slice(0, f.limit)
+        .map((a) => ({ ...a }));
     },
     async remove(id) {
       s.activities = s.activities.filter((a) => a.id !== id);
@@ -321,7 +418,9 @@ function reposFor(s: MemoryState): Repositories {
     },
     async removeAutoCreatedByChange(changeId) {
       const removed = new Set(
-        s.activities.filter((a) => a.autoCreated && a.createdByChangeId === changeId).map((a) => a.id),
+        s.activities
+          .filter((a) => a.autoCreated && a.createdByChangeId === changeId && a.doneAt === null)
+          .map((a) => a.id),
       );
       s.activities = s.activities.filter((a) => !removed.has(a.id));
       unlinkCompleted(removed);
@@ -336,6 +435,12 @@ function reposFor(s: MemoryState): Repositories {
     async findById(id) {
       const l = s.contactLogs.find((x) => x.id === id);
       return l ? { ...l } : undefined;
+    },
+    async listByLead(leadId) {
+      return s.contactLogs
+        .filter((l) => l.leadId === leadId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1))
+        .map((l) => ({ ...l }));
     },
     async remove(id) {
       s.contactLogs = s.contactLogs.filter((l) => l.id !== id);
