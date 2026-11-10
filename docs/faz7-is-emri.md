@@ -15,8 +15,9 @@ sağlığını görür; takılan satırları yeniden kuyruğa alır. Dört parç
 | 7b | Ayar ve eşleme ekranları: aşama → platform olayı, form alanı → lead alanı, sağlayıcı ayarları, EUR kurları | 1,5 gün | `#/admin` → Eşlemeler · Ayarlar |
 | 7c | Google `requestStatus`: gönderilen isteklerin platformdaki akıbeti | 0,5 gün | Sağlık panelinde satır detayı |
 | 7d | Kişi birleştirme ve kuruluş arşivleme (6d kalanları) | 1–1,5 gün | Kişiler sayfası |
+| 7g | Satış takip (Excel) uyumu: temas kaydı, müşteri durumu, ürün tercihleri, Lead listesi, Özet rapor, Excel aktarımı — ayrı iş emri [`docs/satis-takip-is-emri.md`](satis-takip-is-emri.md) (S1–S10, migration `0012`, ADR-0014) | S1–S10 | Lead listesi · lead sayfası · Bugün · Raporlar → Özet rapor |
 
-Sıra: 7a → 7b → 7c → 7d. Her parçanın sonunda `npm run verify` yeşil ve tarayıcı kontrolü.
+Sıra: 7a → 7b → 7c → 7d. 7g kendi iş emrindeki adım sırasıyla ilerler; migration numarası 0012 onundur, 7c `0013` alır. Her parçanın sonunda `npm run verify` yeşil ve tarayıcı kontrolü.
 
 ## 7a — Sağlık paneli
 
@@ -72,6 +73,15 @@ inbox failed → pending (yeniden işle). Her işlem log'a `actorUserId` ile yaz
 - API (`/api/admin`): `GET/PUT /stage-mappings/:provider`, `GET/PUT/DELETE /field-mappings/:provider`,
   `GET/PUT /settings/:provider`, `GET/PUT /eur-rates`.
 - UI: `MappingsTab.tsx`, `SettingsTab.tsx`; metinler TR/EN (`admin.*`).
+
+**Bölgeler sekmesi (Faz 7g notu, `docs/satis-takip-is-emri.md` §5.8).** 7g'de ekran yok; ülke → sorumlu kuralları
+(`territory_rules`) Excel aktarımı (`db:import-excel`) LİSTELER sayfasından tohumlar. 7b'de AdminPage'e eklenecek sekme:
+- Tablo: Ülke ("Fransa (FR)") · Sorumlu (aktif satış kullanıcısı seçimi) · Yedek · Lead (toplam / havuz) · [Kaldır].
+- Pasif kullanıcıya bağlı kural ikon + "Pasif kullanıcı" etiketiyle gösterilir.
+- İkinci liste "Lead'i olup kuralı olmayan ülkeler", satırda "Kural ekle".
+- "Havuza uygula" önce kuru çalıştırma sonucunu diyalogda gösterir ("Ahlem: 12, Yusa Bedir: 6, …"), onaydan sonra uygular.
+- API (sales-pipeline): `GET/PUT/DELETE /territories[/:cc]`, `POST /territories/apply-to-pool {dryRun}`.
+- Görünürlük değişmez (orkestratör kararı 2026-11-10): kural yalnız yeni lead'i otomatik atar, satışçı bütün havuzu görür.
 
 ## 7c — Google requestStatus
 
@@ -154,7 +164,7 @@ eklendi (`?source=import` vb.; API `/board` ve `/leads`). Canlıda aynı komut P
 - Tek transaction: birleştirme, yeniden kuyruğa alma toplu işlemleri
 - Logda kişisel veri yok; secret ekranda görünmez
 - Arayüz TR/EN; sözlük testi geçer (admin router sağlayıcı adını yalnız veriden alır)
-- Migration `0012` geri alınabilir; `migrate.test.ts` güncel
+- Migration `0013` geri alınabilir; `migrate.test.ts` güncel (0012 satış takip işinindir, veri düzeltmeleri geri alınamaz; ADR-0014)
 - Kabul raporu `docs/faz7-kabul-raporu.md`; README "Yönetim paneli" bölümü; yol haritası durumu; ADR-0013 eki (kişi birleştirme, arşiv)
 - `decisions.md` 24 (EUR kurları) → Verildi; madde 19 (olay adları) ve 22 (dönüşüm işlemleri) artık ekrandan girilebilir notu
 

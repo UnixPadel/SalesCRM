@@ -4,6 +4,7 @@ import {
   EMPTY_ATTRIBUTION,
   EMPTY_CAMPAIGN,
   PlatformLeadId,
+  emptyTrackingFields,
   hasAttribution,
   parseConsents,
   parseLeadFields,
@@ -178,6 +179,8 @@ export class CreateLead {
         courtModel: fields.courtModel ?? "",
         expectedCloseDate: fields.expectedCloseDate ?? null,
         organizationId: fields.organizationId ?? null,
+        // Satış takip alanları (Faz 7g): oluşturma girdileri S5'te gelir; şimdilik boş.
+        ...emptyTrackingFields(),
         createdAt,
         updatedAt: now,
       };

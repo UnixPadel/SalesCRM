@@ -1,5 +1,6 @@
 import { calendarDay, DEFAULT_TIME_ZONE } from "./activity";
 import type { Lead, StageEvent } from "./lead";
+import { round2 } from "./numbers";
 import { DEFAULT_EUR_RATES, stageSummary, toEur, type EurRates } from "./opportunity";
 import { isTerminal, STAGE_CODES, type StageCode } from "./stage";
 
@@ -92,7 +93,12 @@ export function lastMonths(now: Date, n: number, timeZone: string = DEFAULT_TIME
   return out;
 }
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
+/**
+ * Lead bu aşamaya ulaştı mı: şu an orada ya da geri alınmamış bir olayı var (`auto_fill` dahil).
+ * Aşama raporu ve Özet rapordaki "teklif verildi" (Faz 7g, `proposalFacts`) aynı tanımı kullanır.
+ */
+export const reachedStage = (code: StageCode, current: StageCode, liveEvents: readonly StageEvent[]): boolean =>
+  current === code || liveEvents.some((e) => e.stageCode === code && !e.undoneAt);
 
 function liveEventsByLead(events: readonly StageEvent[]): Map<string, StageEvent[]> {
   const by = new Map<string, StageEvent[]>();
@@ -129,9 +135,7 @@ export function buildReport(input: ReportInput): Report {
 
   // Aşamaya göre dönüşüm (açık aşamalar): ulaşan / kapanan / kazanan.
   const conversionByStage: StageConversionRow[] = STAGE_CODES.filter((s) => !isTerminal(s)).map((stage) => {
-    const reachedLeads = leads.filter(
-      (l) => l.currentStage === stage || (live.get(l.id) ?? []).some((e) => e.stageCode === stage),
-    );
+    const reachedLeads = leads.filter((l) => reachedStage(stage, l.currentStage, live.get(l.id) ?? []));
     const closed = reachedLeads.filter((l) => isTerminal(l.currentStage));
     const wonN = closed.filter((l) => l.currentStage === "WON").length;
     return {

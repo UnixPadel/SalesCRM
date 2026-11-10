@@ -1,14 +1,56 @@
 import { RuleError, err, ok, type Result } from "../../shared/kernel";
+import type { CustomerStatus } from "./leadProfile";
 import { isTerminal, type StageCode } from "./stage";
 
 /**
  * Aktivite: lead üzerinde yapılacak iş (satış panosu, Faz 6a). Saf kurallar burada; tarih hesapları
  * saat dilimine göre yapılır çünkü "bugün" ve "09:00" satışçının takvimine göredir, sunucununkine değil.
  */
-export const ACTIVITY_TYPES = ["call", "email", "meeting", "proposal_sent", "site_visit"] as const;
+export const ACTIVITY_TYPES = ["call", "email", "whatsapp", "meeting", "proposal_sent", "site_visit", "other"] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 export const isActivityType = (v: unknown): v is ActivityType =>
   typeof v === "string" && (ACTIVITY_TYPES as readonly string[]).includes(v);
+
+/**
+ * Temas kanalları (Faz 7g, ADR-0014): "Temas kaydet" diyaloğunda görünen beş tür. `call` GSM aramasıdır,
+ * WhatsApp araması `whatsapp` kanalıdır. `proposal_sent` ve `site_visit` yalnız o türde planlı iş tamamlanırken çıkar.
+ */
+export const CONTACT_CHANNELS = [
+  "call",
+  "whatsapp",
+  "email",
+  "meeting",
+  "other",
+] as const satisfies readonly ActivityType[];
+export type ContactChannel = (typeof CONTACT_CHANNELS)[number];
+
+/** Temas sonucu (Excel TEMAS GEÇMİŞİ "Görüşme Sonucu"), Excel sırasıyla; ekranda `OUTCOME_DISPLAY_ORDER`. */
+export const ACTIVITY_OUTCOMES = [
+  "reply_received",
+  "awaiting_reply",
+  "proposal_sent",
+  "follow_up",
+  "negative",
+  "agreed",
+] as const;
+export type ActivityOutcome = (typeof ACTIVITY_OUTCOMES)[number];
+export const isActivityOutcome = (v: unknown): v is ActivityOutcome =>
+  typeof v === "string" && (ACTIVITY_OUTCOMES as readonly string[]).includes(v);
+
+/** Ekrandaki sıra: en sık kullanılan önce. */
+export const OUTCOME_DISPLAY_ORDER: readonly ActivityOutcome[] = [
+  "awaiting_reply",
+  "reply_received",
+  "follow_up",
+  "proposal_sent",
+  "negative",
+  "agreed",
+];
+
+/** Kendi başına dönüş sayılan sonuçlar; Takip edilecek ve Teklif gönderildi yalnız "Müşteri cevap verdi" ile. */
+export const REPLY_OUTCOMES: readonly ActivityOutcome[] = ["reply_received", "negative", "agreed"];
+export const isReply = (o: ActivityOutcome | null, customerReplied: boolean): boolean =>
+  customerReplied || (o !== null && REPLY_OUTCOMES.includes(o));
 
 export interface Activity {
   id: string;
@@ -26,9 +68,62 @@ export interface Activity {
   createdByUserId: string | null;
   /** Eski panodan taşınan aktivitenin kimliği; yalnız taşıma betiği doldurur. */
   legacyId: string | null;
+  /** Temas sonucu (Faz 7g); yalnız tamamlanmış satırda dolu olabilir. */
+  outcome: ActivityOutcome | null;
+  /** "Müşteri cevap verdi" işareti; yalnız Takip edilecek ve Teklif gönderildi sonucunda. */
+  customerReplied: boolean;
+  /** Görüşme notu (planlama notu `notes`'ta kalır). */
+  resultNote: string;
+  /** Teması kaydeden ("Kaydeden"); planlayan `createdByUserId`. */
+  doneByUserId: string | null;
+  /** Temas zamanı tahmini (Excel aktarımı); ekranda "≈". */
+  dateEstimated: boolean;
+  /** Bu satırı açan ya da tamamlayan temas kaydı (`contact_logs`). */
+  logId: string | null;
+  /** Bu satır o temas kaydının "sonraki takip"i. */
+  nextOfLogId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
+
+/**
+ * Temas kaydı (`contact_logs`, Faz 7g): tek "Temas kaydet" işleminin geri alma bilgisi. Rol sütunu yoktur;
+ * rol bağlardan çıkar (`completedActivityId` = tamamlanan plan; `activities.log_id` = bu kaydın eklediği ya da
+ * tamamladığı satır; `activities.next_of_log_id` = bu kaydın sonraki takibi).
+ */
+export interface ContactLog {
+  id: string;
+  leadId: string;
+  actorUserId: string;
+  /** Geri alma penceresi buradan sayılır. */
+  createdAt: Date;
+  completedActivityId: string | null;
+  /** Tamamlanan planın önceki türü ve konusu; geri almada geri yazılır. */
+  prevType: ActivityType | null;
+  prevSubject: string | null;
+  statusChanged: boolean;
+  /** Kayıttan önceki ve sonraki müşteri durumu; geri almada `statusBefore` geri yazılır. */
+  statusBefore: CustomerStatus | null;
+  statusAfter: CustomerStatus | null;
+  /** Aynı işlemdeki `ChangeLeadStage` değişikliğinin change_id'si. */
+  stageChangeId: string | null;
+  /** Havuz lead'i bu kayıtla kaydedene atandı. */
+  assignedOnLog: boolean;
+}
+
+/** Yeni satırların temas alanları: plan (açık aktivite) için hepsi boş. */
+export const NO_CONTACT_FIELDS: Pick<
+  Activity,
+  "outcome" | "customerReplied" | "resultNote" | "doneByUserId" | "dateEstimated" | "logId" | "nextOfLogId"
+> = {
+  outcome: null,
+  customerReplied: false,
+  resultNote: "",
+  doneByUserId: null,
+  dateEstimated: false,
+  logId: null,
+  nextOfLogId: null,
+};
 
 export const isOpenActivity = (a: Pick<Activity, "doneAt">): boolean => a.doneAt === null;
 
@@ -37,8 +132,21 @@ export const DEFAULT_TIME_ZONE = "Europe/Istanbul";
 export const DEFAULT_SUBJECTS: Record<ActivityType, string> = {
   call: "Arama",
   email: "E-posta",
+  whatsapp: "WhatsApp",
   meeting: "Toplantı",
   proposal_sent: "Teklif gönderimi",
+  site_visit: "Saha ziyareti",
+  other: "Temas",
+};
+
+/** "Sonraki takip" satırının konusu (temas kaydı ve Excel aktarımındaki takip tohumu). */
+export const FOLLOW_UP_SUBJECTS: Record<ActivityType, string> = {
+  call: "Takip araması",
+  whatsapp: "WhatsApp takibi",
+  email: "E-posta takibi",
+  meeting: "Toplantı",
+  other: "Takip",
+  proposal_sent: "Teklif takibi",
   site_visit: "Saha ziyareti",
 };
 

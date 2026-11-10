@@ -13,7 +13,7 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
 
   it("dosyaları sırayla uygular, ikinci çalıştırmada atlar", async () => {
     const files = readMigrations(MIGRATIONS_DIR);
-    expect(files.map((f) => f.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(files.map((f) => f.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
     const first = await migrate(db, files);
     expect(first.applied).toEqual([
       "0001_faz1_core",
@@ -27,13 +27,14 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
       "0009_faz6a_activities",
       "0010_faz6b_lead_fields",
       "0011_faz6d_organizations",
+      "0012_faz7g_satis_takip",
     ]);
     const second = await migrate(db, files);
     expect(second.applied).toEqual([]);
-    expect(second.skipped).toHaveLength(11);
+    expect(second.skipped).toHaveLength(12);
   });
 
-  it("on yedi tablo ve seed verisi var", async () => {
+  it("on sekiz tablo ve seed verisi var", async () => {
     const tables = (
       await db.query<{ table_name: string }>(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1",
@@ -41,6 +42,7 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
     ).map((r) => r.table_name);
     expect(tables).toEqual([
       "activities",
+      "contact_logs",
       "form_field_mappings",
       "inbound_webhook_events",
       "integration_settings",

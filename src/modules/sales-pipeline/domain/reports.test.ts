@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Lead, StageEvent } from "./lead";
-import { EMPTY_CAMPAIGN } from "./lead";
+import { EMPTY_CAMPAIGN, emptyTrackingFields } from "./lead";
 import { buildReport, lastMonths, monthKey } from "./reports";
 import type { StageCode } from "./stage";
 
@@ -29,6 +29,7 @@ const lead = (id: string, over: Partial<Lead>): Lead => ({
   courtModel: "",
   expectedCloseDate: null,
   organizationId: null,
+  ...emptyTrackingFields(),
   createdAt: new Date("2026-02-01T00:00:00Z"),
   updatedAt: new Date("2026-02-01T00:00:00Z"),
   ...over,

@@ -1,5 +1,12 @@
 import { NotFoundError, RuleError, err, ok, type Result } from "../../shared/kernel";
-import { bucketOf, validateActivity, type Activity, type ActivityBucket, type Lead } from "../domain";
+import {
+  NO_CONTACT_FIELDS,
+  bucketOf,
+  validateActivity,
+  type Activity,
+  type ActivityBucket,
+  type Lead,
+} from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
 import { loadActionableLead as visibleLead, territoriesOf } from "./visibility";
 
@@ -37,6 +44,7 @@ export class AddActivity {
         createdByChangeId: null,
         createdByUserId: input.actor.userId,
         legacyId: null,
+        ...NO_CONTACT_FIELDS,
         createdAt: now,
         updatedAt: now,
       };

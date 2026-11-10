@@ -379,6 +379,13 @@ function activityDto(a: Activity): ActivityDto {
     autoCreated: a.autoCreated,
     createdByUserId: a.createdByUserId,
     createdAt: a.createdAt.toISOString(),
+    outcome: a.outcome,
+    customerReplied: a.customerReplied,
+    resultNote: a.resultNote,
+    doneByUserId: a.doneByUserId,
+    dateEstimated: a.dateEstimated,
+    logId: a.logId,
+    nextOfLogId: a.nextOfLogId,
   };
 }
 

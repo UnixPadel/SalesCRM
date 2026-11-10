@@ -7,6 +7,7 @@ import { createPgliteDb, migrate, MIGRATIONS_DIR, readMigrations, type Db } from
 import { FixedClock, MINUTE, silentLogger, unwrap, uuidGenerator } from "../../shared/kernel";
 import { createSalesPipeline, type SalesPipeline } from "../application";
 import { RecordingPublisher, StaticPlatforms } from "../application/fakes";
+import { NO_CONTACT_FIELDS } from "../domain";
 import { readLostReasons, readStageDefinitions } from "./referenceData";
 import { PgUnitOfWork } from "./unitOfWork";
 
@@ -30,7 +31,7 @@ afterAll(() => db.close());
 
 beforeEach(async () => {
   await db.exec(
-    "TRUNCATE user_notifications, inbound_webhook_events, outbound_conversion_events, lead_stage_events, lead_consents, lead_attribution, activities, leads, persons, organizations, territory_rules",
+    "TRUNCATE user_notifications, inbound_webhook_events, outbound_conversion_events, lead_stage_events, lead_consents, lead_attribution, contact_logs, activities, leads, persons, organizations, territory_rules",
   );
   clock = new FixedClock("2026-03-01T10:00:00Z");
   publisher = new RecordingPublisher();
@@ -379,6 +380,7 @@ describe("Postgres repository'leri + transaction", () => {
       createdByChangeId: null,
       createdByUserId: null,
       legacyId: "act1",
+      ...NO_CONTACT_FIELDS,
       createdAt: now,
       updatedAt: now,
     };

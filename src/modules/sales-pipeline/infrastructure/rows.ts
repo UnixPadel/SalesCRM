@@ -1,6 +1,13 @@
 import type {
   Activity,
+  ActivityOutcome,
   ActivityType,
+  ContactLog,
+  CourtCountBand,
+  CustomerProfile,
+  CustomerStatus,
+  InstallSite,
+  InstallTimeline,
   Lead,
   Organization,
   OrganizationType,
@@ -44,12 +51,36 @@ export interface LeadRow extends Record<string, unknown> {
   /** SELECT'te ::text ile okunur (YYYY-MM-DD); sürücünün yerel saate çevirmesi günü kaydırabilirdi. */
   expected_close_date: string | null;
   organization_id: string | null;
+  /** Faz 7g (migration 0012). numeric sütunlar iki sürücüde de metin gelir; smallint sayı. */
+  customer_status: string | null;
+  qty_standard: number | string | null;
+  qty_panoramic: number | string | null;
+  qty_full_panoramic: number | string | null;
+  roof_wanted: boolean;
+  roof_width_m: number | string | null;
+  roof_length_m: number | string | null;
+  install_site: string | null;
+  install_timeline: string | null;
+  customer_profile: string | null;
+  court_count_band: string | null;
+  ad_surface: string | null;
+  checked_warnings: string[] | string | null;
+  contact_history_unknown: boolean;
   created_at: Date | string;
   updated_at: Date | string;
 }
 
 const date = (v: Date | string): Date => (v instanceof Date ? v : new Date(v));
 const json = <T>(v: T | string): T => (typeof v === "string" ? (JSON.parse(v) as T) : v);
+const num = (v: number | string | null): number | null => (v === null ? null : Number(v));
+
+/** text[]: sürücü dizi döndürür; dönmezse Postgres dizi metni ("{a,b}") ayrıştırılır (kodlar tırnaksız). */
+function textArray(v: string[] | string | null): string[] {
+  if (v === null) return [];
+  if (Array.isArray(v)) return v.map(String);
+  const inner = v.replace(/^\{|\}$/g, "");
+  return inner ? inner.split(",").map((s) => s.replace(/^"|"$/g, "")) : [];
+}
 
 export function leadFromRow(r: LeadRow): Lead {
   return {
@@ -82,6 +113,20 @@ export function leadFromRow(r: LeadRow): Lead {
     courtModel: r.court_model,
     expectedCloseDate: r.expected_close_date,
     organizationId: r.organization_id,
+    customerStatus: r.customer_status as CustomerStatus | null,
+    products: {
+      standard: num(r.qty_standard),
+      panoramic: num(r.qty_panoramic),
+      fullPanoramic: num(r.qty_full_panoramic),
+      roof: { wanted: r.roof_wanted, widthM: num(r.roof_width_m), lengthM: num(r.roof_length_m) },
+    },
+    installSite: r.install_site as InstallSite | null,
+    installTimeline: r.install_timeline as InstallTimeline | null,
+    customerProfile: r.customer_profile as CustomerProfile | null,
+    courtCountBand: r.court_count_band as CourtCountBand | null,
+    adSurface: r.ad_surface,
+    checkedWarnings: textArray(r.checked_warnings),
+    contactHistoryUnknown: r.contact_history_unknown,
     createdAt: date(r.created_at),
     updatedAt: date(r.updated_at),
   };
@@ -195,6 +240,13 @@ export interface ActivityRow extends Record<string, unknown> {
   created_by_change_id: string | null;
   created_by_user_id: string | null;
   legacy_id: string | null;
+  outcome: string | null;
+  customer_replied: boolean;
+  result_note: string;
+  done_by_user_id: string | null;
+  date_estimated: boolean;
+  log_id: string | null;
+  next_of_log_id: string | null;
   created_at: Date | string;
   updated_at: Date | string;
 }
@@ -211,8 +263,45 @@ export const activityFromRow = (r: ActivityRow): Activity => ({
   createdByChangeId: r.created_by_change_id,
   createdByUserId: r.created_by_user_id,
   legacyId: r.legacy_id,
+  outcome: r.outcome as ActivityOutcome | null,
+  customerReplied: r.customer_replied,
+  resultNote: r.result_note,
+  doneByUserId: r.done_by_user_id,
+  dateEstimated: r.date_estimated,
+  logId: r.log_id,
+  nextOfLogId: r.next_of_log_id,
   createdAt: date(r.created_at),
   updatedAt: date(r.updated_at),
+});
+
+export interface ContactLogRow extends Record<string, unknown> {
+  id: string;
+  lead_id: string;
+  actor_user_id: string;
+  created_at: Date | string;
+  completed_activity_id: string | null;
+  prev_type: string | null;
+  prev_subject: string | null;
+  status_changed: boolean;
+  status_before: string | null;
+  status_after: string | null;
+  stage_change_id: string | null;
+  assigned_on_log: boolean;
+}
+
+export const contactLogFromRow = (r: ContactLogRow): ContactLog => ({
+  id: r.id,
+  leadId: r.lead_id,
+  actorUserId: r.actor_user_id,
+  createdAt: date(r.created_at),
+  completedActivityId: r.completed_activity_id,
+  prevType: r.prev_type as ActivityType | null,
+  prevSubject: r.prev_subject,
+  statusChanged: r.status_changed,
+  statusBefore: r.status_before as CustomerStatus | null,
+  statusAfter: r.status_after as CustomerStatus | null,
+  stageChangeId: r.stage_change_id,
+  assignedOnLog: r.assigned_on_log,
 });
 
 export interface StageEventRow extends Record<string, unknown> {

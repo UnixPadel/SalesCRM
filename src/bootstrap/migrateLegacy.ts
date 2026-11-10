@@ -18,6 +18,7 @@ import type { Db } from "../modules/shared/db";
 import { FixedClock, silentLogger, uuidGenerator, type Logger } from "../modules/shared/kernel";
 import { createSalesPipeline, type SalesPipeline } from "../modules/sales-pipeline/application";
 import {
+  NO_CONTACT_FIELDS,
   isActivityType,
   isOrganizationType,
   type Activity,
@@ -360,6 +361,7 @@ export async function migrateLegacy(db: Db, snap: LegacySnapshot, opts: MigrateO
       createdByChangeId: null,
       createdByUserId: null,
       legacyId: a.id,
+      ...NO_CONTACT_FIELDS,
       createdAt: Number.isNaN(createdAt.getTime()) ? dueAt : createdAt,
       updatedAt: doneAt ?? (Number.isNaN(createdAt.getTime()) ? dueAt : createdAt),
     };

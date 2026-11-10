@@ -3,9 +3,12 @@
  * `InMemoryUnitOfWork` gerçek transaction gibi davranır: fn fırlatırsa hiçbir yazma kalmaz.
  */
 import { FixedClock, SequentialIdGenerator, silentLogger } from "../../shared/kernel";
+import { filterValues } from "../domain";
 import type {
   Activity,
   ActivityRepository,
+  ContactLog,
+  ContactLogRepository,
   DomainEvent,
   DomainEventPublisher,
   Lead,
@@ -47,6 +50,8 @@ export interface MemoryState {
   attributions: Record<string, LeadAttribution>;
   consents: LeadConsent[];
   activities: Activity[];
+  /** Temas kayıtları (Faz 7g). */
+  contactLogs: ContactLog[];
   outbox: OutboxRow[];
   territories: TerritoryRule[];
   lostReasons: string[];
@@ -62,6 +67,7 @@ export const emptyState = (): MemoryState => ({
   attributions: {},
   consents: [],
   activities: [],
+  contactLogs: [],
   outbox: [],
   territories: [],
   lostReasons: ["price_too_high", "competitor", "no_response", "unqualified"],
@@ -87,12 +93,17 @@ function reposFor(s: MemoryState): Repositories {
             (l.assignedUserId === null && (!l.country || countries.length === 0 || countries.includes(l.country))),
         );
       }
-      if (f.stage) rows = rows.filter((l) => l.currentStage === f.stage);
-      if (f.owner !== undefined) rows = rows.filter((l) => l.assignedUserId === f.owner);
-      if (f.country) rows = rows.filter((l) => l.country === f.country!.toUpperCase());
+      // Çoklu değerli süzgeçler (Faz 7g): Postgres deposuyla aynı anlam (liste = bunlardan biri, boş = süzgeç yok).
+      const stages = filterValues(f.stage);
+      if (stages) rows = rows.filter((l) => stages.includes(l.currentStage));
+      const owners = filterValues(f.owner);
+      if (owners) rows = rows.filter((l) => owners.includes(l.assignedUserId));
+      const countries = filterValues(f.country)?.map((c) => c.toUpperCase());
+      if (countries) rows = rows.filter((l) => l.country !== null && countries.includes(l.country));
       if (f.organizationId) rows = rows.filter((l) => l.organizationId === f.organizationId);
       if (f.personId) rows = rows.filter((l) => l.personId === f.personId);
-      if (f.source) rows = rows.filter((l) => l.source === f.source);
+      const sources = filterValues(f.source);
+      if (sources) rows = rows.filter((l) => sources.includes(l.source));
       if (f.search) {
         const q = f.search.toLowerCase();
         rows = rows.filter((l) =>
@@ -267,6 +278,12 @@ function reposFor(s: MemoryState): Repositories {
     },
   };
   const byDue = (a: Activity, b: Activity) => a.dueAt.getTime() - b.dueAt.getTime();
+  /** DB: contact_logs.completed_activity_id ON DELETE SET NULL (silinen aktiviteye işaret eden kayıt bağı düşer). */
+  const unlinkCompleted = (removed: ReadonlySet<string>) => {
+    for (const l of s.contactLogs) {
+      if (l.completedActivityId !== null && removed.has(l.completedActivityId)) l.completedActivityId = null;
+    }
+  };
   const activities: ActivityRepository = {
     async findById(id) {
       const a = s.activities.find((x) => x.id === id);
@@ -296,15 +313,37 @@ function reposFor(s: MemoryState): Repositories {
     },
     async remove(id) {
       s.activities = s.activities.filter((a) => a.id !== id);
+      unlinkCompleted(new Set([id]));
     },
     async findByLegacyId(legacyId) {
       const a = s.activities.find((x) => x.legacyId === legacyId);
       return a ? { ...a } : undefined;
     },
     async removeAutoCreatedByChange(changeId) {
-      const before = s.activities.length;
-      s.activities = s.activities.filter((a) => !(a.autoCreated && a.createdByChangeId === changeId));
-      return before - s.activities.length;
+      const removed = new Set(
+        s.activities.filter((a) => a.autoCreated && a.createdByChangeId === changeId).map((a) => a.id),
+      );
+      s.activities = s.activities.filter((a) => !removed.has(a.id));
+      unlinkCompleted(removed);
+      return removed.size;
+    },
+  };
+  const contactLogs: ContactLogRepository = {
+    async insert(log) {
+      if (s.contactLogs.some((x) => x.id === log.id)) throw new Error("duplicate contact log id");
+      s.contactLogs.push({ ...log });
+    },
+    async findById(id) {
+      const l = s.contactLogs.find((x) => x.id === id);
+      return l ? { ...l } : undefined;
+    },
+    async remove(id) {
+      s.contactLogs = s.contactLogs.filter((l) => l.id !== id);
+      // DB: activities.log_id / next_of_log_id ON DELETE SET NULL.
+      for (const a of s.activities) {
+        if (a.logId === id) a.logId = null;
+        if (a.nextOfLogId === id) a.nextOfLogId = null;
+      }
     },
   };
   let outboxSeq = 0;
@@ -330,7 +369,7 @@ function reposFor(s: MemoryState): Repositories {
   };
   const territories: TerritoryRuleSource = { all: async () => s.territories.map((t) => ({ ...t })) };
   const lostReasons: LostReasonSource = { activeCodes: async () => [...s.lostReasons] };
-  return { leads, persons, organizations, stageEvents, activities, outbox, territories, lostReasons };
+  return { leads, persons, organizations, stageEvents, activities, contactLogs, outbox, territories, lostReasons };
 }
 
 export class InMemoryUnitOfWork implements UnitOfWork {

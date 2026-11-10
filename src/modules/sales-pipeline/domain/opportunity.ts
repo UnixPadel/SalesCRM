@@ -32,6 +32,19 @@ export const LEAD_FIELD_KEYS = [
   "organizationId",
 ] as const satisfies readonly (keyof LeadFields)[];
 
+/**
+ * Serbest metin olarak doğrulanan alanlar. Hata kodları şablonla kurulur (`lead.<alan>_invalid`, `lead.<alan>_too_long`,
+ * alan snake_case); `tests/i18n-errors.test.ts` çevirilerini bu listeden açarak denetler.
+ */
+export const LEAD_TEXT_FIELDS = [
+  "courtModel",
+  "company",
+  "city",
+  "productInterest",
+  "notes",
+] as const satisfies readonly (keyof LeadFields)[];
+export type LeadTextField = (typeof LEAD_TEXT_FIELDS)[number];
+
 export const LEAD_FIELD_LIMITS = {
   courtCountMax: 999,
   courtModel: 64,
@@ -56,7 +69,7 @@ export function isCalendarDate(v: string): boolean {
  */
 export function parseLeadFields(raw: Record<string, unknown>): Result<Partial<LeadFields>, RuleError> {
   const out: Partial<LeadFields> = {};
-  const text = (key: keyof LeadFields, max: number): Result<string, RuleError> => {
+  const text = (key: LeadTextField, max: number): Result<string, RuleError> => {
     const v = raw[key];
     if (v !== null && typeof v !== "string") {
       return err(new RuleError(`lead.${snake(key)}_invalid`, "Metin olmalı.", { field: key }));

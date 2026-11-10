@@ -39,8 +39,39 @@ export interface LeadDto {
   expectedCloseDate: string | null;
   /** Kuruluş bağı (Faz 6d). */
   organizationId: string | null;
+  /** Satış takip alanları (Faz 7g, ADR-0014). Müşteri durumu aşamadan bağımsız; null = "Durum girilmedi". */
+  customerStatus: CustomerStatusDto | null;
+  products: ProductPrefsDto;
+  /** Form cevapları (intake doldurur, yönetici düzeltir). */
+  installSite: InstallSiteDto | null;
+  installTimeline: InstallTimelineDto | null;
+  customerProfile: CustomerProfileDto | null;
+  courtCountBand: CourtCountBandDto | null;
+  /** Reklam yüzeyi, opak kod; etiketi `src/i18n` `surface.*`. */
+  adSurface: string | null;
+  /** "Kontrol edildi" denen veri uyarısı kodları. */
+  checkedWarnings: string[];
+  /** Temas geçmişi bilinmeyen eski kayıt ("Kayıt yok (eski)"). */
+  contactHistoryUnknown: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Faz 7g kod listeleri; domain sabitleriyle eşliği `tests/types/dto-parity.test.ts` denetler. */
+export type CustomerStatusDto = "interested" | "not_interested" | "project_phase" | "collecting_prices" | "buyer_ready";
+export type InstallSiteDto =
+  "covered_court" | "no_site_yet" | "indoor_hall" | "beach_windy" | "rooftop" | "existing_ground" | "other";
+export type InstallTimelineDto = "m0_3" | "m3_6" | "m6_12" | "researching";
+export type CustomerProfileDto =
+  "investor" | "club_operator" | "private_home" | "public_facility" | "hospitality_residential" | "distributor";
+export type CourtCountBandDto = "1" | "2_3" | "4_6" | "7_plus";
+
+/** Ürün tercihleri: adet 1–29 ya da null (tercih yok); çatı ölçüsü metre, 2 ondalık. */
+export interface ProductPrefsDto {
+  standard: number | null;
+  panoramic: number | null;
+  fullPanoramic: number | null;
+  roof: { wanted: boolean; widthM: number | null; lengthM: number | null };
 }
 
 export type OrganizationTypeDto = "club" | "investor" | "distributor" | "contractor" | "other";
@@ -122,7 +153,10 @@ export interface StageEventDto {
   undoneAt: string | null;
 }
 
-export type ActivityTypeDto = "call" | "email" | "meeting" | "proposal_sent" | "site_visit";
+export type ActivityTypeDto = "call" | "email" | "whatsapp" | "meeting" | "proposal_sent" | "site_visit" | "other";
+/** Temas sonucu (Faz 7g). */
+export type ActivityOutcomeDto =
+  "reply_received" | "awaiting_reply" | "proposal_sent" | "follow_up" | "negative" | "agreed";
 
 export interface ActivityDto {
   id: string;
@@ -136,6 +170,16 @@ export interface ActivityDto {
   autoCreated: boolean;
   createdByUserId: string | null;
   createdAt: string;
+  /** Temas alanları (Faz 7g); açık satırda boş. */
+  outcome: ActivityOutcomeDto | null;
+  customerReplied: boolean;
+  resultNote: string;
+  /** "Kaydeden". */
+  doneByUserId: string | null;
+  /** Tahmini temas zamanı ("≈"). */
+  dateEstimated: boolean;
+  logId: string | null;
+  nextOfLogId: string | null;
 }
 
 /** Liste ve detaydaki lead: aktivite özetiyle. Komut yanıtları yalın LeadDto döner. */

@@ -9,12 +9,23 @@ import { useCrm } from "../state/CrmContext";
 
 /** Aktivite parçaları (Faz 6a): satır, ekleme formu, tür simgeleri. Detay sayfası ve "Bugün" paylaşır. */
 
-export const ACTIVITY_TYPES: readonly ActivityTypeDto[] = ["call", "email", "meeting", "proposal_sent", "site_visit"];
+/** Planlayıcı ve "Bugün" tür çipleri: önce beş temas kanalı (Faz 7g), sonra yalnız planlanan iki tür. */
+export const ACTIVITY_TYPES: readonly ActivityTypeDto[] = [
+  "call",
+  "whatsapp",
+  "email",
+  "meeting",
+  "other",
+  "proposal_sent",
+  "site_visit",
+];
 
 export const ACTIVITY_ICON: Record<ActivityTypeDto, string> = {
   call: "phone",
+  whatsapp: "chat",
   email: "mail",
   meeting: "users",
+  other: "dots",
   proposal_sent: "file",
   site_visit: "pin",
 };

@@ -1,5 +1,6 @@
 import { NotFoundError, RuleError, err, ok, type Result } from "../../shared/kernel";
 import {
+  NO_CONTACT_FIELDS,
   PROPOSAL_FOLLOW_UP,
   followUpFor,
   planStageChange,
@@ -112,6 +113,7 @@ export class ChangeLeadStage {
             createdByChangeId: changeId,
             createdByUserId: input.actor.userId,
             legacyId: null,
+            ...NO_CONTACT_FIELDS,
             createdAt: now,
             updatedAt: now,
           };

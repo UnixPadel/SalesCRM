@@ -62,3 +62,11 @@ getirmek; Lead → CRM entegrasyonunu bozmadan. Kararlar `docs/yol-haritasi.md` 
   `PeopleQueries`; API `/organizations`, `/persons`, `/leads/:id/contact`, `/search`; eski sayfalar, `/api/db/*` ve JSON
   deposu kaldırıldı; `db:migrate-legacy` kuruluş ve aktiviteleri taşır. Kişi birleştirme yok (başka kişinin
   e-postası/telefonu reddedilir). Rapor: `docs/faz6d-kabul-raporu.md`. Madde 4 ve 7 böylece tamamlandı.
+- **Ek — Faz 7g (2026-11-10, ADR-0014):** madde 3'teki sabit aktivite türü listesi genişledi: `call, email, whatsapp,
+  meeting, proposal_sent, site_visit, other` (migration `0012_faz7g_satis_takip.sql`). Tamamlanmış aktivite artık bir
+  **temastır**: `outcome`, `customer_replied`, `result_note`, `done_by_user_id`, `date_estimated` taşır; Excel'deki
+  ulaşım/dönüş işaretleri ve ilk/son temas bunlardan türetilir. Yeni tablo `contact_logs`: tek "Temas kaydet" işleminin
+  geri alma bilgisi (`activities.log_id`, `activities.next_of_log_id` bağlarıyla). Aktivite yine aşamayı kendisi
+  değiştirmez; "Teklif gönderildi" sonucu aşamayı `ChangeLeadStage` üzerinden taşır. Madde 5'e ek: ürün tercihleri ve
+  çatı ölçüsü lead'de ayrı sütunlardır, `court_count` bunlardan yazılmaz (ADR-0014, "Kort sayısı ve model"; iş emri
+  §3.4).

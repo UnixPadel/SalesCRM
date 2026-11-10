@@ -1,5 +1,6 @@
 import { queryOne, type Queryable } from "../../shared/db";
 import type { IdGenerator } from "../../shared/kernel";
+import { filterValues } from "../domain";
 import type {
   Lead,
   LeadFields,
@@ -32,9 +33,16 @@ import {
 const LEAD_COLS =
   "id, source, platform_lead_id, form_id, person_id, full_name, email, phone_e164, country, city, company, product_interest, " +
   "campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name, assigned_user_id, current_stage, is_test, notes, extra_answers, " +
-  "court_count, court_model, expected_close_date, organization_id, created_at, updated_at";
+  "court_count, court_model, expected_close_date, organization_id, " +
+  // Faz 7g (migration 0012): müşteri durumu, ürünler, form cevapları, reklam yüzeyi, kontrol edilen uyarılar, eski kayıt.
+  "customer_status, qty_standard, qty_panoramic, qty_full_panoramic, roof_wanted, roof_width_m, roof_length_m, " +
+  "install_site, install_timeline, customer_profile, court_count_band, ad_surface, checked_warnings, contact_history_unknown, " +
+  "created_at, updated_at";
 /** Okurken tarih sütunu metin olarak gelir (rows.ts: LeadRow.expected_close_date). */
 const LEAD_SELECT = LEAD_COLS.replace("expected_close_date", "expected_close_date::text AS expected_close_date");
+const LEAD_PLACEHOLDERS = LEAD_COLS.split(",")
+  .map((c, i) => (c.trim() === "checked_warnings" ? `$${i + 1}::text[]` : `$${i + 1}`))
+  .join(",");
 
 const FIELD_COLUMN: Record<keyof LeadFields, string> = {
   courtCount: "court_count",
@@ -78,13 +86,24 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
           })))`,
         );
       }
-      if (f.stage) where.push(`current_stage = ${p(f.stage)}`);
-      if (f.owner === null) where.push("assigned_user_id IS NULL");
-      else if (f.owner !== undefined) where.push(`assigned_user_id = ${p(f.owner)}`);
-      if (f.country) where.push(`country = ${p(f.country.toUpperCase())}`);
+      // Çoklu değerli süzgeçler (Faz 7g): tek değer de liste gibi işlenir; `visibleTo` yukarıda aynen kalır.
+      const stages = filterValues(f.stage);
+      if (stages) where.push(`current_stage = ANY(${p([...stages])}::text[])`);
+      const owners = filterValues(f.owner);
+      if (owners) {
+        const ids = owners.filter((o): o is string => o !== null);
+        const parts = [
+          ...(owners.includes(null) ? ["assigned_user_id IS NULL"] : []),
+          ...(ids.length ? [`assigned_user_id = ANY(${p(ids)}::text[])`] : []),
+        ];
+        where.push(`(${parts.join(" OR ")})`);
+      }
+      const countries = filterValues(f.country);
+      if (countries) where.push(`country = ANY(${p(countries.map((c) => c.toUpperCase()))}::bpchar[])`);
       if (f.organizationId) where.push(`organization_id = ${p(f.organizationId)}`);
       if (f.personId) where.push(`person_id = ${p(f.personId)}`);
-      if (f.source) where.push(`source = ${p(f.source)}`);
+      const sources = filterValues(f.source);
+      if (sources) where.push(`source = ANY(${p([...sources])}::text[])`);
       if (f.search) {
         const like = p(`%${f.search.toLowerCase()}%`);
         where.push(
@@ -97,40 +116,51 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
       return (await q.query<LeadRow>(sql, params)).map(leadFromRow);
     },
     async insert(l: Lead) {
-      await q.query(
-        `INSERT INTO leads (${LEAD_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)`,
-        [
-          l.id,
-          l.source,
-          l.platformLeadId,
-          l.formId,
-          l.personId,
-          l.fullName,
-          l.email,
-          l.phoneE164,
-          l.country,
-          l.city,
-          l.company,
-          l.productInterest,
-          l.campaign.campaignId,
-          l.campaign.campaignName,
-          l.campaign.adsetId,
-          l.campaign.adsetName,
-          l.campaign.adId,
-          l.campaign.adName,
-          l.assignedUserId,
-          l.currentStage,
-          l.isTest,
-          l.notes,
-          JSON.stringify(l.extraAnswers),
-          l.courtCount,
-          l.courtModel,
-          l.expectedCloseDate,
-          l.organizationId,
-          l.createdAt,
-          l.updatedAt,
-        ],
-      );
+      await q.query(`INSERT INTO leads (${LEAD_COLS}) VALUES (${LEAD_PLACEHOLDERS})`, [
+        l.id,
+        l.source,
+        l.platformLeadId,
+        l.formId,
+        l.personId,
+        l.fullName,
+        l.email,
+        l.phoneE164,
+        l.country,
+        l.city,
+        l.company,
+        l.productInterest,
+        l.campaign.campaignId,
+        l.campaign.campaignName,
+        l.campaign.adsetId,
+        l.campaign.adsetName,
+        l.campaign.adId,
+        l.campaign.adName,
+        l.assignedUserId,
+        l.currentStage,
+        l.isTest,
+        l.notes,
+        JSON.stringify(l.extraAnswers),
+        l.courtCount,
+        l.courtModel,
+        l.expectedCloseDate,
+        l.organizationId,
+        l.customerStatus,
+        l.products.standard,
+        l.products.panoramic,
+        l.products.fullPanoramic,
+        l.products.roof.wanted,
+        l.products.roof.widthM,
+        l.products.roof.lengthM,
+        l.installSite,
+        l.installTimeline,
+        l.customerProfile,
+        l.courtCountBand,
+        l.adSurface,
+        [...l.checkedWarnings],
+        l.contactHistoryUnknown,
+        l.createdAt,
+        l.updatedAt,
+      ]);
     },
     async updateIdentity(id, identity, updatedAt) {
       await q.query("UPDATE leads SET full_name = $2, email = $3, phone_e164 = $4, updated_at = $5 WHERE id = $1", [

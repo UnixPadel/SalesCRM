@@ -3,7 +3,13 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["src/modules/**/*.test.ts", "src/bootstrap/**/*.test.ts", "tests/**/*.test.ts"],
+    // src/pipeline: arayüzün saf yardımcıları (Faz 7g); bu yoldaki test edilen modüller React ve DOM içe aktarmaz.
+    include: [
+      "src/modules/**/*.test.ts",
+      "src/bootstrap/**/*.test.ts",
+      "src/pipeline/**/*.test.ts",
+      "tests/**/*.test.ts",
+    ],
     // PGlite (WASM) açılışı ve migration'lar yük altında 10 sn'yi aşabiliyor (29 dosya paralel); kancalar için geniş pay.
     hookTimeout: 60_000,
     testTimeout: 30_000,

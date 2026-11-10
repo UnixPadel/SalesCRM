@@ -1,4 +1,4 @@
-import type { Activity } from "./activity";
+import type { Activity, ContactLog } from "./activity";
 import type { TerritoryRule } from "./assignment";
 import type { DomainEvent } from "./events";
 import type { Lead, LeadAttribution, LeadConsent, LeadSource, Person, StageEvent } from "./lead";
@@ -8,18 +8,22 @@ import type { StageCode } from "./stage";
 
 /** Portlar (Genel plan kural 2): uygulamalar infrastructure katmanında, testler sahte uygulamayla. */
 
+/**
+ * Lead listesi süzgeci. Faz 7g: aşama, sorumlu, ülke ve kaynak tek değer ya da değer listesi alır (Lead listesi
+ * başlık menüleri); liste "bunlardan biri" demektir, boş liste süzgeç yok demektir (`filterValues`, filter.ts).
+ */
 export interface LeadListFilter {
   /** Satışçı görünürlüğü: bu kullanıcıya atanmış + havuz; undefined = hepsi (admin). */
   visibleTo?: { userId: string; countries: readonly string[] } | undefined;
-  stage?: StageCode | undefined;
-  /** Sorumlu: kullanıcı kimliği; null = ortak havuz; undefined = hepsi. */
-  owner?: string | null | undefined;
-  /** ISO 3166-1 alpha-2. */
-  country?: string | undefined;
+  stage?: StageCode | readonly StageCode[] | undefined;
+  /** Sorumlu: kullanıcı kimliği; null = ortak havuz; listede null havuzu kapsar; undefined = hepsi. */
+  owner?: string | null | readonly (string | null)[] | undefined;
+  /** ISO 3166-1 alpha-2 (büyük/küçük harf duyarsız). */
+  country?: string | readonly string[] | undefined;
   organizationId?: string | undefined;
   personId?: string | undefined;
   /** Lead kaynağı (Faz 7: pano filtresi). */
-  source?: LeadSource | undefined;
+  source?: LeadSource | readonly LeadSource[] | undefined;
   includeTest?: boolean | undefined;
   search?: string | undefined;
   limit?: number | undefined;
@@ -129,12 +133,21 @@ export interface ActivityRepository {
   findByLegacyId(legacyId: string): Promise<Activity | undefined>;
 }
 
+/** Temas kayıtları (Faz 7g, `contact_logs`): tek "Temas kaydet" işleminin geri alma bilgisi. */
+export interface ContactLogRepository {
+  insert(log: ContactLog): Promise<void>;
+  findById(id: string): Promise<ContactLog | undefined>;
+  /** Geri almada silinir; bağlı aktivitelerin `log_id` / `next_of_log_id` alanı DB'de NULL olur. */
+  remove(id: string): Promise<void>;
+}
+
 export interface Repositories {
   leads: LeadRepository;
   persons: PersonRepository;
   organizations: OrganizationRepository;
   stageEvents: StageEventRepository;
   activities: ActivityRepository;
+  contactLogs: ContactLogRepository;
   outbox: OutboxWriter;
   territories: TerritoryRuleSource;
   lostReasons: LostReasonSource;

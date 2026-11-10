@@ -33,6 +33,12 @@ export interface OrganizationFields {
 
 export const ORGANIZATION_LIMITS = { name: 200, website: 200, notes: 4000 } as const;
 
+/**
+ * Serbest metin alanları; hata kodları şablonla kurulur (`organization.<alan>_invalid`, `organization.<alan>_too_long`).
+ * `tests/i18n-errors.test.ts` çevirilerini bu listeden açarak denetler.
+ */
+export const ORGANIZATION_TEXT_FIELDS = ["website", "notes"] as const satisfies readonly (keyof OrganizationFields)[];
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (v: unknown): v is string => typeof v === "string" && UUID_RE.test(v);
 
@@ -73,11 +79,9 @@ export function parseOrganizationFields(
       return err(new RuleError("organization.country_invalid", "Ülke iki harfli ISO kodu olmalı.", { value: v }));
     } else out.country = v.trim().toUpperCase();
   }
-  for (const [key, max] of [
-    ["website", ORGANIZATION_LIMITS.website],
-    ["notes", ORGANIZATION_LIMITS.notes],
-  ] as const) {
+  for (const key of ORGANIZATION_TEXT_FIELDS) {
     if (!(key in raw)) continue;
+    const max = ORGANIZATION_LIMITS[key];
     const v = raw[key];
     if (v !== null && v !== undefined && typeof v !== "string") {
       return err(new RuleError(`organization.${key}_invalid`, "Metin olmalı.", { field: key }));
