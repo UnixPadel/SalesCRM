@@ -35,7 +35,7 @@ Yedek: `server/data/pglite-backup-2026-11-10` (migration 12 öncesi). Migration 
 4. İkinci koşu: "Değişiklik yok."
 
 Sorumlu eşleşmesi: Yusa Bedir → 32 (44) · Simon Sharpe → 28 (31) · Ahlem → 47 (22) · Salah → 46 (11).
-Çözülemeyenler ortak havuzda, "Excel'deki sorumlu" etiketiyle: Faruk 8 · ATANMADI 7 · Mehmet 6 · Beyza 4 (yalnız pasif
+Çözülemeyenler kullanıcı kararıyla ortak havuzda kalır, "Excel'deki sorumlu" etiketiyle: Faruk 8 · ATANMADI 7 · Mehmet 6 · Beyza 4 (yalnız pasif
 kullanıcı) · Almanya Distribütörü 3.
 
 **Enes (2026-11-10, kullanıcı kararı):** satis@ adresi iki aktif kullanıcıdaydı (26, 51); Enes → **Amro Abdulvahit (51)**.
