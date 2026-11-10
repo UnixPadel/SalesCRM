@@ -99,6 +99,7 @@ export function trackingReference(policy: { repsEditProducts: boolean }, timeZon
     outcomeDisplayOrder: [...OUTCOME_DISPLAY_ORDER],
     replyOutcomes: [...REPLY_OUTCOMES],
     contactRules: {
+      defaultOutcome: { ...CONTACT_RULES.defaultOutcome },
       repliedFlagOutcomes: [...CONTACT_RULES.repliedFlagOutcomes],
       repliedDefaultTypes: [...CONTACT_RULES.repliedDefaultTypes],
       statusOutcomes: [...CONTACT_RULES.statusOutcomes],

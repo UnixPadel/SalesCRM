@@ -1,5 +1,5 @@
-export type Route = "inbox" | "lead" | "pipeline" | "activities" | "reports" | "contacts";
-export const ROUTES: Route[] = ["inbox", "lead", "pipeline", "activities", "reports", "contacts"];
+export type Route = "list" | "lead" | "pipeline" | "activities" | "reports" | "contacts";
+export const ROUTES: Route[] = ["list", "lead", "pipeline", "activities", "reports", "contacts"];
 
 export interface Location {
   route: Route;
@@ -14,7 +14,8 @@ export interface Location {
 export function parseHash(): Location {
   const [path, query] = location.hash.replace(/^#\/?/, "").split("?");
   const [seg, id = ""] = (path ?? "").split("/");
-  const route = (ROUTES.includes(seg as Route) ? seg : "inbox") as Route;
+  // Faz 7g: "Gelen kutusu" yerini "Lead listesi"ne bıraktı; eski #/inbox bağlantıları listeye açılır.
+  const route = (ROUTES.includes(seg as Route) ? seg : "list") as Route;
   const params = new URLSearchParams(query || "");
   return { route, q: params.get("q") || "", id: decodeURIComponent(id), params };
 }

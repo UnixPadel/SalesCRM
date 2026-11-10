@@ -38,7 +38,8 @@ export class PipelineError extends Error {
   }
 }
 
-async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
+/** Pipeline API çağrısı (özellik modülleri — temas, liste, rapor — kendi istemcilerini bunun üstüne kurar). */
+export async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
   try {
     return await api<T>(method, BASE + path, body);
   } catch (e) {
@@ -65,12 +66,26 @@ export const pipelineApi = {
     return call<LeadListDto[]>("GET", "/leads" + (s ? "?" + s : ""));
   },
   /** Pano (Faz 6b): filtreler sunucuda, kolon istatistikleri aynı kümeden. */
-  board: (p: { owner?: string; country?: string; source?: string; rotting?: boolean; includeTest?: boolean } = {}) => {
+  board: (
+    p: {
+      owner?: string | undefined;
+      country?: string | undefined;
+      source?: string | undefined;
+      rotting?: boolean | undefined;
+      never?: boolean | undefined;
+      hot?: boolean | undefined;
+      warning?: boolean | undefined;
+      includeTest?: boolean | undefined;
+    } = {},
+  ) => {
     const qs = new URLSearchParams();
     if (p.owner) qs.set("owner", p.owner);
     if (p.country) qs.set("country", p.country);
     if (p.source) qs.set("source", p.source);
     if (p.rotting) qs.set("rotting", "1");
+    if (p.never) qs.set("contact", "never");
+    if (p.hot) qs.set("hot", "1");
+    if (p.warning) qs.set("warning", "1");
     if (p.includeTest) qs.set("includeTest", "1");
     const s = qs.toString();
     return call<BoardDto>("GET", "/board" + (s ? "?" + s : ""));

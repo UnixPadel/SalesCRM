@@ -76,7 +76,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       const id = ++seq.current;
       setToasts((t) => [...t.slice(-2), { id, msg, ...opts }]);
       // Eylemli balon daha uzun kalır ki eyleme yetişilsin (WCAG 2.2.1).
-      setTimeout(() => dismissToast(id), opts.action ? 8000 : opts.bad ? 6000 : 3000);
+      // Eylemli bildirim ("Geri al") en az 20 sn kalır (WCAG 2.2.1, Faz 7g iş emri §5.3).
+      setTimeout(() => dismissToast(id), opts.action ? 20_000 : opts.bad ? 6000 : 3000);
     },
     [dismissToast],
   );

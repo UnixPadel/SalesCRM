@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { CONTACT_DICT } from "./contact";
+import { LIST_DICT } from "./list";
+import { REPORT_DICT } from "./report";
 
 /**
  * TR / EN arayüz sözlüğü (Genel plan: arayüz metinleri TR ve EN). Kütüphanesiz: anahtar → iki metin.
@@ -426,6 +428,8 @@ const DICT = {
   "err.internal": ["Beklenmeyen hata. Lütfen tekrar deneyin.", "Unexpected error. Please try again."],
   "err.network": ["Sunucuya ulaşılamadı.", "Could not reach the server."],
   ...CONTACT_DICT,
+  ...LIST_DICT,
+  ...REPORT_DICT,
 } as const satisfies Record<string, readonly [string, string]>;
 
 export type TKey = keyof typeof DICT;

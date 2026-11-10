@@ -97,6 +97,9 @@ const PATHS: Record<string, string> = {
   court: "M3 5h18v14H3zM12 5v14M3 12h18",
   route: "M5 18h6a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6M5 18a2 2 0 1 0-.01 0M19 6a2 2 0 1 0-.01 0",
   columns: "M3 4h5v16H3zM9.5 4h5v16h-5zM16 4h5v16h-5z",
+  info: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 16v-5M12 8h.01",
+  list: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
+  download: "M12 3v12M7 10l5 5 5-5M5 21h14",
 };
 export function Icon({ name, size = 16, className }: { name: string; size?: number; className?: string }) {
   return (

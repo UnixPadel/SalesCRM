@@ -4,7 +4,7 @@ import { Toasts } from "./components/Toasts";
 import { Skeleton } from "./components/ui";
 import { LoginPage } from "./pages/LoginPage";
 import { ActivitiesPage } from "./pipeline/ActivitiesPage";
-import { InboxPage } from "./pipeline/InboxPage";
+import { LeadListPage } from "./pipeline/list/LeadListPage";
 import { KanbanPage } from "./pipeline/KanbanPage";
 import { LeadPage } from "./pipeline/LeadPage";
 import { NewLeadDialog } from "./pipeline/NewLeadDialog";
@@ -45,16 +45,16 @@ export default function App() {
     <div className="shell">
       <Header route={route} onNewLead={() => setNewLead(true)} />
       <main className="page" id="main">
-        {route === "inbox" ? (
-          <InboxPage initialQuery={q} key={q} />
+        {route === "list" ? (
+          <LeadListPage params={params} />
         ) : route === "lead" ? (
           <LeadPage id={id} key={id} />
         ) : route === "pipeline" ? (
           <KanbanPage params={params} />
         ) : route === "activities" ? (
-          <ActivitiesPage />
+          <ActivitiesPage params={params} />
         ) : route === "reports" ? (
-          <ReportsPage />
+          <ReportsPage params={params} />
         ) : (
           <PeoplePage initialQuery={q} key={q} />
         )}

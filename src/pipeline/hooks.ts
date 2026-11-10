@@ -92,22 +92,29 @@ export function useLeads(filter: LeadFilter) {
 }
 
 /** Pano verisi (Faz 6b): filtre değişince yeniden yüklenir; eski yanıt yenisinin üstüne yazmaz. */
-export function useBoard(filter: { owner?: string; country?: string; source?: string; rotting?: boolean }) {
+export function useBoard(filter: {
+  owner?: string | undefined;
+  country?: string | undefined;
+  source?: string | undefined;
+  rotting?: boolean | undefined;
+  never?: boolean | undefined;
+  hot?: boolean | undefined;
+  warning?: boolean | undefined;
+}) {
   const [board, setBoard] = useState<BoardDto | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const key = `${filter.owner ?? ""}|${filter.country ?? ""}|${filter.source ?? ""}|${filter.rotting ? 1 : 0}`;
+  const key = JSON.stringify(filter);
   const seq = useRef(0);
   const reload = useCallback(() => {
     const n = ++seq.current;
     pipelineApi
-      .board({ owner: filter.owner, country: filter.country, source: filter.source, rotting: filter.rotting })
+      .board(JSON.parse(key) as typeof filter)
       .then((r) => {
         if (n !== seq.current) return;
         setBoard(r);
         setError(null);
       })
       .catch((e) => n === seq.current && setError(e));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   useEffect(reload, [reload]);
   return { board, error, reload };
@@ -187,6 +194,8 @@ export function useTeamNames() {
   const nameOf = useCallback(
     (userId: string | null): string => {
       if (!userId) return t("common.pool");
+      // Excel / eski sistem aktarımının aktörü (kişi değil).
+      if (userId === "import") return t("source.importActor");
       if (user && userId === user.id) return user.name;
       const m = team.find((x) => x.id === userId || x.email === userId);
       return m?.name ?? userId;
@@ -217,9 +226,13 @@ export function useSince() {
   );
 }
 
-/** Dokunulmamış (NEW) lead için renk: 1 saat → warn, 24 saat → bad. */
-export function ageTone(lead: LeadDto, now = Date.now()): "warn" | "bad" | null {
-  if (lead.currentStage !== "NEW") return null;
+/**
+ * Dokunulmamış lead için renk: 1 saat → warn, 24 saat → bad. Faz 7g [M-M9]: liste öğesinde temas özeti varsa
+ * "hiç ulaşılmadı" esas alınır (aşama değil); yalın lead'de NEW aşaması.
+ */
+export function ageTone(lead: LeadDto | LeadListDto, now = Date.now()): "warn" | "bad" | null {
+  const untouched = "contact" in lead ? lead.contact.state === "never" : lead.currentStage === "NEW";
+  if (!untouched || lead.currentStage === "WON" || lead.currentStage === "LOST") return null;
   const h = (now - new Date(lead.createdAt).getTime()) / 3_600_000;
   return h >= 24 ? "bad" : h >= 1 ? "warn" : null;
 }

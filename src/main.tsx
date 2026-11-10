@@ -5,6 +5,7 @@ import { LangProvider } from "./i18n";
 import { CrmProvider } from "./state/CrmContext";
 import "./styles.css";
 import "./pipeline/pipeline.css";
+import "./pipeline/tracking.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

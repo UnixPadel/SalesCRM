@@ -5,16 +5,69 @@ import { useLang } from "../i18n";
 import type { ReportDto } from "../modules/sales-pipeline/api/dto";
 import { pipelineApi } from "./api";
 import { useErrorText, useReference } from "./hooks";
+import { SummaryReport } from "./report/SummaryReport";
+import { setHashParams } from "../router";
 
 const MONTH_OPTIONS = [6, 12, 24] as const;
 const PERIOD_KEY = "unixcrm.v2.reportMonths";
+const TAB_KEY = "unixcrm.v2.reportTab";
+
+/**
+ * Raporlar (Faz 7g): iki sekme. "Aşama raporu" (Faz 6c) ve "Özet rapor" (Excel ÖZET RAPOR'un karşılığı).
+ * `#/reports?tab=summary`; son sekme tarayıcıda hatırlanır.
+ */
+export function ReportsPage({ params }: { params: URLSearchParams }) {
+  const { t } = useLang();
+  const remembered = (() => {
+    try {
+      return localStorage.getItem(TAB_KEY);
+    } catch {
+      return null;
+    }
+  })();
+  const tab = (params.get("tab") ?? remembered) === "summary" ? "summary" : "stage";
+  const pick = (k: "stage" | "summary") => {
+    try {
+      localStorage.setItem(TAB_KEY, k);
+    } catch {
+      /* yalnız kolaylık */
+    }
+    setHashParams("reports", new URLSearchParams(k === "summary" ? "tab=summary" : "tab=stage"), true);
+  };
+  return (
+    <section className="pl-page reports-page">
+      <div className="tabs report-tabs" role="tablist" aria-label={t("reports.title")}>
+        {(["stage", "summary"] as const).map((k) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={tab === k}
+            className={"tab" + (tab === k ? " on" : "")}
+            onClick={() => pick(k)}
+          >
+            {t(`reports.tab.${k}`)}
+          </button>
+        ))}
+      </div>
+      {tab === "summary" ? (
+        <>
+          <h1 className="pl-title">{t("reports.tab.summary")}</h1>
+          <SummaryReport />
+        </>
+      ) : (
+        <StageReport />
+      )}
+    </section>
+  );
+}
 
 /**
  * Raporlar (Faz 6c): yeni aşama olaylarından, sunucuda hesaplanır (`GET /reports`). Dört KPI ve beş grafik:
  * aylık kazanılan, aşamaya göre dönüşüm, ülkeye göre açık hat, kayıp nedenleri, kaynağa göre lead. Boş veride de
  * çalışır: aylar sıfır çubuklarla çizilir, oranlar "—". Dönem (6 / 12 / 24 ay) tarayıcıda hatırlanır.
  */
-export function ReportsPage() {
+function StageReport() {
   const { t, lang } = useLang();
   const { stageName, reasonName } = useReference();
   const errText = useErrorText();

@@ -3,13 +3,7 @@ export * from "./dto";
 export * from "./ports";
 export { buildInboundLead, type BuildLeadInput } from "./buildLead";
 export { countryCodeFrom, resolveCountry } from "./country";
-export {
-  fold,
-  normalizeFormAnswers,
-  parseCourtAnswer,
-  type FormTarget,
-  type NormalizedAnswers,
-} from "./formAnswers";
+export { fold, normalizeFormAnswers, parseCourtAnswer, type FormTarget, type NormalizedAnswers } from "./formAnswers";
 export { CreateLeadFromAd, type CreateLeadFromAdResult } from "./createLeadFromAd";
 export {
   AcceptInboundEvent,

@@ -47,6 +47,8 @@ export function ActivityItem({
   canEdit,
   onToggle,
   onDelete,
+  onComplete,
+  lastLabel,
   now,
 }: {
   a: ActivityDto;
@@ -55,17 +57,24 @@ export function ActivityItem({
   canEdit: boolean;
   onToggle: (done: boolean) => void;
   onDelete?: () => void;
+  /** Faz 7g: açık işi "Temas kaydet" diyaloğunda tamamla (onay kutusu yerine 44 px "Tamamla…"). */
+  onComplete?: () => void;
+  /** Lead'in son temas sonucu ("Son: Dönüş bekleniyor"). */
+  lastLabel?: string;
   now: number;
 }) {
   const { t } = useLang();
   const done = a.doneAt !== null;
   const state = done ? "done" : dueState(a.dueAt, now);
+  const completeMode = !done && !!onComplete;
   return (
     <div className={`arow is-${state}`}>
-      <label className="arow-check" title={done ? t("activity.markOpen") : t("activity.markDone")}>
-        <input type="checkbox" checked={done} disabled={!canEdit} onChange={() => onToggle(!done)} />
-        <span className="sr-only">{a.subject}</span>
-      </label>
+      {!completeMode && (
+        <label className="arow-check" title={done ? t("activity.markOpen") : t("activity.markDone")}>
+          <input type="checkbox" checked={done} disabled={!canEdit} onChange={() => onToggle(!done)} />
+          <span className="sr-only">{a.subject}</span>
+        </label>
+      )}
       <span className="arow-ic" aria-hidden="true">
         <Icon name={ACTIVITY_ICON[a.type]} />
       </span>
@@ -82,6 +91,7 @@ export function ActivityItem({
             {lead.company && <span className="muted"> · {lead.company}</span>}
           </button>
         )}
+        {lastLabel && <span className="tag tag-neutral">{lastLabel}</span>}
       </div>
       <div className="arow-due">
         {!done && state !== "upcoming" && (
@@ -90,6 +100,17 @@ export function ActivityItem({
           </StatusTag>
         )}
         <time dateTime={a.dueAt}>{fmtDate(a.dueAt, true)}</time>
+        {completeMode && canEdit && (
+          <Button
+            size="md"
+            variant="pri"
+            className="hit"
+            onClick={onComplete}
+            aria-label={t("contact.completeFor", { subject: a.subject, name: lead?.fullName ?? "" })}
+          >
+            {t("contact.complete")}
+          </Button>
+        )}
         {canEdit && onDelete && (
           <button className="btn btn-ghost btn-sm" type="button" onClick={onDelete} aria-label={t("activity.delete")}>
             <Icon name="trash" size={14} />

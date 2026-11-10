@@ -32,7 +32,7 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
 
   // Bütün sayfalar yeni pipeline'dan (Faz 6d'den itibaren).
   const NAV: { r: Route; icon: string; label: string; badge?: number; badgeLabel?: string; bad?: boolean }[] = [
-    { r: "inbox", icon: "inbox", label: t("nav.inbox") },
+    { r: "list", icon: "list", label: t("nav.list") },
     { r: "pipeline", icon: "columns", label: t("nav.board") },
     {
       r: "activities",
@@ -48,7 +48,7 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
 
   return (
     <header className="hdr">
-      <a className="wordmark" href="#/inbox" aria-label="Unixpadel satış panosu, ana sayfa">
+      <a className="wordmark" href="#/list" aria-label="Unixpadel satış panosu, ana sayfa">
         <b>unixpadel</b>
         <span>satış panosu</span>
       </a>
@@ -58,7 +58,7 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
             key={n.r}
             href={`#/${n.r}`}
             className="nav-link"
-            aria-current={route === n.r || (n.r === "inbox" && route === "lead") ? "page" : undefined}
+            aria-current={route === n.r || (n.r === "list" && route === "lead") ? "page" : undefined}
             aria-label={n.badge ? `${n.label}, ${n.badgeLabel}` : n.label}
           >
             <Icon name={n.icon} size={18} />

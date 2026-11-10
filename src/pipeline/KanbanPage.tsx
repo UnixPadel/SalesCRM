@@ -7,9 +7,13 @@ import type { ColumnStatsDto, LeadListDto, StageCodeDto } from "../modules/sales
 import { navigate, setHashParams } from "../router";
 import { useCrm } from "../state/CrmContext";
 import { ACTIVITY_ICON, dueState } from "./activityBits";
-import { Age, Country, SourceBadge, STAGE_TONE } from "./bits";
+import { STAGE_TONE } from "./bits";
+import { pipelineApi } from "./api";
+import { courtLine, daysAgo, openWarnings, productLine } from "./contact/trackingView";
+import { useLogContact } from "./contact/useLogContact";
 import {
   EMPTY_FILTER,
+  filterCount,
   filterFromParams,
   filterToParams,
   hasFilterParams,
@@ -34,7 +38,7 @@ const COUNTRIES = Object.entries(COUNTRY_NAME).sort((a, b) => a[1].localeCompare
  */
 export function KanbanPage({ params }: { params: URLSearchParams }) {
   const { t, lang } = useLang();
-  const { toast, isViewer } = useCrm();
+  const { toast, isViewer, isAdmin, user } = useCrm();
   const { ref } = useReference();
   const { team, nameOf } = useTeamNames();
   const now = useNow(30_000);
@@ -58,12 +62,25 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
     country: filter.country || undefined,
     source: filter.source || undefined,
     rotting: filter.rotting,
+    never: filter.never,
+    hot: filter.hot,
+    warning: filter.warning && isAdmin,
   });
   const [dragging, setDragging] = useState<LeadListDto | null>(null);
   const [over, setOver] = useState<StageCodeDto | null>(null);
 
   const onChanged = useCallback(() => reload(), [reload]);
   const { move, dialog } = useStageMove(ref, onChanged);
+  const contact = useLogContact(onChanged);
+  const take = async (l: LeadListDto) => {
+    try {
+      await pipelineApi.assign(l.id, { toUserId: user!.id });
+      toast(t("lead.taken"));
+      reload();
+    } catch (e) {
+      toast(errText(e), { bad: true });
+    }
+  };
 
   if (error) {
     return (
@@ -91,11 +108,23 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
       toast(t("stage.backwardBlocked", { n: ref.undoWindowMinutes }), { bad: true });
       return;
     }
+    // Faz 7g (§5.1): temas kaydı olmayan lead NEW → CONTACTED bırakılınca "Temas kaydet" açılır (aşama satırı
+    // önerili); "Yalnız aşamayı taşı" eski akıştır.
+    if (lead.currentStage === "NEW" && target === "CONTACTED" && lead.contact.state !== "contacted") {
+      contact.openDialog({
+        leadId: lead.id,
+        leadName: lead.fullName,
+        outcome: "reply_received",
+        alt: { label: t("board.logOnDrop"), run: () => move(lead, target) },
+      });
+      return;
+    }
     move(lead, target);
   };
 
   const statsOf = (code: StageCodeDto): ColumnStatsDto | undefined => board?.columns.find((c) => c.stage === code);
   const active = !isEmptyFilter(filter);
+  const nActive = filterCount(filter);
 
   return (
     <section className="kanban-wrap" aria-label={t("board.title")}>
@@ -145,17 +174,46 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
           </select>
           <button
             type="button"
-            className="chip chip-bad"
+            className="chip chip-bad hit"
             aria-pressed={filter.rotting}
             onClick={() => setFilter({ rotting: !filter.rotting })}
             title={t("activity.rottingHint")}
           >
-            <Icon name="flame" size={14} /> {t("activity.rotting")}
+            <Icon name="clock" size={14} /> {t("activity.rotting")}
           </button>
+          <button
+            type="button"
+            className="chip chip-bad hit"
+            aria-pressed={filter.never}
+            onClick={() => setFilter({ never: !filter.never })}
+          >
+            <Icon name="warn" size={14} /> {t("board.quick.never")}
+          </button>
+          <button
+            type="button"
+            className="chip hit"
+            aria-pressed={filter.hot}
+            onClick={() => setFilter({ hot: !filter.hot })}
+          >
+            <Icon name="flame" size={14} /> {t("board.quick.hot")}
+          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="chip hit"
+              aria-pressed={filter.warning}
+              onClick={() => setFilter({ warning: !filter.warning })}
+            >
+              <Icon name="warn" size={14} /> {t("board.quick.warning")}
+            </button>
+          )}
           {active && (
-            <Button size="sm" icon="x" onClick={() => setFilter(EMPTY_FILTER)}>
-              {t("board.filter.clear")}
-            </Button>
+            <span className="ll-active">
+              {t("board.filtersActive", { n: nActive })} ·{" "}
+              <button type="button" className="link-btn" onClick={() => setFilter(EMPTY_FILTER)}>
+                {t("board.filter.clear")}
+              </button>
+            </span>
           )}
         </div>
       </div>
@@ -231,21 +289,22 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
                       onKeyDown={(e) => e.key === "Enter" && navigate("lead", undefined, l.id)}
                       aria-label={`${l.fullName}, ${t("board.open")}`}
                     >
+                      {/* Kart 4 satır (Faz 7g, §5.1): ad · ürün · tek durum çipi · sorumlu ve son temas. */}
                       <div className="card-name">{l.fullName}</div>
-                      <div className="card-sub">
-                        {[l.company, l.productInterest || l.courtModel].filter(Boolean).join(" · ") ||
-                          l.email ||
-                          l.phoneE164}
-                      </div>
-                      <div className="kb-facts">
-                        <SourceBadge source={l.source} />
-                        <Country code={l.country} />
-                        <Age lead={l} now={now} />
-                      </div>
-                      <OpportunityChips lead={l} terminal={s.isTerminal} now={now} />
-                      <div className="kb-foot">
-                        {l.rotting ? (
-                          <StatusTag tone="bad" icon="flame" title={t("activity.rottingHint")}>
+                      {(() => {
+                        const sub =
+                          productLine(l.products, t, lang, true) ||
+                          [courtLine(l, t), l.productInterest].filter(Boolean).join(" · ") ||
+                          l.courtModel;
+                        return sub ? <div className="card-sub">{sub}</div> : null;
+                      })()}
+                      <div className="kb-foot kb-state">
+                        {!s.isTerminal && l.contact.state === "never" ? (
+                          <StatusTag tone="bad" icon="warn">
+                            {t("summary.never")}
+                          </StatusTag>
+                        ) : l.rotting ? (
+                          <StatusTag tone="bad" icon="clock" title={t("activity.rottingHint")}>
                             {t("activity.rotting")}
                           </StatusTag>
                         ) : l.nextActivity ? (
@@ -254,12 +313,57 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
                             title={`${l.nextActivity.subject} · ${l.nextActivity.dueAt.slice(0, 16).replace("T", " ")}`}
                           >
                             <Icon name={ACTIVITY_ICON[l.nextActivity.type]} size={13} />
-                            {relDays(l.nextActivity.dueAt)}
+                            {t("board.nextAt", { d: relDays(l.nextActivity.dueAt) })}
                           </span>
-                        ) : (
-                          <span />
+                        ) : null}
+                        {l.hot && (
+                          <StatusTag tone="warn" icon="flame">
+                            {t("hot.label")}
+                          </StatusTag>
                         )}
-                        <span className="kb-owner">{nameOf(l.assignedUserId)}</span>
+                        {(s.code === "PROPOSAL" || s.code === "WON") && l.value && (
+                          <span className="kb-chip kb-chip-money" title={t("lead.value")}>
+                            <Icon name="money" size={13} /> {money(l.value.amount, l.value.currency as Currency, true)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="kb-foot">
+                        <span className="kb-owner">
+                          {l.assignedUserId ? (
+                            nameOf(l.assignedUserId)
+                          ) : (
+                            <>
+                              {t("common.pool")}
+                              {!isViewer && !isAdmin && (
+                                <Button
+                                  size="sm"
+                                  className="hit"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    take(l);
+                                  }}
+                                >
+                                  {t("lead.take")}
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </span>
+                        <span className="muted">
+                          {l.contact.lastAt
+                            ? t("board.lastContact", { d: daysAgo(l.contact.lastAt, now, lang) })
+                            : l.contact.state === "legacy"
+                              ? t("summary.legacyShort")
+                              : ""}
+                        </span>
+                        {isAdmin && openWarnings(l.warnings).length > 0 && (
+                          <span
+                            className="inline-warn"
+                            aria-label={t("warning.count", { n: openWarnings(l.warnings).length })}
+                          >
+                            <Icon name="warn" size={13} /> {openWarnings(l.warnings).length}
+                          </span>
+                        )}
                       </div>
                     </article>
                   ))}
@@ -270,39 +374,7 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
         </div>
       )}
       {dialog}
+      {contact.dialog}
     </section>
-  );
-}
-
-/** Kartta fırsat çipleri: kort sayısı, son tutar, beklenen kapanış (geçmişse turuncu), aşamada geçen gün. */
-function OpportunityChips({ lead, terminal, now }: { lead: LeadListDto; terminal: boolean; now: number }) {
-  const { t } = useLang();
-  const days = Math.max(0, Math.floor((now - new Date(lead.stageEnteredAt).getTime()) / 86_400_000));
-  const closeLate =
-    !terminal && lead.expectedCloseDate !== null && new Date(lead.expectedCloseDate + "T23:59:59").getTime() < now;
-  if (lead.courtCount === null && !lead.value && !lead.expectedCloseDate && days < 1) return null;
-  return (
-    <div className="kb-opp">
-      {lead.courtCount !== null && (
-        <span className="kb-chip" title={t("lead.courtCount")}>
-          <Icon name="court" size={13} /> {t("board.courts", { n: lead.courtCount })}
-        </span>
-      )}
-      {lead.value && (
-        <span className="kb-chip kb-chip-money" title={t("lead.value")}>
-          <Icon name="money" size={13} /> {money(lead.value.amount, lead.value.currency as Currency, true)}
-        </span>
-      )}
-      {lead.expectedCloseDate && (
-        <span className={"kb-chip" + (closeLate ? " is-late" : "")} title={t("lead.expectedClose")}>
-          <Icon name="calendar" size={13} /> {relDays(lead.expectedCloseDate)}
-        </span>
-      )}
-      {days >= 1 && (
-        <span className="kb-chip kb-chip-days" title={t("lead.inStageHint")}>
-          <Icon name="clock" size={13} /> {t("board.inStage", { n: days })}
-        </span>
-      )}
-    </div>
   );
 }

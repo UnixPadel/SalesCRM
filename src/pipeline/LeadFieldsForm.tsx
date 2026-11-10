@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Button, Field } from "../components/ui";
-import { COURT_MODELS } from "../domain/constants";
 import { useLang } from "../i18n";
 import type { LeadDto, OrganizationDto, UpdateLeadBody } from "../modules/sales-pipeline/api/dto";
 import { useCrm } from "../state/CrmContext";
@@ -28,8 +27,6 @@ export function LeadFieldsForm({
   const { toast } = useCrm();
   const errText = useErrorText();
   const [f, setF] = useState({
-    courtCount: lead.courtCount === null ? "" : String(lead.courtCount),
-    courtModel: lead.courtModel,
     expectedCloseDate: lead.expectedCloseDate ?? "",
     company: lead.company,
     city: lead.city,
@@ -61,8 +58,6 @@ export function LeadFieldsForm({
       const body: UpdateLeadBody = notesOnly
         ? { notes: f.notes }
         : {
-            courtCount: f.courtCount.trim() === "" ? null : f.courtCount.trim(),
-            courtModel: f.courtModel,
             expectedCloseDate: f.expectedCloseDate || null,
             company: f.company,
             city: f.city,
@@ -109,25 +104,7 @@ export function LeadFieldsForm({
       {notesOnly && <p className="muted wide">{t("lead.adminOnlyHint")}</p>}
       {!notesOnly && (
         <>
-          <Field label={t("lead.courtCount")} error={fieldErr("courtCount")}>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={999}
-              step={1}
-              value={f.courtCount}
-              onChange={set("courtCount")}
-            />
-          </Field>
-          <Field label={t("lead.courtModel")} error={fieldErr("courtModel")}>
-            <input list="court-models-edit" value={f.courtModel} onChange={set("courtModel")} maxLength={64} />
-            <datalist id="court-models-edit">
-              {COURT_MODELS.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
-          </Field>
+          {/* Faz 7g (§3.4): kort sayısı ve model artık girilmez; ürün tercihleri ayrı panelde. */}
           <Field label={t("lead.expectedClose")} error={fieldErr("expectedCloseDate")}>
             <input type="date" value={f.expectedCloseDate} onChange={set("expectedCloseDate")} />
           </Field>

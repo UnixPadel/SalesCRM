@@ -201,6 +201,11 @@ Faz 6 dört parçaya bölündü; her parça ayrı iş emri ve ayrı kabul raporu
 **Durum (2026-11-02):** 6a, 6b ve 6c tamamlandı (ADR-0013, `docs/faz6a-kabul-raporu.md`, `docs/faz6b-kabul-raporu.md`,
 `docs/faz6c-kabul-raporu.md`); **6d tamamlandı** (`docs/faz6d-kabul-raporu.md`): Faz 6 bitti. Sıradaki: Faz 7.
 
+**Durum (2026-11-10):** Faz 7e (müşteri bilgisi yalnız yönetici) ve 7f (MySQL müşteri aktarımı) tamamlandı. **7g
+tamamlandı:** Excel satış takip dosyasının işlevleri CRM'de (Lead listesi, Temas kaydet, Özet rapor, Temas geçmişi,
+veri uyarıları, Excel aktarımı; `docs/satis-takip-is-emri.md`, ADR-0014, `docs/satis-takip-kabul-raporu.md`). Kalan:
+7a–7d (yönetim paneli), sonra Faz 8.
+
 ## 7. Canlıya alma ve veritabanı
 
 ```mermaid

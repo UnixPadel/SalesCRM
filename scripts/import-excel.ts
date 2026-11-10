@@ -52,12 +52,13 @@ const wb: WorkbookLike = {
       columnCount: ws.columnCount,
       cell: (r, c) => {
         const cell = ws.getCell(r, c);
-        let text = "";
-        try {
-          text = cell.text ?? "";
-        } catch {
-          text = "";
-        }
+        const text = (() => {
+          try {
+            return cell.text ?? "";
+          } catch {
+            return "";
+          }
+        })();
         return { value: cell.value, text };
       },
     };

@@ -2,18 +2,33 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Empty, Icon, Skeleton, StatusTag, fmtDate, money, relDays } from "../components/ui";
 import type { Currency } from "../domain/types";
 import { useLang } from "../i18n";
-import type { LeadDto, StageCodeDto, StageEventDto } from "../modules/sales-pipeline/api/dto";
+import type { ActivityDto, LeadDto, StageCodeDto, StageEventDto } from "../modules/sales-pipeline/api/dto";
 import { navigate } from "../router";
 import { useCrm } from "../state/CrmContext";
-import { ActivityItem, AddActivityForm } from "./activityBits";
+import { ACTIVITY_ICON, ActivityItem, AddActivityForm } from "./activityBits";
 import { pipelineApi } from "./api";
 import { Age, Country, SourceBadge, StageTag } from "./bits";
 import { LeadContactForm } from "./LeadContactForm";
 import { LeadFieldsForm } from "./LeadFieldsForm";
 import { useErrorText, useLeadDetail, useNow, useReference, useTeamNames } from "./hooks";
 import { useStageMove } from "./useStageMove";
+import { ContactLinks } from "./contact/ContactQuickBar";
+import {
+  ContactSummaryPanel,
+  CustomerStatusField,
+  CustomerStatusTag,
+  FormAnswersPanel,
+  InlinePhoneWarnings,
+  ProductsPanel,
+  SourceDetail,
+  WarningsPanel,
+} from "./contact/LeadSections";
+import { useLogContact } from "./contact/useLogContact";
 
-/** Lead detayı: solda kişi ve proje, sağda zaman çizelgesi; üstte büyük "Sonraki aşama" (Genel plan). */
+/**
+ * Lead detayı (Faz 7g, iş emri §5.2): tek birincil eylem "Temas kaydet"; aşama ikincil menüde. Solda iletişim, temas
+ * özeti, müşteri durumu, ürünler, form cevapları; sağda planlı işler ve zaman çizelgesi (aşamalar + temaslar).
+ */
 export function LeadPage({ id }: { id: string }) {
   const { t } = useLang();
   const { toast, user, isAdmin, isViewer } = useCrm();
@@ -39,6 +54,7 @@ export function LeadPage({ id }: { id: string }) {
     [detail],
   );
   const { move, dialog, saving } = useStageMove(ref, onChanged, { lastValue });
+  const contact = useLogContact(reload);
   const [moreOpen, setMoreOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
@@ -54,7 +70,7 @@ export function LeadPage({ id }: { id: string }) {
   if (error) {
     return (
       <Empty title={t("lead.notFound")}>
-        <Button icon="arrowL" onClick={() => navigate("inbox")}>
+        <Button icon="arrowL" onClick={() => navigate("list")}>
           {t("common.back")}
         </Button>
       </Empty>
@@ -69,7 +85,7 @@ export function LeadPage({ id }: { id: string }) {
     );
   }
 
-  const { lead, organization, events, activities, allowedTransitions, undo } = detail;
+  const { lead, organization, events, activities, allowedTransitions, undo, contactLogs } = detail;
   const openActs = activities.filter((a) => a.doneAt === null);
   const doneActs = activities
     .filter((a) => a.doneAt !== null)
@@ -101,6 +117,8 @@ export function LeadPage({ id }: { id: string }) {
   const mmss = `${Math.floor(undoLeft / 60_000)}:${String(Math.floor((undoLeft % 60_000) / 1000)).padStart(2, "0")}`;
 
   const doUndo = async () => {
+    // Son aşama değişikliği bir temas kaydından geldiyse ikisi birlikte geri alınır [U-I7].
+    if (undo.contactLogId) return contact.undo(undo.contactLogId);
     try {
       const u = await pipelineApi.undo(lead.id);
       toast(t("stage.undone"));
@@ -109,6 +127,22 @@ export function LeadPage({ id }: { id: string }) {
       toast(errText(e), { bad: true });
     }
   };
+  const logFor = (type?: ActivityDto["type"], outcome?: ActivityDto["outcome"], activityId?: string | null) =>
+    contact.openDialog({
+      leadId: lead.id,
+      leadName: lead.fullName,
+      ...(type ? { type } : {}),
+      ...(outcome ? { outcome } : {}),
+      ...(activityId !== undefined ? { activityId } : {}),
+    });
+  const logById = new Map(contactLogs.map((c) => [c.activityId, c]));
+  const deleteContact = async (id: string) => {
+    if (!window.confirm(t("contact.deleteConfirm"))) return;
+    await deleteActivity(id);
+  };
+  const excelOwner =
+    typeof lead.extraAnswers["excel_owner"] === "string" ? String(lead.extraAnswers["excel_owner"]) : null;
+  const canSetStatus = canAct;
   const assign = async (toUserId: string | null, msg: string) => {
     try {
       const l = await pipelineApi.assign(lead.id, { toUserId });
@@ -125,8 +159,8 @@ export function LeadPage({ id }: { id: string }) {
         <div className="lead-id">
           <a
             className="back"
-            href="#/inbox"
-            onClick={(e) => (e.preventDefault(), navigate("inbox"))}
+            href="#/list"
+            onClick={(e) => (e.preventDefault(), navigate("list"))}
             aria-label={t("common.back")}
           >
             <Icon name="arrowL" />
@@ -135,6 +169,18 @@ export function LeadPage({ id }: { id: string }) {
             <h1 id="lead-h">{lead.fullName}</h1>
             <div className="lead-meta">
               <StageTag code={lead.currentStage} />
+              {lead.hot && (
+                <StatusTag tone="warn" icon="flame">
+                  {t("hot.label")}
+                </StatusTag>
+              )}
+              {lead.customerStatus && <CustomerStatusTag status={lead.customerStatus} />}
+              {!lead.assignedUserId && (
+                <span className="tag tag-neutral">
+                  {t("common.pool")}
+                  {excelOwner ? ` · ${t("lead.excelOwner", { name: excelOwner })}` : ""}
+                </span>
+              )}
               <SourceBadge source={lead.source} />
               <Country code={lead.country} />
               <Age lead={lead} now={now} />
@@ -146,27 +192,27 @@ export function LeadPage({ id }: { id: string }) {
         <div className="lead-actions">
           {undo.available && undoLeft > 0 && canAct && (
             <Button icon="reset" onClick={doUndo}>
-              {t("stage.undoUntil", { t: mmss })}
+              {undo.contactLogId ? t("contact.undoLog") : t("stage.undoUntil", { t: mmss })}
+            </Button>
+          )}
+          {canAct && (
+            <Button variant="pri" size="lg" icon="chat" onClick={() => logFor()}>
+              {t("contact.log")}
             </Button>
           )}
           {canAct && allowedTransitions.length > 0 ? (
             <>
-              {next && (
-                <Button variant="pri" size="lg" icon="arrow" loading={saving} onClick={() => move(lead, next)}>
-                  {t("stage.next")}: {stageName(next)}
-                </Button>
-              )}
               <details
                 className="menu-dd"
                 ref={moreRef}
                 open={moreOpen}
                 onToggle={(e) => setMoreOpen((e.target as HTMLDetailsElement).open)}
               >
-                <summary className="btn btn-sec btn-lg">
-                  {t("stage.other")} <Icon name="chevron" size={14} />
+                <summary className="btn btn-sec btn-lg" aria-busy={saving || undefined}>
+                  {t("stage.menu", { stage: stageName(lead.currentStage) })} <Icon name="chevron" size={14} />
                 </summary>
                 <div className="pop">
-                  {allowedTransitions.map((s: StageCodeDto) => (
+                  {[...(next ? [next] : []), ...allowedTransitions.filter((x) => x !== next)].map((s: StageCodeDto) => (
                     <button
                       key={s}
                       className={"menu-item" + (s === "LOST" ? " danger" : "")}
@@ -187,6 +233,7 @@ export function LeadPage({ id }: { id: string }) {
         </div>
       </div>
 
+      {isAdmin && <WarningsPanel lead={lead} onChanged={onChanged} />}
       <div className="lead-grid">
         <div className="lead-left">
           <div className="panel">
@@ -211,26 +258,18 @@ export function LeadPage({ id }: { id: string }) {
               />
             ) : (
               <dl className="facts-dl">
-                <Fact label={t("new.email")}>
-                  {lead.email ? <a href={`mailto:${lead.email}`}>{lead.email}</a> : "—"}
-                </Fact>
-                <Fact label={t("new.phone")}>
-                  {lead.phoneE164 ? (
-                    <span className="pl-tel">
-                      <a href={`tel:${lead.phoneE164}`}>{lead.phoneE164}</a>
-                      <a
-                        className="btn btn-ghost btn-sm"
-                        href={`https://wa.me/${lead.phoneE164.replace(/\D/g, "")}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        WhatsApp
-                      </a>
-                    </span>
-                  ) : (
-                    "—"
-                  )}
-                </Fact>
+                <div className="fact-row wide">
+                  <dd>
+                    <ContactLinks
+                      phone={lead.phoneE164}
+                      email={lead.email}
+                      canLog={canAct}
+                      onQuick={(type, outcome) => contact.quick(lead.id, type, outcome)}
+                      onDetails={(type, outcome) => logFor(type, outcome)}
+                    />
+                    {!isAdmin && <InlinePhoneWarnings lead={lead} />}
+                  </dd>
+                </div>
                 <Fact label={t("lead.organization")}>
                   {organization ? (
                     <a
@@ -248,6 +287,14 @@ export function LeadPage({ id }: { id: string }) {
               </dl>
             )}
           </div>
+          <ContactSummaryPanel lead={lead} isAdmin={isAdmin} />
+          <CustomerStatusField lead={lead} canSet={canSetStatus} onSaved={onChanged} />
+          <ProductsPanel
+            lead={lead}
+            canEdit={isAdmin || (canAct && !!ref.permissions?.repsEditProducts)}
+            onSaved={onChanged}
+          />
+          <FormAnswersPanel lead={lead} canEdit={isAdmin} onSaved={onChanged} />
           <div className="panel">
             <h2 className="sec-h">
               {t("lead.project")}
@@ -271,11 +318,6 @@ export function LeadPage({ id }: { id: string }) {
               />
             ) : (
               <dl className="facts-dl">
-                <Fact label={t("lead.product")}>{lead.productInterest || "—"}</Fact>
-                <Fact label={t("lead.courtCount")}>
-                  {lead.courtCount === null ? "—" : t("board.courts", { n: lead.courtCount })}
-                </Fact>
-                <Fact label={t("lead.courtModel")}>{lead.courtModel || "—"}</Fact>
                 <Fact label={t("lead.expectedClose")}>
                   {lead.expectedCloseDate
                     ? `${fmtDate(lead.expectedCloseDate)} · ${relDays(lead.expectedCloseDate)}`
@@ -345,6 +387,7 @@ export function LeadPage({ id }: { id: string }) {
                     canEdit={canAct}
                     onToggle={(done) => toggleActivity(a.id, done)}
                     onDelete={() => deleteActivity(a.id)}
+                    onComplete={() => logFor(a.type, undefined, a.id)}
                     now={now}
                   />
                 ))}
@@ -352,56 +395,38 @@ export function LeadPage({ id }: { id: string }) {
             )}
             {openActs.length === 0 && !lead.rotting && <p className="muted">{t("activity.none")}</p>}
             {canAct && <AddActivityForm leadId={lead.id} onAdded={() => reload()} />}
-            {doneActs.length > 0 && (
-              <details className="act-done">
-                <summary>{t("activity.doneList", { n: doneActs.length })}</summary>
-                <div className="alist">
-                  {doneActs.map((a) => (
-                    <ActivityItem
-                      key={a.id}
-                      a={a}
-                      canEdit={canAct}
-                      onToggle={(done) => toggleActivity(a.id, done)}
-                      onDelete={() => deleteActivity(a.id)}
-                      now={now}
-                    />
-                  ))}
-                </div>
-              </details>
-            )}
           </div>
-          {(lead.platformLeadId || lead.campaign.campaignName || Object.keys(lead.extraAnswers).length > 0) && (
-            <details className="panel">
-              <summary className="sec-h">{t("lead.sourceDetail")}</summary>
-              <dl className="facts-dl">
-                {lead.platformLeadId && (
-                  <Fact label={t("lead.platformId")}>
-                    <code>{lead.platformLeadId}</code>
-                  </Fact>
-                )}
-                {lead.campaign.campaignName && <Fact label={t("lead.campaign")}>{lead.campaign.campaignName}</Fact>}
-                {lead.campaign.adsetName && <Fact label={t("lead.adset")}>{lead.campaign.adsetName}</Fact>}
-                {lead.campaign.adName && <Fact label={t("lead.ad")}>{lead.campaign.adName}</Fact>}
-                {Object.entries(lead.extraAnswers).map(([k, v]) => (
-                  <Fact key={k} label={k}>
-                    {String(v)}
-                  </Fact>
-                ))}
-              </dl>
-            </details>
-          )}
+          <SourceDetail lead={lead} />
         </div>
 
         <div className="lead-right panel">
           <h2 className="sec-h">{t("lead.timeline")}</h2>
           <ol className="tl">
-            {[...events].reverse().map((e) => (
-              <TimelineItem key={e.id} e={e} stageName={stageName} reasonName={reasonName} who={nameOf} />
-            ))}
+            {[
+              ...events.map((e) => ({ at: e.occurredAt, k: "e" as const, e })),
+              ...doneActs.map((a) => ({ at: a.doneAt ?? a.dueAt, k: "a" as const, a })),
+            ]
+              .sort((x, y) => y.at.localeCompare(x.at))
+              .map((x) =>
+                x.k === "e" ? (
+                  <TimelineItem key={x.e.id} e={x.e} stageName={stageName} reasonName={reasonName} who={nameOf} />
+                ) : (
+                  <ContactItem
+                    key={x.a.id}
+                    a={x.a}
+                    who={nameOf}
+                    now={now}
+                    log={logById.get(x.a.id)}
+                    onUndo={(id) => contact.undo(id)}
+                    onDelete={isAdmin ? () => deleteContact(x.a.id) : undefined}
+                  />
+                ),
+              )}
           </ol>
         </div>
       </div>
       {dialog}
+      {contact.dialog}
     </section>
   );
 }
@@ -412,6 +437,66 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
       <dt>{label}</dt>
       <dd>{children}</dd>
     </div>
+  );
+}
+
+/** Zaman çizelgesinde temas satırı: kanal, sonuç, not, kaydeden; pencere içindeyse "Geri al (9:58)". */
+function ContactItem({
+  a,
+  who,
+  now,
+  log,
+  onUndo,
+  onDelete,
+}: {
+  a: ActivityDto;
+  who: (id: string | null) => string;
+  now: number;
+  log: { id: string; undoUntil: string; canUndo: boolean } | undefined;
+  onUndo: (logId: string) => void;
+  onDelete: (() => void) | undefined;
+}) {
+  const { t } = useLang();
+  const left = log ? new Date(log.undoUntil).getTime() - now : 0;
+  const mins = Math.max(0, Math.ceil(left / 60_000));
+  const mmss = `${Math.floor(Math.max(0, left) / 60_000)}:${String(Math.floor((Math.max(0, left) % 60_000) / 1000)).padStart(2, "0")}`;
+  return (
+    <li className="tl-i tl-contact">
+      <span className="tl-dot">
+        <Icon name={ACTIVITY_ICON[a.type]} size={14} />
+      </span>
+      <div>
+        <div className="tl-stage">
+          <b>{t(`activity.type.${a.type}`)}</b>
+          {a.outcome && <span> · {t(`activity.outcome.${a.outcome}`)}</span>}
+          {a.customerReplied && <span className="tag tag-neutral">{t("contact.replied")}</span>}
+        </div>
+        {a.resultNote && <p className="tl-note">{a.resultNote}</p>}
+        <small className="muted">
+          {a.dateEstimated ? "≈ " : ""}
+          {fmtDate(a.doneAt ?? a.dueAt, !a.dateEstimated)}
+          {(a.doneByUserId ?? a.createdByUserId) &&
+            ` · ${t("contact.by", { who: who(a.doneByUserId ?? a.createdByUserId) })}`}
+        </small>
+        <div className="tl-acts">
+          {log?.canUndo && left > 0 && (
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => onUndo(log.id)}
+              aria-label={t("contact.undoLeft", { n: mins })}
+            >
+              {t("contact.undo")} <span aria-hidden="true">({mmss})</span>
+            </button>
+          )}
+          {onDelete && (
+            <button type="button" className="link-btn danger" onClick={onDelete}>
+              {t("activity.delete")}
+            </button>
+          )}
+        </div>
+      </div>
+    </li>
   );
 }
 

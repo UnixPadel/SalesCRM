@@ -134,6 +134,8 @@ export interface TrackingReferenceDto {
   outcomeDisplayOrder: ActivityOutcomeDto[];
   replyOutcomes: ActivityOutcomeDto[];
   contactRules: {
+    /** Kanalın varsayılan sonucu (diyalog açılışı ve kanal değişimi). */
+    defaultOutcome: Record<ActivityTypeDto, ActivityOutcomeDto>;
     repliedFlagOutcomes: ActivityOutcomeDto[];
     repliedDefaultTypes: ActivityTypeDto[];
     statusOutcomes: ActivityOutcomeDto[];

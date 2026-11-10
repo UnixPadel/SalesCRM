@@ -1,11 +1,20 @@
 import { useState } from "react";
 import { Button, Field, Modal } from "../components/ui";
-import { COUNTRY_NAME, COURT_MODELS } from "../domain/constants";
+import { COUNTRY_NAME } from "../domain/constants";
 import { useLang } from "../i18n";
 import { navigate } from "../router";
 import { useCrm } from "../state/CrmContext";
 import { PipelineError, pipelineApi } from "./api";
-import { useErrorText, useTeamNames } from "./hooks";
+import type {
+  CourtCountBandDto,
+  CustomerProfileDto,
+  CustomerStatusDto,
+  InstallSiteDto,
+  InstallTimelineDto,
+  ProductPrefsDto,
+} from "../modules/sales-pipeline/api/dto";
+import { ProductPrefsForm } from "./contact/LeadSections";
+import { useErrorText, useReference, useTeamNames } from "./hooks";
 
 const COUNTRIES = Object.entries(COUNTRY_NAME).sort((a, b) => a[1].localeCompare(b[1], "tr"));
 
@@ -23,13 +32,24 @@ export function NewLeadDialog({ onClose }: { onClose: () => void }) {
     city: "",
     company: "",
     productInterest: "",
-    courtCount: "",
-    courtModel: "",
     expectedCloseDate: "",
     notes: "",
-    assignedUserId: "",
+    customerStatus: "",
+    installSite: "",
+    installTimeline: "",
+    customerProfile: "",
+    courtCountBand: "",
+    // Faz 7g (§5.7): varsayılan "Otomatik (ülke kuralına göre)" → sorumlu gönderilmez.
+    assignedUserId: "auto",
     isTest: false,
   });
+  const [products, setProducts] = useState<ProductPrefsDto>({
+    standard: null,
+    panoramic: null,
+    fullPanoramic: null,
+    roof: { wanted: false, widthM: null, lengthM: null },
+  });
+  const { ref } = useReference();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<{ field: string; text: string } | null>(null);
   const set =
@@ -55,12 +75,21 @@ export function NewLeadDialog({ onClose }: { onClose: () => void }) {
         city: f.city,
         company: f.company,
         productInterest: f.productInterest,
-        courtCount: f.courtCount.trim() === "" ? null : f.courtCount.trim(),
-        courtModel: f.courtModel,
-        expectedCloseDate: f.expectedCloseDate || null,
         notes: f.notes,
         isTest: f.isTest,
-        ...(isAdmin ? { assignedUserId: f.assignedUserId || null } : {}),
+        ...(f.customerStatus ? { customerStatus: f.customerStatus as CustomerStatusDto } : {}),
+        // Fırsat alanları, ürünler, form cevapları ve sorumlu yalnız yöneticide (sunucu kuralıyla aynı).
+        ...(isAdmin
+          ? {
+              expectedCloseDate: f.expectedCloseDate || null,
+              products,
+              installSite: (f.installSite || null) as InstallSiteDto | null,
+              installTimeline: (f.installTimeline || null) as InstallTimelineDto | null,
+              customerProfile: (f.customerProfile || null) as CustomerProfileDto | null,
+              courtCountBand: (f.courtCountBand || null) as CourtCountBandDto | null,
+              ...(f.assignedUserId === "auto" ? {} : { assignedUserId: f.assignedUserId || null }),
+            }
+          : {}),
       });
       toast(r.personMatched ? `${t("new.created")} · ${t("new.personMatched")}` : t("new.created"));
       onClose();
@@ -126,36 +155,61 @@ export function NewLeadDialog({ onClose }: { onClose: () => void }) {
             <input value={f.productInterest} onChange={set("productInterest")} maxLength={200} />
           </Field>
         </div>
-        <div className="form-3">
-          <Field label={t("lead.courtCount")} error={fieldErr("courtCount")}>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={999}
-              step={1}
-              value={f.courtCount}
-              onChange={set("courtCount")}
-            />
-          </Field>
-          <Field label={t("lead.courtModel")}>
-            <input list="court-models" value={f.courtModel} onChange={set("courtModel")} maxLength={64} />
-            <datalist id="court-models">
-              {COURT_MODELS.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
-          </Field>
-          <Field label={t("lead.expectedClose")} error={fieldErr("expectedCloseDate")}>
-            <input type="date" value={f.expectedCloseDate} onChange={set("expectedCloseDate")} />
-          </Field>
-        </div>
         <Field label={t("new.notes")}>
           <textarea rows={2} value={f.notes} onChange={set("notes")} />
         </Field>
+        <Field label={t("customerStatus.label")} hint={t("customerStatus.help")}>
+          <select value={f.customerStatus} onChange={set("customerStatus")}>
+            <option value="">{t("customerStatus.none")}</option>
+            {(ref?.customerStatuses ?? []).map((x) => (
+              <option key={x.code} value={x.code}>
+                {t(`customerStatus.${x.code}`)}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {isAdmin && (
+          <details className="new-more">
+            <summary>{t("new.more")}</summary>
+            <div className="field">
+              <span className="field-l">{t("product.title")}</span>
+              <ProductPrefsForm value={products} onChange={setProducts} />
+            </div>
+            <div className="form-2">
+              {(
+                [
+                  ["installSite", "answer.installSite", "answer.site", ref?.installSites ?? []],
+                  [
+                    "installTimeline",
+                    "answer.installTimeline",
+                    "answer.timeline",
+                    (ref?.installTimelines ?? []).map((x) => x.code),
+                  ],
+                  ["customerProfile", "answer.customerProfile", "answer.profile", ref?.customerProfiles ?? []],
+                  ["courtCountBand", "answer.courtCountBand", "answer.band", ref?.courtCountBands ?? []],
+                ] as const
+              ).map(([key, label, prefix, codes]) => (
+                <Field key={key} label={t(label)}>
+                  <select value={f[key]} onChange={set(key)}>
+                    <option value="">—</option>
+                    {codes.map((c) => (
+                      <option key={c} value={c}>
+                        {t(`${prefix}.${c}`)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              ))}
+            </div>
+            <Field label={t("lead.expectedClose")} error={fieldErr("expectedCloseDate")}>
+              <input type="date" value={f.expectedCloseDate} onChange={set("expectedCloseDate")} />
+            </Field>
+          </details>
+        )}
         {isAdmin && (
           <Field label={t("new.assign")}>
             <select value={f.assignedUserId} onChange={set("assignedUserId")}>
+              <option value="auto">{t("new.assignAuto")}</option>
               <option value="">{t("common.pool")}</option>
               {team.map((m) => (
                 <option key={m.id} value={m.id}>

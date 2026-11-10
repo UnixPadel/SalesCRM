@@ -165,6 +165,27 @@ Faz 6 bu parçayla tamamlandı; arayüzün tamamı yeni modelde çalışır, esk
 
 Sonraki: Faz 7 yönetim paneli (eşleme ve ayar ekranları, sağlık paneli, kurlar), Faz 8 canlıya alma.
 
+## Satış takip: Excel uyumu (Faz 7g)
+
+Excel satış takip dosyasının bütün işlevleri CRM'de (`docs/satis-takip-is-emri.md`, ADR-0014,
+`docs/satis-takip-kabul-raporu.md`). Temas bir kez kaydedilir; Excel'in ✔, Evet + tarih, son/ilk temas ve temas sayısı
+sütunları bu kayıtlardan türetilir.
+
+- **Lead listesi** (`#/list`, açılış sayfası; eski "Gelen kutusu"nun yerinde): Excel'in sütun grupları, başlıkta ▾
+  menüsü (sayılı değer listesi, sıralama, Alt+↓), hızlı çipler (Hiç ulaşılmamış, Sıcak, Takipsiz, yöneticide Uyarılı),
+  arama (ad, telefon, e-posta, Excel No), satır içinde "Temas kaydet" ve müşteri durumu, yöneticide CSV (`;`, UTF-8 BOM).
+- **Temas kaydet** (lead sayfası, liste satırı, Bugün "Tamamla…", panoda NEW → İletişim kuruldu): kanal, sonuç, not,
+  sonraki takip, müşteri durumu ve aşama tek istekte (`POST /api/pipeline/leads/:id/contacts`); 10 dk geri al
+  (`POST /contact-logs/:id/undo`) aşamayı da geri alır. WhatsApp / e-posta / arama bağlantısından tek dokunuşla kayıt.
+- **Lead sayfası:** Temas özeti, Müşteri durumu, Ürün tercihleri (adet 1–29, çatı ölçüsü), Form cevapları, yöneticide
+  Veri uyarıları ("Kontrol edildi").
+- **Bugün:** Yapılacaklar | Temas geçmişi; hiç ulaşılmamış sıcak lead şeridi.
+- **Raporlar → Özet rapor:** Excel ÖZET RAPOR'un 5 bölümü (`GET /api/pipeline/reports/tracking`), kapsam "Excel
+  listesi"; sıfır olmayan her sayı o lead'leri listede açar.
+- **Aktarım:** `npm run db:import-excel -- <dosya.xlsx> [--dry-run] [--owners owners.json] [--verify]`
+  (`docs/runbooks/excel-aktarimi.md`).
+- `REPS_EDIT_PRODUCTS=1`: satışçı ürün tercihlerini düzenleyebilir (varsayılan kapalı).
+
 ## Geliştirme kuralları (Faz 0'dan itibaren)
 
 - Mimari kararlar `docs/adr/` altında; açık kararlar ve sahipleri `docs/decisions.md`.
