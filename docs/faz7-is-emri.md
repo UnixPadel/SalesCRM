@@ -123,6 +123,15 @@ yöntem: aynı komutlar (`CreateLead`, `ChangeLeadStage`), eski kimlik `platform
 `NumaraBirimi` ile E.164'e; kişisel veri loglanmaz. `UlkelerBilgileri` sözlüğü yalnız çeviri için okunur. Gelen olaylar
 `import` kaynağında platformlara **gitmez** (dağıtıcı `manual_source` atlar).
 
+**Durum (2026-11-10):** 7e tamamlandı (`9265ca5`). 7f tamamlandı: `src/bootstrap/importMysql.ts`, `scripts/import-mysql-customers.ts`,
+`npm run db:import-mysql [--dry-run] [--limit n]`; testler `importMysql.test.ts` (telefon normalizasyonu, aşama seçimi, ülke adı
+çözümü, uçtan uca PGlite, yeniden çalıştırma). Kararlardan sapma: **yalnız teklifi olan müşteri `PROPOSAL`** olarak gelir
+(tutar son teklifin) — "İletişim kuruldu" yerine; teklif verildiği bilinen kaydı geri çekmek yanlış olurdu. Geçmiş teklif için
+takip aktivitesi açılmaz (`ChangeLeadStage.skipFollowUp`). Yerel PGlite'a gerçek koşu: 366 müşteri (WON 68, PROPOSAL 209,
+CONTACTED 89) + 139 talep (NEW); 24 müşteri atlandı (5 iletişimsiz, 8 geçersiz e-posta/telefon, 11 mükerrer kişi), 49 talep
+atlandı (kişi müşteri listesinde zaten var). Kaydı açan kullanıcı ekipte değilse (16, 22, 23, 29, 41, 43, 44, 45, 48) havuza
+düştü. Canlıda aynı komut Postgres'e karşı çalıştırılır (Faz 8).
+
 ## Çatışmalar ve kararlar (onay için)
 
 | # | Konu | Önerim |

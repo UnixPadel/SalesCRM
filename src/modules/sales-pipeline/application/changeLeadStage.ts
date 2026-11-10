@@ -19,6 +19,8 @@ export interface ChangeLeadStageInput {
   value?: { amount: number; currency: string } | null;
   lostReasonCode?: string | null;
   qualificationAnswers?: Partial<Record<string, boolean>> | null;
+  /** Eski kayıt taşıma: geçmişte gönderilmiş teklif için bugün bir takip aktivitesi açılmaz. */
+  skipFollowUp?: boolean;
 }
 
 export interface ChangeLeadStageResult {
@@ -92,10 +94,12 @@ export class ChangeLeadStage {
         await repos.leads.updateStage(lead.id, plan.value.to, now);
 
         // Kural 2: takip aktivitesi aynı transaction'da, aynı changeId ile (geri al onu da siler).
-        const follow = followUpFor(plan.value.to, now, {
-          ...PROPOSAL_FOLLOW_UP,
-          timeZone: this.deps.timeZone ?? PROPOSAL_FOLLOW_UP.timeZone,
-        });
+        const follow = input.skipFollowUp
+          ? null
+          : followUpFor(plan.value.to, now, {
+              ...PROPOSAL_FOLLOW_UP,
+              timeZone: this.deps.timeZone ?? PROPOSAL_FOLLOW_UP.timeZone,
+            });
         let followUp: Activity | null = null;
         if (follow) {
           followUp = {
