@@ -84,6 +84,7 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
       if (f.country) where.push(`country = ${p(f.country.toUpperCase())}`);
       if (f.organizationId) where.push(`organization_id = ${p(f.organizationId)}`);
       if (f.personId) where.push(`person_id = ${p(f.personId)}`);
+      if (f.source) where.push(`source = ${p(f.source)}`);
       if (f.search) {
         const like = p(`%${f.search.toLowerCase()}%`);
         where.push(

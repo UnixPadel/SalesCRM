@@ -316,10 +316,23 @@ describe("importMysqlCustomers", () => {
     expect(Number(outbox[0]?.n)).toBe(0);
   });
 
-  it("yeniden çalıştırma güvenli: hiçbir şey ikinci kez açılmaz", async () => {
-    const r = await importMysqlCustomers(db, snap, { teamIds: ["12", "44"] });
-    expect(r.customers).toMatchObject({ created: 0, existing: 3 });
-    expect(r.clients).toMatchObject({ created: 0, existing: 2 });
+  it("yeniden çalıştırma güvenli: hiçbir şey ikinci kez açılmaz; artık bilinen açan kişi havuzdaki kaydı alır", async () => {
+    // 99 artık kullanıcı tablosunda: müşteri 2 havuzdan 99'a bağlanır; diğerleri olduğu gibi kalır.
+    const r = await importMysqlCustomers(db, snap, { teamIds: ["12", "44", "99"] });
+    expect(r.customers).toMatchObject({ created: 0, existing: 3, reassigned: 1 });
+    expect(r.clients).toMatchObject({ created: 0, existing: 2, reassigned: 0 });
+    // Havuzda kalan tek kayıt (müşteri 3) açan kişisiz; 46 bu koşuda sorgulanmaz.
+    expect(r.unknownOwners).toEqual([]);
+    const owners = await db.query<{ platform_lead_id: string; assigned_user_id: string | null }>(
+      "SELECT platform_lead_id, assigned_user_id FROM leads WHERE source = 'import' ORDER BY platform_lead_id",
+    );
+    expect(Object.fromEntries(owners.map((o) => [o.platform_lead_id, o.assigned_user_id]))).toEqual({
+      "mysql:client:10": "44",
+      "mysql:client:12": "12",
+      "mysql:musteri:1": "12",
+      "mysql:musteri:2": "99",
+      "mysql:musteri:3": null,
+    });
     expect(
       (await db.query<{ n: string | number }>("SELECT count(*) AS n FROM leads WHERE source = 'import'"))[0]?.n,
     ).toSatisfy((n: string | number) => Number(n) === 5);

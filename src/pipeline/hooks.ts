@@ -92,15 +92,15 @@ export function useLeads(filter: LeadFilter) {
 }
 
 /** Pano verisi (Faz 6b): filtre değişince yeniden yüklenir; eski yanıt yenisinin üstüne yazmaz. */
-export function useBoard(filter: { owner?: string; country?: string; rotting?: boolean }) {
+export function useBoard(filter: { owner?: string; country?: string; source?: string; rotting?: boolean }) {
   const [board, setBoard] = useState<BoardDto | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const key = `${filter.owner ?? ""}|${filter.country ?? ""}|${filter.rotting ? 1 : 0}`;
+  const key = `${filter.owner ?? ""}|${filter.country ?? ""}|${filter.source ?? ""}|${filter.rotting ? 1 : 0}`;
   const seq = useRef(0);
   const reload = useCallback(() => {
     const n = ++seq.current;
     pipelineApi
-      .board({ owner: filter.owner, country: filter.country, rotting: filter.rotting })
+      .board({ owner: filter.owner, country: filter.country, source: filter.source, rotting: filter.rotting })
       .then((r) => {
         if (n !== seq.current) return;
         setBoard(r);

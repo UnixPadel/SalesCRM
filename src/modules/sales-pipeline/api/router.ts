@@ -2,7 +2,14 @@ import { Router, type Request, type Response } from "express";
 import type { Db } from "../../shared/db";
 import { RuleError, isAppError, type Logger, type Result } from "../../shared/kernel";
 import type { Actor, ActivityWithLead, Notification, NotificationQueries, SalesPipeline } from "../application";
-import { DEFAULT_EUR_RATES, QUALIFICATION_QUESTIONS, isStageCode, type Activity, type EurRates } from "../domain";
+import {
+  DEFAULT_EUR_RATES,
+  QUALIFICATION_QUESTIONS,
+  isLeadSource,
+  isStageCode,
+  type Activity,
+  type EurRates,
+} from "../domain";
 import { readLostReasons, readStageDefinitions } from "../infrastructure";
 import type {
   ActivityDto,
@@ -93,8 +100,16 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
       typeof req.query["stage"] === "string" && isStageCode(req.query["stage"]) ? req.query["stage"] : undefined;
     const search = typeof req.query["q"] === "string" ? req.query["q"].trim() || undefined : undefined;
     const limit = Math.min(Number(req.query["limit"]) || 500, 2000);
+    const sourceQ = req.query["source"];
     res.json(
-      await pipeline.queries.list({ actor: a, stage, search, includeTest: req.query["includeTest"] === "1", limit }),
+      await pipeline.queries.list({
+        actor: a,
+        stage,
+        search,
+        source: isLeadSource(sourceQ) ? sourceQ : undefined,
+        includeTest: req.query["includeTest"] === "1",
+        limit,
+      }),
     );
   });
 
@@ -105,10 +120,12 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
     const ownerQ = typeof req.query["owner"] === "string" ? req.query["owner"].trim() : "";
     const owner = ownerQ === "" ? undefined : ownerQ === "pool" ? null : ownerQ === "me" ? a.userId : ownerQ;
     const countryQ = typeof req.query["country"] === "string" ? req.query["country"].trim().toUpperCase() : "";
+    const sourceQ = req.query["source"];
     const board = await pipeline.queries.board({
       actor: a,
       owner,
       country: /^[A-Z]{2}$/.test(countryQ) ? countryQ : undefined,
+      source: isLeadSource(sourceQ) ? sourceQ : undefined,
       rotting: req.query["rotting"] === "1",
       includeTest: req.query["includeTest"] === "1",
     });

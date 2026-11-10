@@ -1,7 +1,7 @@
 import type { Activity } from "./activity";
 import type { TerritoryRule } from "./assignment";
 import type { DomainEvent } from "./events";
-import type { Lead, LeadAttribution, LeadConsent, Person, StageEvent } from "./lead";
+import type { Lead, LeadAttribution, LeadConsent, LeadSource, Person, StageEvent } from "./lead";
 import type { LeadFields } from "./opportunity";
 import type { Organization, OrganizationFields, OrganizationType } from "./organization";
 import type { StageCode } from "./stage";
@@ -18,6 +18,8 @@ export interface LeadListFilter {
   country?: string | undefined;
   organizationId?: string | undefined;
   personId?: string | undefined;
+  /** Lead kaynağı (Faz 7: pano filtresi). */
+  source?: LeadSource | undefined;
   includeTest?: boolean | undefined;
   search?: string | undefined;
   limit?: number | undefined;

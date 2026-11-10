@@ -65,10 +65,11 @@ export const pipelineApi = {
     return call<LeadListDto[]>("GET", "/leads" + (s ? "?" + s : ""));
   },
   /** Pano (Faz 6b): filtreler sunucuda, kolon istatistikleri aynı kümeden. */
-  board: (p: { owner?: string; country?: string; rotting?: boolean; includeTest?: boolean } = {}) => {
+  board: (p: { owner?: string; country?: string; source?: string; rotting?: boolean; includeTest?: boolean } = {}) => {
     const qs = new URLSearchParams();
     if (p.owner) qs.set("owner", p.owner);
     if (p.country) qs.set("country", p.country);
+    if (p.source) qs.set("source", p.source);
     if (p.rotting) qs.set("rotting", "1");
     if (p.includeTest) qs.set("includeTest", "1");
     const s = qs.toString();

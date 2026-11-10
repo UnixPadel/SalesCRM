@@ -405,6 +405,10 @@ describe("fırsat alanları ve pano (Faz 6b)", () => {
 
     const pool = await call<BoardDto>("admin", "GET", "/api/pipeline/board?owner=pool");
     expect(pool.body.leads.every((l) => l.assignedUserId === null)).toBe(true);
+    const bySource = await call<BoardDto>("admin", "GET", "/api/pipeline/board?source=manual");
+    expect(bySource.body.leads.length).toBeGreaterThan(0);
+    expect(bySource.body.leads.every((l) => l.source === "manual")).toBe(true);
+    expect((await call<BoardDto>("admin", "GET", "/api/pipeline/board?source=import")).body.leads).toEqual([]);
     const rotting = await call<BoardDto>("admin", "GET", "/api/pipeline/board?rotting=1");
     expect(rotting.body.leads.every((l) => l.rotting)).toBe(true);
     expect(rotting.body.leads.some((l) => l.id === leadId)).toBe(false);

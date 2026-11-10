@@ -55,6 +55,8 @@ export interface BoardInput {
   country?: string | undefined;
   /** true: yalnız takipsiz lead'ler (kural 1). */
   rotting?: boolean | undefined;
+  /** Lead kaynağı (Faz 7). */
+  source?: LeadSource | undefined;
   includeTest?: boolean | undefined;
 }
 
@@ -78,6 +80,7 @@ export interface ListLeadsInput {
   country?: string | undefined;
   organizationId?: string | undefined;
   personId?: string | undefined;
+  source?: LeadSource | undefined;
   search?: string | undefined;
   includeTest?: boolean | undefined;
   limit?: number | undefined;
@@ -188,6 +191,7 @@ export class LeadQueries {
         country: input.country,
         organizationId: input.organizationId,
         personId: input.personId,
+        source: input.source,
         search: input.search,
         includeTest: input.includeTest,
         limit: input.limit,
@@ -196,7 +200,7 @@ export class LeadQueries {
     });
   }
 
-  /** Kanban verisi: görünürlük + sorumlu · ülke · takipsiz filtreleri; istatistikler filtrelenmiş kümeden. */
+  /** Kanban verisi: görünürlük + sorumlu · ülke · kaynak · takipsiz filtreleri; istatistikler filtrelenmiş kümeden. */
   async board(input: BoardInput): Promise<Board> {
     return this.deps.uow.run(async (repos) => {
       const visibleTo = input.actor.isAdmin
@@ -208,6 +212,7 @@ export class LeadQueries {
           visibleTo,
           owner: input.owner,
           country: input.country,
+          source: input.source,
           includeTest: input.includeTest,
         }),
       );

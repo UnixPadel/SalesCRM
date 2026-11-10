@@ -130,7 +130,10 @@ yöntem: aynı komutlar (`CreateLead`, `ChangeLeadStage`), eski kimlik `platform
 takip aktivitesi açılmaz (`ChangeLeadStage.skipFollowUp`). Yerel PGlite'a gerçek koşu: 366 müşteri (WON 68, PROPOSAL 209,
 CONTACTED 89) + 139 talep (NEW); 24 müşteri atlandı (5 iletişimsiz, 8 geçersiz e-posta/telefon, 11 mükerrer kişi), 49 talep
 atlandı (kişi müşteri listesinde zaten var). Kaydı açan kullanıcı ekipte değilse (16, 22, 23, 29, 41, 43, 44, 45, 48) havuza
-düştü. Canlıda aynı komut Postgres'e karşı çalıştırılır (Faz 8).
+düştü. **Güncelleme (aynı gün):** açan kişi eşlemesi kullanıcı tablosundaki **her** kayda (aktif/pasif, her rol) genişletildi;
+yeniden çalıştırma havuzdaki 42 müşteri + 84 talebi açan kişiye bağladı; yalnız tabloda olmayan 16 ve 29 havuzda kaldı. Pasif
+kullanıcıya bağlı kayıtları yalnız yönetici görür (sorumlu filtresi) ve gerekirse yeniden atar. Panoya **kaynak** filtresi
+eklendi (`?source=import` vb.; API `/board` ve `/leads`). Canlıda aynı komut Postgres'e karşı çalıştırılır (Faz 8).
 
 ## Çatışmalar ve kararlar (onay için)
 

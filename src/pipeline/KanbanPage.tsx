@@ -17,6 +17,7 @@ import {
   recallFilter,
   rememberFilter,
   type BoardFilter,
+  SOURCES,
 } from "./boardFilter";
 import { useBoard, useErrorText, useNow, useReference, useTeamNames } from "./hooks";
 import { useStageMove } from "./useStageMove";
@@ -126,6 +127,18 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
             {COUNTRIES.map(([code, name]) => (
               <option key={code} value={code}>
                 {name} ({code})
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label={t("board.filter.source")}
+            value={filter.source}
+            onChange={(e) => setFilter({ source: e.target.value })}
+          >
+            <option value="">{t("board.filter.allSources")}</option>
+            {SOURCES.map((s) => (
+              <option key={s} value={s}>
+                {t(`source.${s}`)}
               </option>
             ))}
           </select>

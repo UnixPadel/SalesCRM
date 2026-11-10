@@ -92,6 +92,7 @@ function reposFor(s: MemoryState): Repositories {
       if (f.country) rows = rows.filter((l) => l.country === f.country!.toUpperCase());
       if (f.organizationId) rows = rows.filter((l) => l.organizationId === f.organizationId);
       if (f.personId) rows = rows.filter((l) => l.personId === f.personId);
+      if (f.source) rows = rows.filter((l) => l.source === f.source);
       if (f.search) {
         const q = f.search.toLowerCase();
         rows = rows.filter((l) =>

@@ -312,6 +312,8 @@ const DICT = {
   "board.filter.allOwners": ["Tüm sorumlular", "All owners"],
   "board.filter.country": ["Ülke", "Country"],
   "board.filter.allCountries": ["Tüm ülkeler", "All countries"],
+  "board.filter.source": ["Kaynak", "Source"],
+  "board.filter.allSources": ["Tüm kaynaklar", "All sources"],
   "board.filter.clear": ["Filtreleri temizle", "Clear filters"],
   "board.stats.avgDays": ["ort. {n} gün", "avg {n} days"],
   "board.stats.hint": [

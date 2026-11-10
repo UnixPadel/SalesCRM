@@ -4,7 +4,6 @@
 // şey yazılmaz, yalnız rapor. Kişisel veri ekrana yazılmaz; yalnız sayılar ve kimlikler.
 import "../server/env.mjs";
 import mysql from "mysql2/promise";
-import { listTeam } from "../server/authDb.mjs";
 import { importMysqlCustomers, type MysqlSnapshot } from "../src/bootstrap/importMysql";
 import { openDatabase } from "../src/modules/shared/db";
 import { createLogger, loadConfig } from "../src/modules/shared/kernel";
@@ -87,6 +86,8 @@ const orders = await rows<OrderRow>(
   "SELECT SiparisAlID, MusteriId, ClientId, SiparisMiTeklifMi, Silindi, ToplamFiyat, ParaTipi, Tarih, KullaniciID FROM SiparisAlTablo",
 );
 const countries = await rows<CountryRow>("SELECT UlkeAdi, IsoKodu FROM UlkelerBilgileri");
+// Açan kişi eşlemesi: tablodaki her kullanıcı (aktif/pasif, her rol). Tabloda olmayan kimlik → havuz.
+const users = await rows<{ KullaniciID: number }>("SELECT KullaniciID FROM KullaniciBilgileri");
 await conn.end();
 
 const iso = (d: Date | string | null): string | null => {
@@ -136,10 +137,9 @@ const snap: MysqlSnapshot = {
   ),
 };
 
-const team = await listTeam();
-const teamIds = team.map((t) => t.id);
+const teamIds = users.map((u) => String(u.KullaniciID));
 console.log(
-  `[mysql] kaynak: ${snap.customers.length} müşteri, ${snap.clients.length} talep, ${snap.orders.length} sipariş/teklif satırı; ekip ${teamIds.length} kişi`,
+  `[mysql] kaynak: ${snap.customers.length} müşteri, ${snap.clients.length} talep, ${snap.orders.length} sipariş/teklif satırı; kullanıcı tablosu ${teamIds.length} kişi`,
 );
 
 const config = loadConfig();
@@ -154,10 +154,10 @@ console.log(
   `[mysql] ${dryRun ? "DRY-RUN (yazılmadı)" : config.databaseUrl ? "postgres" : `pglite (${config.pgliteDir})`}`,
 );
 console.log(
-  `[mysql] müşteriler: ${report.customers.created} açıldı, ${report.customers.existing} zaten vardı, ${report.customers.skipped.length} atlandı, ${report.customers.stageErrors.length} aşama hatası`,
+  `[mysql] müşteriler: ${report.customers.created} açıldı, ${report.customers.existing} zaten vardı (${report.customers.reassigned} sorumlusu düzeltildi), ${report.customers.skipped.length} atlandı, ${report.customers.stageErrors.length} aşama hatası`,
 );
 console.log(
-  `[mysql] talepler: ${report.clients.created} açıldı, ${report.clients.existing} zaten vardı, ${report.clients.skipped.length} atlandı`,
+  `[mysql] talepler: ${report.clients.created} açıldı, ${report.clients.existing} zaten vardı (${report.clients.reassigned} sorumlusu düzeltildi), ${report.clients.skipped.length} atlandı`,
 );
 console.log(
   `[mysql] aşamalar: ${Object.entries(report.stages)
@@ -165,7 +165,7 @@ console.log(
     .join(", ")}`,
 );
 if (report.unknownOwners.length)
-  console.log(`[mysql] ekipte olmayan kullanıcı kimlikleri (havuza düştü): ${report.unknownOwners.join(", ")}`);
+  console.log(`[mysql] kullanıcı tablosunda olmayan kimlikler (havuza düştü): ${report.unknownOwners.join(", ")}`);
 const skipped = [...report.customers.skipped, ...report.clients.skipped, ...report.customers.stageErrors];
 if (skipped.length) {
   const byReason = new Map<string, number>();

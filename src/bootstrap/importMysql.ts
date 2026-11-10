@@ -68,7 +68,7 @@ export interface MysqlSnapshot {
 }
 
 export interface ImportMysqlOptions {
-  /** Kullanıcı tablosundaki aktif satışçı/yönetici kimlikleri; dışındakiler havuza düşer. */
+  /** Kullanıcı tablosundaki kimlikler (aktif/pasif, her rol); listede olmayan açan kişi → havuz. */
   teamIds: readonly string[];
   logger?: Logger;
 }
@@ -77,10 +77,12 @@ export interface ImportMysqlReport {
   customers: {
     created: number;
     existing: number;
+    /** Önceki koşuda havuza düşmüş, bu koşuda açan kişiye bağlanan. */
+    reassigned: number;
     skipped: { id: number; reason: string }[];
     stageErrors: { id: number; reason: string }[];
   };
-  clients: { created: number; existing: number; skipped: { id: number; reason: string }[] };
+  clients: { created: number; existing: number; reassigned: number; skipped: { id: number; reason: string }[] };
   stages: Record<string, number>;
   unknownOwners: string[];
 }
@@ -202,8 +204,8 @@ export async function importMysqlCustomers(
     undoWindowMs: 0,
   });
   const report: ImportMysqlReport = {
-    customers: { created: 0, existing: 0, skipped: [], stageErrors: [] },
-    clients: { created: 0, existing: 0, skipped: [] },
+    customers: { created: 0, existing: 0, reassigned: 0, skipped: [], stageErrors: [] },
+    clients: { created: 0, existing: 0, reassigned: 0, skipped: [] },
     stages: {},
     unknownOwners: [],
   };
@@ -219,6 +221,14 @@ export async function importMysqlCustomers(
     return null;
   };
   const bump = (stage: string) => (report.stages[stage] = (report.stages[stage] ?? 0) + 1);
+  /** Daha önce taşınmış ama havuzda kalmış lead: açan kişi artık biliniyorsa ona bağla (yeniden çalıştırma). */
+  const fixOwner = async (leadId: string, assigned: string | null, ...candidates: (string | null | undefined)[]) => {
+    if (assigned !== null) return false;
+    const owner = ownerOf(...candidates);
+    if (!owner) return false;
+    await uow.run((r) => r.leads.updateAssignee(leadId, owner, clock.now()));
+    return true;
+  };
 
   const byCustomer = new Map<number, MysqlOrder[]>();
   const byClient = new Map<number, MysqlOrder[]>();
@@ -258,6 +268,8 @@ export async function importMysqlCustomers(
     const existing = await uow.run((r) => r.leads.findByPlatformId("import", platformLeadId));
     if (existing) {
       report.customers.existing++;
+      if (await fixOwner(existing.id, existing.assignedUserId, c.createdByUserId, s.userId))
+        report.customers.reassigned++;
       continue;
     }
     const email = clean(c.email) || null;
@@ -320,9 +332,12 @@ export async function importMysqlCustomers(
   // Talepler (Clients): gelen kutusuna NEW; siparişi varsa aynı kurallarla aşama alır.
   for (const k of [...snap.clients].sort((a, b) => a.id - b.id)) {
     const platformLeadId = `mysql:client:${k.id}`;
+    const s = stageFor(byClient.get(k.id) ?? []);
     const existing = await uow.run((r) => r.leads.findByPlatformId("import", platformLeadId));
     if (existing) {
       report.clients.existing++;
+      if (await fixOwner(existing.id, existing.assignedUserId, k.createdByUserId, s.userId))
+        report.clients.reassigned++;
       continue;
     }
     const country = countryCodeFor(k.country, snap.countryNames);
@@ -338,7 +353,6 @@ export async function importMysqlCustomers(
     }
     const createdAt = k.createdAt ? new Date(k.createdAt) : new Date();
     clock.set(Number.isNaN(createdAt.getTime()) ? new Date() : createdAt);
-    const s = stageFor(byClient.get(k.id) ?? []);
     const r = await createWithFallback({
       source: "import",
       platformLeadId,
@@ -382,6 +396,7 @@ export async function importMysqlCustomers(
   logger.info("mysql müşteri aktarımı bitti", {
     customers: report.customers.created,
     clients: report.clients.created,
+    reassigned: report.customers.reassigned + report.clients.reassigned,
     skipped: report.customers.skipped.length + report.clients.skipped.length,
   });
   return report;
