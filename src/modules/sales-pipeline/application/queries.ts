@@ -4,6 +4,7 @@ import {
   aggregateContacts,
   allowedTransitions,
   columnStats,
+  feedbackIdentity,
   leadTracking,
   planUndo,
   stageSummary,
@@ -248,8 +249,8 @@ export class LeadQueries {
           origin: e.origin,
           value: e.value,
           lead: {
-            source: lead.source,
-            platformLeadId: lead.platformLeadId,
+            // Benimsenen içe aktarım lead'i platforma reklam kaynağı ve kimliğiyle gider (feedbackIdentity).
+            ...feedbackIdentity(lead),
             email: lead.email,
             phoneE164: lead.phoneE164,
             isTest: lead.isTest,

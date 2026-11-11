@@ -295,7 +295,8 @@ app.post("/api/auth/login", async (req, res) => {
       r = await checkLogin(email, password);
     } catch (e) {
       console.error("[login/db]", e.message);
-      return res.status(502).json({ error: "Kullanıcı veritabanına bağlanılamadı: " + e.message });
+      // Ayrıntı (sunucu adı içerebilir) yalnız sunucu loguna gider; giriş ekranına genel mesaj döner.
+      return res.status(502).json({ error: "Kullanıcı veritabanına bağlanılamadı. Yöneticinize haber verin." });
     }
     if (!r.ok)
       return res

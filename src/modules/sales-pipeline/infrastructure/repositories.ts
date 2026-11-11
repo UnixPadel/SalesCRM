@@ -410,7 +410,9 @@ export function pgStageEventRepository(q: Queryable): StageEventRepository {
             .map((c) => `e.${c}`)
             .join(", ")}
              FROM lead_stage_events e JOIN leads l ON l.id = e.lead_id
-            WHERE l.source = ANY($2::text[]) AND l.is_test = false AND e.undone_at IS NULL AND e.occurred_at >= $1
+            WHERE (l.source = ANY($2::text[])
+                   OR (l.source = 'import' AND l.extra_answers->>'platform_source' = ANY($2::text[])))
+              AND l.is_test = false AND e.undone_at IS NULL AND e.occurred_at >= $1
             ORDER BY e.occurred_at, e.sequence`,
           [since, [...sources]],
         )
@@ -466,6 +468,16 @@ export function pgOutboxWriter(q: Queryable, ids: IdGenerator): OutboxWriter {
       await q.query(
         "UPDATE outbound_conversion_events SET status = 'skipped', skip_reason = $2 WHERE stage_event_id = ANY($1::uuid[]) AND status = 'pending'",
         [[...stageEventIds], reason],
+      );
+    },
+    async reviveSkipped(leadId, reason, notBefore) {
+      await q.query(
+        `UPDATE outbound_conversion_events o
+            SET status = 'pending', skip_reason = NULL, attempts = 0, next_attempt_at = $3, finished_at = NULL
+           FROM lead_stage_events e
+          WHERE e.id = o.stage_event_id AND e.lead_id = $1 AND o.status = 'skipped' AND o.skip_reason = $2
+            AND e.undone_at IS NULL`,
+        [leadId, reason, notBefore],
       );
     },
   };

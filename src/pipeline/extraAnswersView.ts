@@ -11,6 +11,7 @@ export const HIDDEN_EXTRA_KEYS = [
   "import_issues",
   "dropped_fields",
   "sheet_key",
+  "platform_source",
 ] as const;
 
 /** Bilinen anahtar → çeviri anahtarı. */

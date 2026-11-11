@@ -3,7 +3,7 @@
  * `InMemoryUnitOfWork` gerçek transaction gibi davranır: fn fırlatırsa hiçbir yazma kalmaz.
  */
 import { FixedClock, SequentialIdGenerator, silentLogger } from "../../shared/kernel";
-import { aggregateContacts, filterValues } from "../domain";
+import { aggregateContacts, feedbackIdentity, filterValues } from "../domain";
 import type {
   Activity,
   ActivityRepository,
@@ -289,7 +289,9 @@ function reposFor(s: MemoryState): Repositories {
       return s.events.filter((e) => ids.includes(e.id)).map((e) => ({ ...e }));
     },
     async listSince(since, sources) {
-      const leadOk = new Set(s.leads.filter((l) => !l.isTest && sources.includes(l.source)).map((l) => l.id));
+      const leadOk = new Set(
+        s.leads.filter((l) => !l.isTest && sources.includes(feedbackIdentity(l).source)).map((l) => l.id),
+      );
       return s.events
         .filter((e) => leadOk.has(e.leadId) && !e.undoneAt && e.occurredAt >= since)
         .map((e) => ({ ...e }));
@@ -468,6 +470,16 @@ function reposFor(s: MemoryState): Repositories {
         if (ids.includes(r.stageEventId) && r.status === "pending") {
           r.status = "skipped";
           r.skipReason = reason;
+        }
+      }
+    },
+    async reviveSkipped(leadId, reason, notBefore) {
+      const mine = new Set(s.events.filter((e) => e.leadId === leadId && !e.undoneAt).map((e) => e.id));
+      for (const r of s.outbox) {
+        if (mine.has(r.stageEventId) && r.status === "skipped" && r.skipReason === reason) {
+          r.status = "pending";
+          r.skipReason = null;
+          r.nextAttemptAt = notBefore;
         }
       }
     },

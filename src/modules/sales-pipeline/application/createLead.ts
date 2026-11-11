@@ -7,6 +7,7 @@ import {
   emptyTrackingFields,
   hasAnyProduct,
   hasAttribution,
+  isAdSource,
   isCustomerStatus,
   isTerminal,
   parseConsents,
@@ -254,6 +255,9 @@ export class CreateLead {
           phone,
           campaignName: input.campaign?.campaignName ?? null,
           platformLeadId: platformId?.value ?? null,
+          source: input.source,
+          attribution: input.attribution ?? null,
+          consents: consentInputs,
           fields,
           extraAnswers,
         });
@@ -401,6 +405,9 @@ export class CreateLead {
       phone: PhoneNumber | null;
       campaignName: string | null;
       platformLeadId: string | null;
+      source: LeadSource;
+      attribution: Partial<LeadAttribution> | null;
+      consents: readonly ConsentInput[];
       fields: Partial<LeadFields>;
       extraAnswers: Record<string, unknown>;
     },
@@ -425,11 +432,38 @@ export class CreateLead {
       fill.courtCount = a.fields.courtCount;
     }
     if (Object.keys(fill).length) await repos.leads.updateFields(lead.id, fill, now);
-    if (a.platformLeadId) {
-      // extra_answers'a yalnız ekleme: kaldırma metodu var, ekleme alan güncellemesiyle değil kimlik kaydıyla yapılır.
-      await repos.leads.mergeExtraAnswers(lead.id, { platform_lead_id: a.platformLeadId }, now);
+    // Geri bildirim kimliği (feedbackIdentity): ilk benimseyen reklam kaydı kalır; `source` yine `import`.
+    const identity: Record<string, unknown> = {};
+    if (isAdSource(a.source) && !isAdSource(lead.extraAnswers["platform_source"])) {
+      identity["platform_source"] = a.source;
+      if (a.platformLeadId) identity["platform_lead_id"] = a.platformLeadId;
+    } else if (a.platformLeadId && !("platform_lead_id" in lead.extraAnswers)) {
+      identity["platform_lead_id"] = a.platformLeadId;
     }
-    return { ...lead, ...fill, updatedAt: now };
+    if (Object.keys(identity).length) await repos.leads.mergeExtraAnswers(lead.id, identity, now);
+    // Eşleştirme anahtarları ve onaylar da lead'e yazılır (yoksa): site formu lead'i bunlar olmadan gönderilemez.
+    if (a.attribution && hasAttribution(a.attribution) && !(await repos.leads.findAttribution(lead.id))) {
+      await repos.leads.saveAttribution(lead.id, { ...EMPTY_ATTRIBUTION, ...a.attribution });
+    }
+    if (a.consents.length) {
+      const have = new Set((await repos.leads.findConsents(lead.id)).map((c) => c.type));
+      const rows: LeadConsent[] = a.consents
+        .filter((c) => !have.has(c.type))
+        .map((c) => ({
+          id: this.deps.ids.next(),
+          leadId: lead.id,
+          type: c.type,
+          granted: c.granted,
+          textVersion: c.textVersion ?? "",
+          grantedAt: c.grantedAt ?? now,
+        }));
+      if (rows.length) await repos.leads.saveConsents(rows);
+    }
+    // Benimsemeden önce "elle/içe aktarım" diye atlanmış aşama olayları yeniden sıraya girer.
+    if ("platform_source" in identity) {
+      await repos.outbox.reviveSkipped(lead.id, "manual_source", new Date(now.getTime() + this.deps.undoWindowMs));
+    }
+    return { ...lead, ...fill, extraAnswers: { ...lead.extraAnswers, ...identity }, updatedAt: now };
   }
 
   private async findOrCreatePerson(

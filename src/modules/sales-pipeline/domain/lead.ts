@@ -8,6 +8,30 @@ export type LeadSource = (typeof LEAD_SOURCES)[number];
 export const isLeadSource = (v: unknown): v is LeadSource =>
   typeof v === "string" && (LEAD_SOURCES as readonly string[]).includes(v);
 
+/** Reklam kaynakları (platform formu ya da site formu); elle açılan ve içe aktarılan lead bunların dışındadır. */
+export const AD_SOURCES = ["meta_form", "google_form", "web_form"] as const satisfies readonly LeadSource[];
+export type AdSource = (typeof AD_SOURCES)[number];
+export const isAdSource = (v: unknown): v is AdSource =>
+  typeof v === "string" && (AD_SOURCES as readonly string[]).includes(v);
+
+/**
+ * Geri bildirim kimliği: içe aktarılan lead (Excel, form tablosu) sonradan reklam kaydıyla eşleşip benimsendiyse
+ * (`extra_answers.platform_source` + `platform_lead_id`) platforma o kaynak ve kimlikle bildirilir. Lead'in kendi
+ * `source` alanı `import` kalır (raporlar ve Excel doğrulaması değişmez).
+ */
+export function feedbackIdentity(lead: {
+  source: LeadSource;
+  platformLeadId: string | null;
+  extraAnswers: Record<string, unknown>;
+}): { source: LeadSource; platformLeadId: string | null } {
+  const adopted = lead.extraAnswers["platform_source"];
+  if (lead.source !== "import" || !isAdSource(adopted)) {
+    return { source: lead.source, platformLeadId: lead.platformLeadId };
+  }
+  const id = lead.extraAnswers["platform_lead_id"];
+  return { source: adopted, platformLeadId: typeof id === "string" && id ? id : null };
+}
+
 /** Platformun verdiği lead kimliği; metin tutulur (bazı platformlarda 15–17 hane, JS number bozar). */
 export class PlatformLeadId {
   private constructor(readonly value: string) {}

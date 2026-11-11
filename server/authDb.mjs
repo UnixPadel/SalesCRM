@@ -30,7 +30,14 @@ const ACTIVE_VALUE = env("AUTH_DB_ACTIVE_VALUE", "Aktif").toLowerCase();
 
 const url = () => process.env.AUTH_DB_URL || "";
 export const authDbEnabled = () => !!url();
-export const authDbLabel = () => url().replace(/\/\/([^:]+):[^@]*@/, "//$1:***@");
+/** Log etiketi: yalnız veritabanı türü. Kullanıcı adı, sunucu ve veritabanı adı loga yazılmaz. */
+export const authDbLabel = () => {
+  try {
+    return `${new URL(url()).protocol.replace(":", "")} (AUTH_DB_URL)`;
+  } catch {
+    return "AUTH_DB_URL (okunamadı)";
+  }
+};
 export const authDbColumns = () => ({ table: TABLE, ...COL, adminRoles: ADMIN_ROLES, activeValue: ACTIVE_VALUE });
 
 let driver = null; // { quote(id), query(sql, params) -> rows[] }

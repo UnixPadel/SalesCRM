@@ -185,6 +185,75 @@ describe("CreateLead", () => {
     expect(await sp.queries.outboundContext([])).toEqual([]);
   });
 
+  it("benimsenen içe aktarım lead'i platforma reklam kaynağı ve kimliğiyle gider; atlanmış satırlar dirilir", async () => {
+    const imported = unwrap(
+      await manual({
+        source: "import",
+        platformLeadId: "sheet:abc",
+        email: "tablo@example.com",
+        phone: null,
+        extraAnswers: { sheet_key: "sheet:abc" },
+        actor: ADMIN,
+        assignedUserId: "rep-1",
+      }),
+    ).lead;
+    const s = h.uow.state;
+    const eventId = s.events.find((e) => e.leadId === imported.id)!.id;
+    // Dağıtıcı bu satırları "elle/içe aktarım" diye atlamıştı.
+    for (const o of s.outbox.filter((x) => x.stageEventId === eventId)) {
+      o.status = "skipped";
+      o.skipReason = "manual_source";
+    }
+    expect(await sp.queries.stageEventsSince(new Date(0), ["web_form"])).toEqual([]);
+
+    const adopted = unwrap(
+      await sp.createLead.execute({
+        source: "web_form",
+        platformLeadId: "sub-77",
+        fullName: "Tablo Kişi",
+        email: "tablo@example.com",
+        attribution: { gclid: "G-1" },
+        consents: [{ type: "kvkk", granted: true, textVersion: "2026-01" }],
+        adoptImportLead: true,
+        parseMode: "lenient",
+      }),
+    );
+    expect(adopted).toMatchObject({ created: false, adopted: true });
+    expect(adopted.lead.id).toBe(imported.id);
+    expect(h.uow.state.leads.find((l) => l.id === imported.id)?.source).toBe("import");
+
+    const [ctx] = await sp.queries.outboundContext([eventId]);
+    expect(ctx!.lead).toMatchObject({ source: "web_form", platformLeadId: "sub-77" });
+    expect(ctx!.attribution).toMatchObject({ gclid: "G-1" });
+    expect(ctx!.consents.map((c) => [c.type, c.granted])).toEqual([["kvkk", true]]);
+    const rows = h.uow.state.outbox.filter((x) => x.stageEventId === eventId);
+    expect(rows.map((x) => [x.status, x.skipReason])).toEqual([
+      ["pending", null],
+      ["pending", null],
+    ]);
+    expect((await sp.queries.stageEventsSince(new Date(0), ["web_form"])).map((e) => e.stageEventId)).toEqual([
+      eventId,
+    ]);
+
+    // İkinci reklam kaydı kimliği değiştirmez (ilk benimseyen kalır), onay ve eşleştirme anahtarı çoğalmaz.
+    unwrap(
+      await sp.createLead.execute({
+        source: "web_form",
+        platformLeadId: "sub-78",
+        fullName: "Tablo Kişi",
+        email: "tablo@example.com",
+        attribution: { gclid: "G-2" },
+        consents: [{ type: "kvkk", granted: true, textVersion: "2026-01" }],
+        adoptImportLead: true,
+        parseMode: "lenient",
+      }),
+    );
+    const [again] = await sp.queries.outboundContext([eventId]);
+    expect(again!.lead.platformLeadId).toBe("sub-77");
+    expect(again!.attribution).toMatchObject({ gclid: "G-1" });
+    expect(again!.consents).toHaveLength(1);
+  });
+
   it("onay türü geçersizse lead açılmaz (consent.type_invalid)", async () => {
     const r = await manual({ consents: [{ type: "KVKK onayı", granted: true }] });
     expect(r.ok).toBe(false);

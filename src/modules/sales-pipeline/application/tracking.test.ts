@@ -250,6 +250,7 @@ describe("Alanlar ve oluşturma (S5)", () => {
     expect(adopted.lead.id).toBe(excel.id);
     expect(h.uow.state.leads.find((l) => l.id === excel.id)).toMatchObject({ installSite: "rooftop" });
     expect(h.uow.state.leads.find((l) => l.id === excel.id)?.extraAnswers["platform_lead_id"]).toBe("p-1");
+    expect(h.uow.state.leads.find((l) => l.id === excel.id)?.extraAnswers["platform_source"]).toBe("meta_form");
 
     h.uow.state.territories.push({ countryCode: "TR", assignedUserId: "rep-old", fallbackUserId: "rep-1" });
     const withDir = createSalesPipeline({

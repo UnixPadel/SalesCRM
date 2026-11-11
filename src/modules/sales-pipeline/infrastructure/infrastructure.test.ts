@@ -407,6 +407,52 @@ describe("Postgres repository'leri + transaction", () => {
     expect(await count("lead_attribution", `lead_id = '${plain.id}'`)).toBe(0);
   });
 
+  it("benimsenen içe aktarım lead'i: atlanmış outbox satırları dirilir, geriye doldurma onu da görür", async () => {
+    const imported = unwrap(
+      await manual({
+        source: "import",
+        platformLeadId: "sheet:abc",
+        email: "tablo@example.com",
+        phone: null,
+        extraAnswers: { sheet_key: "sheet:abc" },
+        actor: { userId: "admin", isAdmin: true },
+        assignedUserId: "rep-1",
+      }),
+    ).lead;
+    await db.query(
+      `UPDATE outbound_conversion_events o SET status = 'skipped', skip_reason = 'manual_source', attempts = 1
+         FROM lead_stage_events e WHERE e.id = o.stage_event_id AND e.lead_id = $1`,
+      [imported.id],
+    );
+    expect(await sp.queries.stageEventsSince(new Date(0), ["google_form"])).toEqual([]);
+    const adopted = unwrap(
+      await sp.createLead.execute({
+        source: "google_form",
+        platformLeadId: "g-501",
+        fullName: "Tablo Kişi",
+        email: "tablo@example.com",
+        attribution: { gclid: "G-1" },
+        adoptImportLead: true,
+        parseMode: "lenient",
+      }),
+    );
+    expect(adopted).toMatchObject({ created: false, adopted: true });
+    const rows = await db.query<{ status: string; skip_reason: string | null; attempts: number }>(
+      `SELECT o.status, o.skip_reason, o.attempts FROM outbound_conversion_events o
+         JOIN lead_stage_events e ON e.id = o.stage_event_id WHERE e.lead_id = $1`,
+      [imported.id],
+    );
+    expect(rows.map((r) => [r.status, r.skip_reason, Number(r.attempts)])).toEqual([
+      ["pending", null, 0],
+      ["pending", null, 0],
+    ]);
+    const since = await sp.queries.stageEventsSince(new Date(0), ["google_form"]);
+    expect(since.map((e) => e.leadId)).toEqual([imported.id]);
+    const [ctx] = await sp.queries.outboundContext(since.map((e) => e.stageEventId));
+    expect(ctx!.lead).toMatchObject({ source: "google_form", platformLeadId: "g-501" });
+    expect(ctx!.attribution).toMatchObject({ gclid: "G-1" });
+  });
+
   it("referans veri: aşama sözlüğü ve kayıp nedenleri TR/EN", async () => {
     const stages = await readStageDefinitions(db);
     expect(stages.map((s) => s.code)).toEqual(["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"]);

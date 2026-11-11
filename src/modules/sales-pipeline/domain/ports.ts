@@ -128,6 +128,11 @@ export interface OutboxWriter {
   enqueue(stageEventId: string, provider: string, notBefore: Date): Promise<void>;
   /** Geri alınan olayların satırları `skipped` olur; dağıtıcı onları hiç göndermez. */
   skipForEvents(stageEventIds: readonly string[], reason: string): Promise<void>;
+  /**
+   * Lead'in verilen nedenle atlanmış satırlarını yeniden sıraya alır (deneme sayısı sıfırlanır). İçe aktarılan lead
+   * reklam kaydıyla benimsendiğinde eski aşama olayları da platforma gidebilsin diye.
+   */
+  reviveSkipped(leadId: string, reason: string, notBefore: Date): Promise<void>;
 }
 
 export interface TerritoryRuleSource {
