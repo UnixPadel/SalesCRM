@@ -10,6 +10,7 @@ import { PgUnitOfWork } from "../modules/sales-pipeline/infrastructure";
 import { compareRows, excelSummary, formulaCheck } from "./excelVerify";
 import type { ExcelLeadRow, ExcelSnapshot } from "./excelSnapshot";
 import { importExcel, IMPORT_ACTOR, productsFromRow, provenanceFromWarning } from "./importExcel";
+import { readSheet, syncSheet } from "./sheetSync";
 import type { DirectoryEntry } from "./teamMatch";
 
 const NOW = new Date("2026-11-10T09:00:00Z");
@@ -147,6 +148,27 @@ describe("importExcel", () => {
     expect(res.enriched).toEqual(["5"]);
     expect(res.reasons).toMatchObject({ A1: 1, A2: 1, A3: 2, A4: 1 });
     expect(res.ownerDiffs).toEqual([]);
+  });
+
+  it("doğrulama: form tablosunun eklediği mail teması A10 (gerekçeli fark)", async () => {
+    const uow = new PgUnitOfWork(db, uuidGenerator);
+    const sp = createSalesPipeline({
+      uow,
+      clock: new FixedClock(NOW),
+      ids: uuidGenerator,
+      platforms: { enabledProviders: () => [] },
+      events: { publish: async () => {} },
+      logger: silentLogger,
+      undoWindowMs: 0,
+    });
+    const csv = "created_time,email,full_name,phone_number,note\n10.25.26,s4@example.test,Sentetik 4,,mail atildi";
+    const sync = await syncSheet({ pipeline: sp, uow, db, now: NOW }, readSheet(csv).rows);
+    expect(sync).toMatchObject({ matched: 1, mailOnExisting: 1 });
+    const leads = await sp.queries.list({ actor: IMPORT_ACTOR, scope: "excel", limit: 100 });
+    const owner = (r: ExcelLeadRow) => (r.owner.startsWith("Rep Bir") ? "32" : null);
+    const res = compareRows(SNAP, leads, owner, "Europe/Istanbul");
+    expect(res.rowDiffs).toEqual([]);
+    expect(res.reasons["A10"]).toBe(1);
   });
 });
 

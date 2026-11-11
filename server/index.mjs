@@ -18,6 +18,7 @@ import { emailsOf, USERS, userFor } from "./users.mjs";
 import { bootSalesPipeline } from "../src/bootstrap/salesPipeline.ts";
 import { bootLeadIntake } from "../src/bootstrap/leadIntake.ts";
 import { bootAdFeedback } from "../src/bootstrap/adFeedback.ts";
+import { bootSheetSync } from "../src/bootstrap/sheetSync.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // API_PORT (not PORT): dev tooling sets PORT for the Vite dev server.
@@ -254,6 +255,8 @@ app.use("/webhooks", leadIntake.webhooks);
 app.use("/forms", leadIntake.forms);
 /* Giden olaylar (Faz 4): dakikalık dağıtıcı ve günlük dead-letter raporu aynı süreçte. */
 bootAdFeedback(salesPipeline, leadIntake.settings);
+/* Form tablosu (Google E-Tablolar'daki Meta form dökümü) → CRM; SHEET_SYNC_CSV_URL yoksa kapalı. */
+const sheetSync = bootSheetSync(salesPipeline);
 
 app.use(express.json({ limit: "25mb" }));
 
@@ -507,6 +510,20 @@ app.get("/api/users", auth, async (req, res) => {
 });
 
 /* ---- veri: tamamı satış pipeline'ında (Postgres). Eski /api/db/* JSON deposu Faz 6d ile kaldırıldı. ---- */
+
+/* ---- form tablosu eşitlemesi: durum (yönetici ve görüntüleyici) ve elle tetikleme (yönetici). Adres hiç dönmez. ---- */
+app.get("/api/sheet-sync", auth, (req, res) => {
+  const role = req.session?.role;
+  if (role !== "admin" && role !== "viewer")
+    return res.status(403).json({ error: "Yalnız yönetici.", code: "admin_only" });
+  res.json(sheetSync ? sheetSync.status() : { enabled: false });
+});
+app.post("/api/sheet-sync/run", auth, async (req, res) => {
+  if (req.session?.role !== "admin") return res.status(403).json({ error: "Yalnız yönetici.", code: "admin_only" });
+  if (!sheetSync)
+    return res.status(409).json({ error: "Form tablosu eşitlemesi kapalı.", code: "sheet_sync.disabled" });
+  res.json(await sheetSync.runNow());
+});
 
 app.use("/api/pipeline", auth, salesPipeline.router);
 

@@ -478,6 +478,20 @@
 .ll-active {
   color: var(--text-2);
 }
+/* Form tablosu göstergesi: araç çubuğunun sonunda, sessiz metin + yenile düğmesi. */
+.ll-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-inline-start: auto;
+}
+.ll-sync-text {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  color: var(--text-2);
+  font-size: var(--t-sm);
+}
 .ll-from {
   display: flex;
   flex-wrap: wrap;

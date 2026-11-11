@@ -32,8 +32,19 @@ export type FormTarget = "install_site" | "install_timeline" | "customer_profile
 
 /** Soru tespiti: `extra` anahtarı katlanınca bunlardan biriyle başlıyorsa o hedefin cevabıdır. */
 const QUESTION_SYNONYMS: Record<FormTarget, string[]> = {
-  install_site: ["kurulum yeri", "where do you plan to install the court", "where do you plan to install"],
-  install_timeline: ["kurulum zamani", "what is your estimated project timeline", "project timeline"],
+  install_site: [
+    "kurulum yeri",
+    "where do you plan to install the court",
+    "where do you plan to install",
+    // Meta form dökümü ("UNIXPADEL Form Kampanyası Verisi", 2026-11).
+    "where will the court be installed",
+  ],
+  install_timeline: [
+    "kurulum zamani",
+    "what is your estimated project timeline",
+    "project timeline",
+    "when do you plan to install",
+  ],
   customer_profile: ["musteri profili", "customer profile", "which best describes you"],
   court_count: ["kort sayisi", "kac kort", "how many courts do you need", "how many courts"],
 };
@@ -41,6 +52,9 @@ const QUESTION_SYNONYMS: Record<FormTarget, string[]> = {
 const INSTALL_SITE_VALUES: Record<string, InstallSite> = {
   "tam kapali catili kort": "covered_court",
   "full cover padel court": "covered_court",
+  "site not secured yet": "no_site_yet",
+  "coastal windy site": "beach_windy",
+  "cati teras": "rooftop",
   "fully covered roofed court": "covered_court",
   "henuz arazi yer yok": "no_site_yet",
   "no site yet": "no_site_yet",
@@ -59,6 +73,9 @@ const INSTALL_SITE_VALUES: Record<string, InstallSite> = {
 
 const INSTALL_TIMELINE_VALUES: Record<string, InstallTimeline> = {
   "3 ay icinde": "m0_3",
+  "in 3 6 months": "m3_6",
+  "in 6 12 months": "m6_12",
+  "simdilik arastiriyorum": "researching",
   asap: "m0_3",
   "within 1 3 months": "m0_3",
   "within 3 months": "m0_3",
@@ -72,6 +89,16 @@ const INSTALL_TIMELINE_VALUES: Record<string, InstallTimeline> = {
 
 const CUSTOMER_PROFILE_VALUES: Record<string, CustomerProfile> = {
   "yeni tesis acacak yatirimci": "investor",
+  "yeni padel tesisi acacak yatirimci": "investor",
+  "investor opening a new padel venue": "investor",
+  "padel club owner operator": "club_operator",
+  "padel kulubu sahibi isletmecisi": "club_operator",
+  "private court for my home": "private_home",
+  "evim icin ozel kort": "private_home",
+  "school municipality sports facility": "public_facility",
+  "hotel resort residential developer": "hospitality_residential",
+  "otel tatil koyu konut projesi": "hospitality_residential",
+  "distributor reseller": "distributor",
   "kulup sahibi isletmeci": "club_operator",
   "ev icin ozel kort": "private_home",
   "okul belediye spor tesisi": "public_facility",

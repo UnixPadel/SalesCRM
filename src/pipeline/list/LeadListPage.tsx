@@ -14,6 +14,7 @@ import { dateText, daysAgo, openWarnings, roofArea, sourceText, warningText } fr
 import { useLogContact } from "../contact/useLogContact";
 import { ageTone, useErrorText, useNow, useReference, useTeamNames } from "../hooks";
 import { ColumnFilterPopover } from "./ColumnFilterPopover";
+import { SheetSyncBadge } from "./SheetSyncBadge";
 import { downloadCsv, toCsv } from "./csv";
 import { COLUMNS, GROUPS, groupSummary, type ColumnDef, type Ctx, type GroupId } from "./listColumns";
 import {
@@ -422,6 +423,7 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
               />
               {t("inbox.includeTest")}
             </label>
+            <SheetSyncBadge now={now} onSynced={load} />
           </>
         )}
         {nFilters > 0 && (

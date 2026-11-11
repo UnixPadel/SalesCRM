@@ -246,9 +246,9 @@ if (verify) {
     );
   console.log("[excel] §1 Temel göstergeler");
   line("Toplam lead", ex["B7"], t!.basics.total);
-  line("Mail atılan", ex["C7"], t!.basics.mailSent, "A1/A7");
+  line("Mail atılan", ex["C7"], t!.basics.mailSent, "A1/A7/A10");
   line("WhatsApp'tan aranan", ex["D7"], t!.basics.whatsappSent, "A1/A7");
-  line("Hiç ulaşılmamış", ex["E7"], t!.basics.neverReached, "A1/A4/A7");
+  line("Hiç ulaşılmamış", ex["E7"], t!.basics.neverReached, "A1/A4/A7/A10");
   line("Dönüş alınan", ex["F7"], t!.basics.replied, "A4/A7");
   line("Teklif verilen", ex["G7"], t!.basics.proposalGiven, "A4/A7");
   line("Alıcı müşteri", ex["H7"], t!.basics.buyers, "A4");
@@ -268,7 +268,7 @@ if (verify) {
   ["m0_3", "m3_6", "m6_12", "researching"].forEach((code, i) => {
     const x = t!.byInstallTimeline.find((y) => y.timeline === code);
     line(`${code} lead`, ex[`C${51 + i}`], x?.lead ?? 0);
-    line(`${code} hiç`, ex[`D${51 + i}`], x?.neverReached ?? 0, "A1/A7");
+    line(`${code} hiç`, ex[`D${51 + i}`], x?.neverReached ?? 0, "A1/A7/A10");
   });
   console.log(
     `[excel] izinli farklar: ${

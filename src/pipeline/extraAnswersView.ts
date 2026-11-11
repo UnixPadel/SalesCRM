@@ -10,6 +10,7 @@ export const HIDDEN_EXTRA_KEYS = [
   "unmatched_answers",
   "import_issues",
   "dropped_fields",
+  "sheet_key",
 ] as const;
 
 /** Bilinen anahtar → çeviri anahtarı. */
@@ -19,6 +20,7 @@ export const EXTRA_LABELS: Record<string, string> = {
   excel_owner: "extra.excel_owner",
   excel_warning: "extra.excel_warning",
   platform_lead_id: "extra.platform_lead_id",
+  sheet_row: "extra.sheet_row",
 };
 
 function valueText(v: unknown): string {

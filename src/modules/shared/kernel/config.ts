@@ -28,6 +28,11 @@ export interface AppConfig {
    * düzenler. Varsayılan açık; REPS_EDIT_PRODUCTS=0 yalnız yöneticiye bırakır.
    */
   repsEditProducts: boolean;
+  /**
+   * Form tablosu eşitlemesi (2026-11-11): Google E-Tablolar'ın CSV dışa aktarım adresi (bağlantıyla paylaşılmış Meta
+   * form dökümü). Boşsa kapalı. Adres tablodaki kişisel veriye erişim verir: loglanmaz, arayüze gitmez.
+   */
+  sheetSync: { csvUrl: string; minutes: number };
 }
 
 export interface IntakeConfig {
@@ -114,6 +119,10 @@ export function loadConfig(env: Env = process.env): AppConfig {
     publicBaseUrl: (env["PUBLIC_BASE_URL"] ?? "").replace(/\/+$/, ""),
     eurRatesJson: env["EUR_RATES"] ?? "",
     repsEditProducts: env["REPS_EDIT_PRODUCTS"] !== "0",
+    sheetSync: {
+      csvUrl: (env["SHEET_SYNC_CSV_URL"] ?? "").trim(),
+      minutes: Math.max(1, num(env["SHEET_SYNC_MINUTES"], 5)),
+    },
   };
 }
 

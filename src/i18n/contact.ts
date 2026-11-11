@@ -326,6 +326,8 @@ export const CONTACT_DICT = {
   "extra.excel_warning": ["Excel veri uyarısı", "Excel data warning"],
   "extra.platform_lead_id": ["Platform lead kimliği", "Platform lead id"],
   "source.excel": ["Excel", "Excel"],
+  "source.sheet": ["Form tablosu", "Form sheet"],
+  "extra.sheet_row": ["Form tablosu satırı", "Form sheet row"],
   "lead.excelOwner": ["Excel'deki sorumlu: {name}", "Owner in Excel: {name}"],
 
   "stage.menu": ["Aşama: {stage}", "Stage: {stage}"],

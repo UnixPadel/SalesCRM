@@ -4,7 +4,8 @@
  *     (`excelSummary`) ve dosyadaki önbellek değerleriyle karşılaştırılır (G3 = TODAY hariç). Fark → çıkış 2.
  *  2. Satır olguları: her satırın CRM'deki olguları içe aktarma kurallarının beklenen sonucuyla (`expectedCrmFacts`)
  *     karşılaştırılır; izinli farklar gerekçe koduna bağlanır (A1 gönderim işaretsiz dönüş, A2 adet/tik, A3 havuz,
- *     A4 zenginleştirilen lead, A7 TEMAS satırı, A9 ölçü var Kapatma yok). Gerekçesiz fark → çıkış 1.
+ *     A4 zenginleştirilen lead, A7 TEMAS satırı, A9 ölçü var Kapatma yok, A10 form tablosu sonrası).
+ *     Gerekçesiz fark → çıkış 1.
  *  3. Tablo: Excel | CRM her hücre için yazdırılır. Kişisel veri yok: yalnız Excel No ve sayılar.
  */
 import { fold } from "../modules/lead-intake/application";
@@ -116,6 +117,9 @@ export function crmFacts(l: LeadListItem): RowFacts {
     covered: l.installSite === "covered_court",
   };
 }
+
+/** Form tablosu eşitlemesinin değiştirebildiği olgular (A10). */
+const SHEET_FIELDS = new Set(["mail", "never", "timeline", "covered"]);
 
 const flat = (f: RowFacts): Record<string, unknown> => ({
   mail: f.mail,
@@ -265,10 +269,15 @@ export function compareRows(
     for (const code of reasons) res.reasons[code] = (res.reasons[code] ?? 0) + 1;
     const want = flat(facts);
     const got = flat(crmFacts(lead));
+    // A10: form tablosu (Excel'den yeni) bu lead'e "mail atıldı" teması ya da boş form cevabı eklediyse.
+    const sheet = "sheet_key" in lead.extraAnswers;
+    let a10 = false;
     for (const k of Object.keys(want)) {
-      if (JSON.stringify(want[k]) !== JSON.stringify(got[k]))
-        res.rowDiffs.push({ no: r.no, field: k, expected: want[k], actual: got[k] });
+      if (JSON.stringify(want[k]) === JSON.stringify(got[k])) continue;
+      if (sheet && SHEET_FIELDS.has(k)) a10 = true;
+      else res.rowDiffs.push({ no: r.no, field: k, expected: want[k], actual: got[k] });
     }
+    if (a10) res.reasons["A10"] = (res.reasons["A10"] ?? 0) + 1;
     const owner = ownerOf(r);
     if (owner !== lead.assignedUserId)
       res.ownerDiffs.push({ no: r.no, field: "owner", expected: owner, actual: lead.assignedUserId });

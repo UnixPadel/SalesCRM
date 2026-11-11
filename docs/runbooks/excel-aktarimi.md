@@ -17,7 +17,7 @@ dosyaları depoya girmez (`.gitignore`).
 5. **Sorumlu düzeltmesi (gerekirse):** `owners.json` ile etiket → KullaniciID ya da `null` (havuz). Örnek:
    `{"Enes": "26", "Almanya Distribütörü": null}`. Verilen kimlik aktif bir satış kullanıcısı değilse betik durur.
 6. **Gerçek koşu:** aynı komut, `--dry-run` olmadan.
-7. **Doğrulama:** `--verify` (salt okunur). Çıkış 0 = CRM Özet rapor Excel ÖZET RAPOR ile aynı (izinli farklar A1–A9);
+7. **Doğrulama:** `--verify` (salt okunur). Çıkış 0 = CRM Özet rapor Excel ÖZET RAPOR ile aynı (izinli farklar A1–A10; A10 = form tablosu sonrası, `docs/runbooks/form-tablosu.md`);
    1 = gerekçesiz fark (satır No ve alan yazılır); 2 = formül sağlaması tutmadı.
 8. **İkinci koşu** "Değişiklik yok." demeli (idempotent).
 9. Sunucuyu başlatın; Raporlar → Özet rapor → "Excel listesi" kapsamı `--verify` çıktısının CRM sütunuyla aynı olmalı.

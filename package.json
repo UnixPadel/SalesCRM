@@ -24,6 +24,7 @@
     "db:migrate-legacy": "tsx scripts/migrate-json-to-pg.ts",
     "db:import-mysql": "tsx scripts/import-mysql-customers.ts",
     "db:import-excel": "tsx scripts/import-excel.ts",
+    "db:import-sheet": "tsx scripts/import-sheet.ts",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

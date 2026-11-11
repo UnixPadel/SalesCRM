@@ -86,3 +86,11 @@ Yönetici (Elshan) ve satışçı (Yuşa) oturumlarıyla, `crm-test-login` öniz
 - Bölge kuralları ekranı (7b "Bölgeler" sekmesi) henüz yok; kurallar aktarım betiğiyle yazıldı.
 - Teklif tutarı Excel'de olmadığından içe aktarılan teklifler tutarsızdır; Kazanıldı/Kaybedildi otomatik yapılmaz
   (rapor "aday" listesi verir).
+
+## Ek: Form tablosu eşitlemesi (2026-11-11)
+
+Google E-Tablolar'daki Meta form dökümü artık sunucu tarafından düzenli okunuyor (`docs/runbooks/form-tablosu.md`).
+2026-11-11 tarihli kuru çalıştırmanın sonucu (geçici kopyada): 103 satır okundu, 34'ü yeni lead. 69 satır CRM'de
+zaten olan Excel lead'iydi. Bu 69 lead'in CRM'de hiç teması yoktu, tabloda ise hepsi için "mail atildi" yazıyor.
+Eşitleme bu lead'lere tahmini tarihli e-posta teması ekler. Tablo Excel'den yeni olduğundan Özet rapor'daki "Mail
+atılan" ve "Hiç ulaşılmamış" Excel ÖZET RAPOR'dan ayrılır. `--verify` bu farkları A10 olarak sayar (gerekçeli fark).

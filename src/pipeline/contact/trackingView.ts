@@ -82,9 +82,10 @@ export function sourceText(
   t: T,
   sourceName: string,
 ): string {
-  const excel = "excel_no" in (lead.extraAnswers ?? {});
+  const extra = lead.extraAnswers ?? {};
   const surface = lead.adSurface ? t(`surface.${lead.adSurface}`) : "";
   const surfaceText = surface.startsWith("surface.") ? (lead.adSurface ?? "") : surface;
-  if (excel) return [t("source.excel"), surfaceText].filter(Boolean).join(" · ");
-  return [sourceName, surfaceText].filter(Boolean).join(" · ");
+  // Excel aktarımı "Excel · Instagram", form tablosu "Form tablosu · Instagram" [U-M8].
+  const origin = "excel_no" in extra ? t("source.excel") : "sheet_key" in extra ? t("source.sheet") : sourceName;
+  return [origin, surfaceText].filter(Boolean).join(" · ");
 }

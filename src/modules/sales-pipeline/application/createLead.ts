@@ -409,7 +409,8 @@ export class CreateLead {
     if (!person) return null;
     const candidates = (await repos.leads.list({ personId: person.id, includeTest: true })).filter(
       (l) =>
-        "excel_no" in l.extraAnswers &&
+        // Excel aktarımı ya da form tablosu eşitlemesinden gelen açık lead (gerçek platform kimliği henüz yok).
+        ("excel_no" in l.extraAnswers || "sheet_key" in l.extraAnswers) &&
         !isTerminal(l.currentStage) &&
         (!l.campaign.campaignName || !a.campaignName || l.campaign.campaignName === a.campaignName),
     );

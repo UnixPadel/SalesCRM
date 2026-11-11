@@ -187,6 +187,19 @@ sütunları bu kayıtlardan türetilir.
 - Ürün tercihlerini lead'in sorumlusu satışçı da girer (havuz lead'ini önce üstlenir); `REPS_EDIT_PRODUCTS=0` yalnız
   yöneticiye bırakır.
 
+## Form tablosu eşitlemesi
+
+Google E-Tablolar'daki Meta form dökümü CRM'e kendiliğinden düşer (`docs/runbooks/form-tablosu.md`).
+
+- `.env`'de `SHEET_SYNC_CSV_URL` (sekmenin CSV dışa aktarım adresi) varsa sunucu tabloyu `SHEET_SYNC_MINUTES`
+  (varsayılan 5) dakikada bir okur. Tablo "bağlantıya sahip olan herkes görüntüleyebilir" paylaşımında olmalıdır.
+  Adres kişisel veriye erişim verir: yalnız `.env`'de durur, loglanmaz, arayüze gönderilmez.
+- Yeni satır → lead (kaynak "Form tablosu · Instagram/Facebook"), ülke kuralıyla atanır, sorumluya bildirim gider.
+  Kişi CRM'de zaten varsa yeni lead açılmaz; boş form cevapları doldurulur. Not sütununda "mail atildi" varsa ve
+  lead'in e-posta teması yoksa tahmini tarihli e-posta teması eklenir.
+- Yönetici Lead listesinde son eşitlemeyi görür ve "Şimdi eşitle" ile tetikler (`GET /api/sheet-sync`,
+  `POST /api/sheet-sync/run`). Tek seferlik: `npm run db:import-sheet -- [--dry-run]`.
+
 ## Geliştirme kuralları (Faz 0'dan itibaren)
 
 - Mimari kararlar `docs/adr/` altında; açık kararlar ve sahipleri `docs/decisions.md`.
