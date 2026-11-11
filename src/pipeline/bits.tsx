@@ -2,6 +2,7 @@ import { Icon } from "../components/ui";
 import { countryName, flagOf } from "../domain/constants";
 import { useLang } from "../i18n";
 import type { LeadDto, StageCodeDto } from "../modules/sales-pipeline/api/dto";
+import { sourceText } from "./contact/trackingView";
 import { ageTone, useReference, useSince } from "./hooks";
 
 /** Küçük, paylaşılan parçalar: kaynak rozeti, ülke, aşama etiketi, "geleli" sayacı. */
@@ -14,12 +15,19 @@ const SOURCE_ICON: Record<LeadDto["source"], string> = {
   import: "file",
 };
 
-export function SourceBadge({ source }: { source: LeadDto["source"] }) {
+/** Kaynak rozeti; lead verilirse kökeni de yazar ("Excel · Instagram", "Form tablosu · Facebook") [U-M8]. */
+export function SourceBadge({
+  source,
+  lead,
+}: {
+  source: LeadDto["source"];
+  lead?: Pick<LeadDto, "source" | "extraAnswers" | "adSurface">;
+}) {
   const { t } = useLang();
   return (
     <span className={"src-badge src-" + source}>
       <Icon name={SOURCE_ICON[source]} size={13} />
-      {t(`source.${source}`)}
+      {lead ? sourceText(lead, t, t(`source.${source}`)) : t(`source.${source}`)}
     </span>
   );
 }

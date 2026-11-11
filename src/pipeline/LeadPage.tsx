@@ -181,7 +181,7 @@ export function LeadPage({ id }: { id: string }) {
                   {excelOwner ? ` · ${t("lead.excelOwner", { name: excelOwner })}` : ""}
                 </span>
               )}
-              <SourceBadge source={lead.source} />
+              <SourceBadge source={lead.source} lead={lead} />
               <Country code={lead.country} />
               <Age lead={lead} now={now} />
               {lead.isTest && <span className="tag tag-neutral">{t("lead.isTest")}</span>}
