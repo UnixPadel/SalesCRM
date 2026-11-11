@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { Button, Empty, Icon, Skeleton, eur, money } from "../components/ui";
+import { Button, Empty, Icon, Skeleton, StatusTag, eur, money } from "../components/ui";
 import { countryName } from "../domain/constants";
 import type { Currency } from "../domain/types";
 import { useLang } from "../i18n";
@@ -12,9 +12,12 @@ import type {
 } from "../modules/sales-pipeline/api/dto";
 import { navigate } from "../router";
 import { useCrm } from "../state/CrmContext";
+import { adminApi } from "./admin/adminApi";
+import { ConfirmDialog } from "./admin/bits";
 import { pipelineApi } from "./api";
 import { StageTag } from "./bits";
 import { useErrorText, useTeamNames } from "./hooks";
+import { MergePersonDialog } from "./MergePersonDialog";
 import { ORGANIZATION_TYPES, OrganizationDialog } from "./OrganizationDialog";
 
 type Tab = "orgs" | "people";
@@ -48,6 +51,11 @@ export function PeoplePage({ initialQuery = "" }: { initialQuery?: string }) {
   const [openOrg, setOpenOrg] = useState<string | null>(null);
   const [orgPeople, setOrgPeople] = useState<Record<string, PersonSummaryDto[] | undefined>>({});
   const [dialog, setDialog] = useState<{ initial?: OrganizationDto } | null>(null);
+  // Faz 7d: arşivlenenleri göster süzgeci, arşiv onayı ve kişi birleştirme penceresi.
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiving, setArchiving] = useState<OrganizationDto | null>(null);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [merging, setMerging] = useState<PersonSummaryDto | null>(null);
   const seq = useRef(0);
 
   useEffect(() => {
@@ -58,7 +66,7 @@ export function PeoplePage({ initialQuery = "" }: { initialQuery?: string }) {
   const reload = useCallback(() => {
     const n = ++seq.current;
     const search = debounced || undefined;
-    Promise.all([pipelineApi.organizations({ q: search }), pipelineApi.persons({ q: search })])
+    Promise.all([pipelineApi.organizations({ q: search, archived: showArchived }), pipelineApi.persons({ q: search })])
       .then(([o, p]) => {
         if (n !== seq.current) return;
         setOrgs(o);
@@ -67,8 +75,22 @@ export function PeoplePage({ initialQuery = "" }: { initialQuery?: string }) {
         setOrgPeople({});
       })
       .catch((e) => n === seq.current && setError(e));
-  }, [debounced]);
+  }, [debounced, showArchived]);
   useEffect(reload, [reload]);
+
+  const setArchived = async (o: OrganizationDto, archived: boolean) => {
+    setArchiveBusy(true);
+    try {
+      await adminApi.archiveOrganization(o.id, archived);
+      setArchiving(null);
+      toast(t(archived ? "org.archived.toast" : "org.unarchived.toast", { name: o.name }));
+      reload();
+    } catch (e) {
+      toast(errText(e), { bad: true });
+    } finally {
+      setArchiveBusy(false);
+    }
+  };
 
   const pickTab = (next: Tab) => {
     setTab(next);
@@ -145,6 +167,19 @@ export function PeoplePage({ initialQuery = "" }: { initialQuery?: string }) {
               }}
             />
           </label>
+          {tab === "orgs" && (
+            <label className="cd-check">
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(e) => {
+                  setShowArchived(e.target.checked);
+                  setPage(0);
+                }}
+              />
+              {t("org.showArchived")}
+            </label>
+          )}
           {canEditOrg && tab === "orgs" && (
             <Button variant="pri" icon="plus" onClick={() => setDialog({})}>
               {t("org.new")}
@@ -194,9 +229,14 @@ export function PeoplePage({ initialQuery = "" }: { initialQuery?: string }) {
                 const expanded = openOrg === o.id;
                 return (
                   <Fragment key={o.id}>
-                    <tr className={expanded ? "is-open" : ""}>
+                    <tr className={(expanded ? "is-open" : "") + (o.archivedAt ? " is-archived" : "")}>
                       <td>
-                        <b>{o.name}</b>
+                        <b>{o.name}</b>{" "}
+                        {o.archivedAt && (
+                          <StatusTag tone="neutral" icon="lock">
+                            {t("org.archived")}
+                          </StatusTag>
+                        )}
                         {o.website && <div className="muted mono">{o.website}</div>}
                       </td>
                       <td>
@@ -224,11 +264,21 @@ export function PeoplePage({ initialQuery = "" }: { initialQuery?: string }) {
                       <td className="num">{row.wonCount}</td>
                       <td>
                         <div className="row-actions">
-                          {canEditOrg && (
+                          {canEditOrg && !o.archivedAt && (
                             <Button size="sm" variant="ghost" icon="edit" onClick={() => setDialog({ initial: o })}>
                               {t("lead.edit")}
                             </Button>
                           )}
+                          {canEditOrg &&
+                            (o.archivedAt ? (
+                              <Button size="sm" variant="ghost" onClick={() => void setArchived(o, false)}>
+                                {t("org.unarchive")}
+                              </Button>
+                            ) : (
+                              <Button size="sm" variant="ghost" onClick={() => setArchiving(o)}>
+                                {t("org.archive")}
+                              </Button>
+                            ))}
                           <Button size="sm" variant="ghost" aria-expanded={expanded} onClick={() => toggleOrg(o.id)}>
                             {t("people.leadsN", { n: row.leadCount })} <Icon name="chevron" size={14} />
                           </Button>
@@ -259,13 +309,23 @@ export function PeoplePage({ initialQuery = "" }: { initialQuery?: string }) {
                 <th scope="col">{t("people.col.org")}</th>
                 <th scope="col">{t("new.country")}</th>
                 <th scope="col">{t("people.col.leads")}</th>
+                {canEditOrg && (
+                  <th scope="col">
+                    <span className="sr-only">{t("people.col.actions")}</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {(people ?? []).slice(pg * PAGE, pg * PAGE + PAGE).map((row) => (
                 <tr key={row.person.id}>
                   <td>
-                    <b>{row.person.fullName || "—"}</b>
+                    <b>{row.person.fullName || "—"}</b>{" "}
+                    {row.person.mergedIntoId && (
+                      <StatusTag tone="neutral" icon="arrow">
+                        {t("merge.badge")}
+                      </StatusTag>
+                    )}
                     {row.person.company && <div className="muted">{row.person.company}</div>}
                   </td>
                   <td className="mono">
@@ -278,11 +338,25 @@ export function PeoplePage({ initialQuery = "" }: { initialQuery?: string }) {
                   <td className="mono">
                     {row.person.phoneE164 ? <a href={`tel:${row.person.phoneE164}`}>{row.person.phoneE164}</a> : "—"}
                   </td>
-                  <td>{row.organization?.name ?? "—"}</td>
+                  <td>
+                    {row.organization?.name ?? "—"}
+                    {row.organization?.archived ? ` (${t("org.archived")})` : ""}
+                  </td>
                   <td>{row.person.country ? countryName(row.person.country) : "—"}</td>
                   <td>
                     <LeadChips leads={row.leads} />
                   </td>
+                  {canEditOrg && (
+                    <td>
+                      <div className="row-actions">
+                        {!row.person.mergedIntoId && (
+                          <Button size="sm" variant="ghost" icon="users" onClick={() => setMerging(row)}>
+                            {t("merge.action")}
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -302,6 +376,28 @@ export function PeoplePage({ initialQuery = "" }: { initialQuery?: string }) {
             {t("people.next")}
           </Button>
         </div>
+      )}
+
+      {archiving && (
+        <ConfirmDialog
+          title={t("org.archive")}
+          confirmLabel={t("org.archive")}
+          busy={archiveBusy}
+          onConfirm={() => void setArchived(archiving, true)}
+          onClose={() => setArchiving(null)}
+        >
+          {t("org.archiveConfirm", { name: archiving.name })}
+        </ConfirmDialog>
+      )}
+      {merging && (
+        <MergePersonDialog
+          target={merging}
+          onClose={() => setMerging(null)}
+          onMerged={() => {
+            setMerging(null);
+            reload();
+          }}
+        />
       )}
 
       {dialog && (

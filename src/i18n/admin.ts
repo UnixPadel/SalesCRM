@@ -218,6 +218,8 @@ export const ADMIN_DICT = {
   ],
   "terr.uncovered": ["Lead'i olup kuralı olmayan ülkeler", "Countries with leads but no rule"],
   "terr.uncovered.none": ["Lead gelen her ülkenin kuralı var.", "Every country with leads has a rule."],
+  "terr.uncovered.all": ["Tümünü göster ({n} ülke)", "Show all ({n} countries)"],
+  "terr.uncovered.less": ["Daha az göster", "Show fewer"],
   "terr.addRule": ["Kural ekle", "Add rule"],
   "terr.chooseOwner": ["Sorumlu seçin", "Choose an owner"],
   "terr.addCountry": ["Ülke kodu (ör. FR)", "Country code (e.g. FR)"],

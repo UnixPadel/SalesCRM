@@ -44,6 +44,8 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
     },
     { r: "contacts", icon: "user", label: t("nav.contacts") },
     { r: "reports", icon: "chart", label: t("nav.reports") },
+    // Yönetim paneli (Faz 7): yalnız yöneticiye görünür.
+    ...(isAdmin ? [{ r: "admin" as const, icon: "lock", label: t("nav.admin") }] : []),
   ];
 
   return (

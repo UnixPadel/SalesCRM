@@ -101,8 +101,14 @@ export const pipelineApi = {
       body,
     ),
   // Kuruluşlar ve kişiler (Faz 6d)
-  organizations: (p: { q?: string | undefined } = {}) =>
-    call<OrganizationSummaryDto[]>("GET", "/organizations" + (p.q ? "?q=" + encodeURIComponent(p.q) : "")),
+  organizations: (p: { q?: string | undefined; archived?: boolean | undefined } = {}) => {
+    const qs = new URLSearchParams();
+    if (p.q) qs.set("q", p.q);
+    // Faz 7d: arşivlenenler yalnız istenirse gelir.
+    if (p.archived) qs.set("archived", "1");
+    const s = qs.toString();
+    return call<OrganizationSummaryDto[]>("GET", "/organizations" + (s ? "?" + s : ""));
+  },
   createOrganization: (body: OrganizationBody) => call<OrganizationDto>("POST", "/organizations", body),
   updateOrganization: (id: string, body: OrganizationBody) =>
     call<OrganizationDto>("PATCH", `/organizations/${encodeURIComponent(id)}`, body),

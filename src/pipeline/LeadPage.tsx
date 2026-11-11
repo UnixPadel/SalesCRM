@@ -272,12 +272,15 @@ export function LeadPage({ id }: { id: string }) {
                 </div>
                 <Fact label={t("lead.organization")}>
                   {organization ? (
-                    <a
-                      href={`#/contacts?q=${encodeURIComponent(organization.name)}`}
-                      onClick={(e) => (e.preventDefault(), navigate("contacts", organization.name))}
-                    >
-                      {organization.name}
-                    </a>
+                    <>
+                      <a
+                        href={`#/contacts?q=${encodeURIComponent(organization.name)}`}
+                        onClick={(e) => (e.preventDefault(), navigate("contacts", organization.name))}
+                      >
+                        {organization.name}
+                      </a>
+                      {organization.archivedAt && <span className="tag tag-neutral">{t("org.archived")}</span>}
+                    </>
                   ) : (
                     "—"
                   )}

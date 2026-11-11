@@ -6,6 +6,7 @@ import { CrmProvider } from "./state/CrmContext";
 import "./styles.css";
 import "./pipeline/pipeline.css";
 import "./pipeline/tracking.css";
+import "./pipeline/admin/admin.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

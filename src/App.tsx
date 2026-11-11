@@ -4,6 +4,7 @@ import { Toasts } from "./components/Toasts";
 import { Skeleton } from "./components/ui";
 import { LoginPage } from "./pages/LoginPage";
 import { ActivitiesPage } from "./pipeline/ActivitiesPage";
+import { AdminPage } from "./pipeline/admin/AdminPage";
 import { LeadListPage } from "./pipeline/list/LeadListPage";
 import { KanbanPage } from "./pipeline/KanbanPage";
 import { LeadPage } from "./pipeline/LeadPage";
@@ -55,6 +56,8 @@ export default function App() {
           <ActivitiesPage params={params} />
         ) : route === "reports" ? (
           <ReportsPage params={params} />
+        ) : route === "admin" ? (
+          <AdminPage params={params} />
         ) : (
           <PeoplePage initialQuery={q} key={q} />
         )}

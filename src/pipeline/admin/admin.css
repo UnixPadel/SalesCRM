@@ -1,0 +1,258 @@
+/* Yönetim paneli (Faz 7): Sağlık · Eşlemeler · Ayarlar · Bölgeler. Yalnız token ve mantıksal özellikler. */
+
+.adm-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5) var(--s-6);
+  /* Görsel olarak gizli (.sr-only, mutlak konumlu) etiketler sayfayla birlikte kaysın; belgeyi taşırmasın. */
+  position: relative;
+}
+.adm-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-5);
+}
+.adm-top .pl-title {
+  margin: 0;
+}
+.adm-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+/* Bölüm başlığı: başlık + açıklama solda, eylem sağda. */
+.adm-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-4);
+}
+.adm-head h2 {
+  margin: 0;
+  font-size: var(--t-lg);
+  line-height: 1.2;
+}
+.adm-head p {
+  margin-block: var(--s-1) 0;
+  max-inline-size: 72ch;
+}
+.adm-head-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+.adm-sub {
+  margin: 0;
+  font-size: var(--t-sm);
+  font-weight: 700;
+}
+
+/* Tablolar yatayda kayar; sayfa kaymaz. */
+.adm-table-wrap {
+  overflow-x: auto;
+}
+.tbl th.adm-rowhead {
+  text-align: start;
+  font-weight: 700;
+  white-space: nowrap;
+  /* .tbl th büyük harf / küçük punto verir; satır başlığı hücre gibi okunur. */
+  font-size: var(--t-sm);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-1);
+  background: transparent;
+}
+.tbl tbody th.adm-rowhead {
+  padding: var(--s-2) var(--s-3);
+  border-block-end: 1px solid var(--border);
+}
+.tbl tbody tr:last-child th.adm-rowhead {
+  border-block-end: 0;
+}
+.adm-err {
+  max-inline-size: 48ch;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.adm-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+.adm-addother {
+  padding-block-start: var(--s-2);
+}
+
+/* İki sütun: gelen kutusu | giden kuyruk; dar ekranda alt alta. */
+.adm-two {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: var(--s-4);
+}
+
+/* Durum sayıları: etiket + sayı; renk yalnız destekler, ad yazılıdır. */
+.adm-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: 0;
+}
+.adm-count {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 88px;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-2);
+  background: var(--surface-2);
+  border-inline-start: 4px solid var(--border-strong);
+}
+.adm-count dt {
+  font-size: var(--t-xs);
+  font-weight: 700;
+  color: var(--text-2);
+}
+.adm-count dd {
+  margin: 0;
+  font-size: var(--t-xl);
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.adm-count.tone-ok {
+  border-inline-start-color: var(--ok);
+}
+.adm-count.tone-info {
+  border-inline-start-color: var(--info);
+}
+.adm-count.tone-warn {
+  border-inline-start-color: var(--warn);
+}
+.adm-count.tone-bad {
+  border-inline-start-color: var(--bad);
+}
+
+.adm-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--t-sm);
+}
+.adm-secrets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.adm-secrets li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+.adm-secrets code {
+  font-size: var(--t-xs);
+}
+
+/* Formlar: tek sütun, etiket üstte; satır uzunluğu okunur kalır. */
+.adm-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  max-inline-size: 520px;
+}
+.adm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+.adm-input {
+  inline-size: 100%;
+  min-inline-size: 160px;
+  min-block-size: var(--hit-md);
+}
+.adm-input.is-bad {
+  border-color: var(--bad);
+}
+.adm-input.adm-cur {
+  inline-size: 88px;
+  min-inline-size: 0;
+  text-transform: uppercase;
+}
+.adm-input.adm-rate {
+  inline-size: 140px;
+  min-inline-size: 0;
+  font-variant-numeric: tabular-nums;
+}
+.adm-rates {
+  inline-size: auto;
+}
+.adm-confirm {
+  margin: 0;
+  line-height: 1.5;
+}
+.adm-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-2);
+  background: var(--bad-weak);
+  color: var(--bad-ink);
+}
+
+/* Kişiler sayfası: birleştirme araması ve arşiv rozetleri (Faz 7d). */
+.merge-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-block-size: 280px;
+  overflow-y: auto;
+}
+.merge-results li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-block-size: var(--hit-lg);
+  padding: var(--s-1) var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+}
+.merge-who {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+.merge-who span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.merge-picked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-2);
+  background: var(--surface-2);
+}
+tr.is-archived td {
+  color: var(--text-2);
+}
