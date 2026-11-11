@@ -1,0 +1,19 @@
+# Yerel deneme için Postgres 16 (canlıya alma provası ve `npm run db:smoke`). Canlı ortam değildir.
+#   docker compose -f docker-compose.postgres.yml up -d
+#   DATABASE_URL=postgres://crm@127.0.0.1:54329/crm_smoke npm run db:smoke
+#   docker compose -f docker-compose.postgres.yml down -v     # veriyi de siler
+# Yalnız bu bilgisayardan erişilir (127.0.0.1) ve şifresizdir; içinde gerçek veri tutmayın.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: crm
+      POSTGRES_DB: crm_smoke
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "127.0.0.1:54329:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm -d crm_smoke"]
+      interval: 2s
+      timeout: 3s
+      retries: 20

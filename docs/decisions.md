@@ -11,7 +11,7 @@ Genel plan'daki sekiz karar. İlk ikisi verilmeden Faz 1'e başlanmaz. Durum: **
 | 5 | Aşama adları (TR/EN) ve "Nitelikli" için üç soru | Satış + MarcaDM | Bekliyor (varsayılanla kodlandı) | [ADR-0006](adr/0006-asama-modeli-gecisi.md); Faz 1 seed'i: `db/migrations/0002_faz1_seed.sql`, sorular `src/modules/sales-pipeline/domain/qualification.ts`. Onay gelince yeni migration ile ad/metin değişir. |
 | 6 | KVKK ve GDPR görüşü: hash'li verinin yurt dışına aktarımı, onay metni, saklama süreleri | Hukuk | Bekliyor | Sorular aşağıda |
 | 7 | Optimizasyon olayı (Meta ve Google'da hangi aşama) | MarcaDM | Bekliyor | 2 numaralı ölçüme bağlı |
-| 8 | Ülke → sorumlu ve yedek satışçı tablosu | Satış | Bekliyor | `territory_rules` tablosunu doldurur; şablon aşağıda |
+| 8 | Ülke → sorumlu ve yedek satışçı tablosu | Satış | Kısmen (2026-11-10) | 22 ülkenin kuralı Excel LİSTELER sayfasından yazıldı (`db:import-excel`); yedek satışçı hiçbirinde yok; lead gelen 60 ülkenin kuralı yok. Artık Yönetim → Bölgeler ekranından düzenlenir (Faz 7b). Satışın gözden geçirmesi bekleniyor |
 
 ## Faz 2 ile açılan işler (yazılım dışı)
 
@@ -109,4 +109,14 @@ Son üç tam ay ortalaması ≈ 134/ay; Meta'nın Dönüşüm Lead'leri eşiği 
 | DE | | |
 | … | | |
 
-Satış doldurur; `territory_rules` tablosuna SQL ile girilir (`INSERT INTO territory_rules (country_code, assigned_user_id, fallback_user_id) VALUES ('TR', '<KullaniciID>', NULL);`). Eşleşmeyen ülke ortak havuza düşer. Faz 2 gelen lead akışı bu tabloyu kullanır; boşken reklam lead'leri havuza düşer ve kimseye bildirim gitmez.
+Satış doldurur; kurallar Yönetim → Bölgeler ekranından girilir (Faz 7b; SQL gerekmez). Eşleşmeyen ülke ortak havuza düşer. Faz 2 gelen lead akışı bu tabloyu kullanır; boşken reklam lead'leri havuza düşer ve kimseye bildirim gitmez.
+
+## Faz 7 notları (2026-11-11)
+
+- **19 (Meta olay adları)** ve **22 (Google dönüşüm işlemi kimlikleri):** artık Yönetim → Eşlemeler ekranından girilir;
+  onay geldiğinde migration ya da SQL gerekmez. Durumları onay beklediği için "Bekliyor" kalır.
+- **24 (EUR kurları): Verildi.** Kurlar Yönetim → Ayarlar ekranından girilir (`integration_settings app/eur_rates`);
+  ekrandan girilmiş kur varsa `EUR_RATES` yok sayılır, o da yoksa varsayılan tablo. Kur değişince güncellemek IT +
+  Satış'ın işi olarak sürer.
+- **17, 21:** veri seti kimliği, form kimlikleri ve Google Ads müşteri kimliği Yönetim → Ayarlar'dan girilebilir;
+  token ve servis hesabı anahtarı yine yalnız hosting'in gizli ayar deposuna girer.

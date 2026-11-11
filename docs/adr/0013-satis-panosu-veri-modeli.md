@@ -70,3 +70,12 @@ getirmek; Lead → CRM entegrasyonunu bozmadan. Kararlar `docs/yol-haritasi.md` 
   değiştirmez; "Teklif gönderildi" sonucu aşamayı `ChangeLeadStage` üzerinden taşır. Madde 5'e ek: ürün tercihleri ve
   çatı ölçüsü lead'de ayrı sütunlardır, `court_count` bunlardan yazılmaz (ADR-0014, "Kort sayısı ve model"; iş emri
   §3.4).
+- **Ek — Faz 7b/7d (2026-11-11):** migration `0013_faz7_admin.sql`. **Kişi birleştirme:** `persons.merged_into_id`;
+  kaynak kişi silinmez, hedefi gösterir ve listelerde gizlenir (arama bulur). Lead'ler hedefe taşınır; hedefte boş olan
+  e-posta / telefon / firma / ülke / kuruluş kaynaktan dolar (e-posta ve telefon kişi başına tekil olduğundan önce
+  kaynaktan düşer). `findByEmailOrPhone` birleştirilmiş kişiyi hedefine çözer: kaynağın e-postasıyla gelen yeni lead
+  hedef kişiye bağlanır. Zincir ve döngü reddedilir (`person.merge_invalid`); yalnız yönetici (Faz 7e). Madde 4'teki
+  "kişi birleştirme yok" notu böylece kapanır. **Kuruluş arşivi:** `organizations.archived_at`; arşivli kuruluş
+  listelerden ve seçim kutularından düşer, bağlı kişi ve lead'ler kalır; silme yok, geri alınır. **Bölge kuralları**
+  ekrandan yazılır (`TerritoryAdmin`); "Havuza uygula" tek transaction'dır ve lead başına bildirim göndermez. **EUR
+  kurları** sabit değer yerine kaynak fonksiyonundan okunur (`eurRatesSource`): ayar → ortam değişkeni → varsayılan.

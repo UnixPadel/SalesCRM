@@ -25,6 +25,7 @@
     "db:import-mysql": "tsx scripts/import-mysql-customers.ts",
     "db:import-excel": "tsx scripts/import-excel.ts",
     "db:import-sheet": "tsx scripts/import-sheet.ts",
+    "db:smoke": "tsx scripts/smoke-db.ts",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

@@ -206,6 +206,13 @@ tamamlandı:** Excel satış takip dosyasının işlevleri CRM'de (Lead listesi,
 veri uyarıları, Excel aktarımı; `docs/satis-takip-is-emri.md`, ADR-0014, `docs/satis-takip-kabul-raporu.md`). Kalan:
 7a–7d (yönetim paneli), sonra Faz 8.
 
+**Durum (2026-11-11):** **Faz 7 tamamlandı.** 7a–7d: Yönetim paneli (Sağlık · Eşlemeler · Ayarlar · Bölgeler), yeniden
+kuyruğa alma, acil durdurma, EUR kurları, Google istek akıbeti, kişi birleştirme, kuruluş arşivi
+(`docs/faz7-kabul-raporu.md`). Aynı gün: form tablosu (Google E-Tablolar) eşitlemesi
+(`docs/runbooks/form-tablosu.md`) ve benimsenen içe aktarım lead'lerinin geri bildirimi. Sıradaki: **Faz 8**
+(`docs/runbooks/canliya-alma.md`); hosting kararı (ADR-0005) ve hesaplar bekleniyor. Yazılım tarafında bekleyen tek iş
+duman testinin gerçek Postgres 16'da çalıştırılması (`npm run db:smoke`).
+
 ## 7. Canlıya alma ve veritabanı
 
 ```mermaid
@@ -229,6 +236,9 @@ kullanılır, migration'lar açılışta uygulanır. Giriş tablosu (`AUTH_DB_UR
 | **A. Clever Cloud** Node + Postgres addon | Mevcut hesapta iki addon; `DATABASE_URL` otomatik gelir | ~15–30 € | ADR-0005 önerisi; MySQL zaten orada |
 | B. Neon / Supabase Postgres + Render/Fly Node | İki sağlayıcı, iki hesap | ~0–25 € | Ücretsiz katman geliştirme için yeter, canlı için yedek planı gerekir |
 | C. Kendi VPS'i, Docker Compose (app + Postgres + Caddy) | Ubuntu sunucu, alan adı, IT bakım | ~5–10 € + emek | Yol bazlı ters proxy; yedek ve yama IT'de |
+
+Hazır (2026-11-11): `docs/runbooks/canliya-alma.md` (hosting'den bağımsız adımlar, ortam değişkenleri, rehberin
+kontrol listesi), `docker-compose.postgres.yml` ve `npm run db:smoke`.
 
 Yazılımın yapacağı (karar sonrası): `docs/runbooks/canliya-alma.md`, ortam değişkeni listesi, Docker Compose ya da
 Clever Cloud yapılandırması, gerçek Postgres 16'ya karşı test koşusu (bu makinede Docker var), taşıma betiğinin

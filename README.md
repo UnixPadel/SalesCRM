@@ -200,6 +200,26 @@ Google E-Tablolar'daki Meta form dökümü CRM'e kendiliğinden düşer (`docs/r
 - Yönetici Lead listesinde son eşitlemeyi görür ve "Şimdi eşitle" ile tetikler (`GET /api/sheet-sync`,
   `POST /api/sheet-sync/run`). Tek seferlik: `npm run db:import-sheet -- [--dry-run]`.
 
+## Yönetim paneli (Faz 7)
+
+Üst menüde **Yönetim** yalnız yöneticiye görünür (`#/admin`; API `/api/admin`, satışçı ve görüntüleyici 403).
+Kabul raporu `docs/faz7-kabul-raporu.md`.
+
+- **Sağlık:** hangi bağlantı kurulu, hangi gizli anahtar tanımlı (değer hiç gösterilmez); gelen kutusu ve giden kuyruk
+  sayıları; gönderilemeyen olaylar ve işlenemeyen bildirimler için "Yeniden dene"; "Gönderimi durdur" (acil durdurma);
+  Google'a giden olayın platformdaki akıbeti.
+- **Eşlemeler:** aşama → platform olayı (Meta olay adı, Google dönüşüm işlemi kimliği, optimizasyon hedefi) ve form
+  alanı → lead alanı. Kaydedilen eşleme hemen geçerlidir.
+- **Ayarlar:** EUR kurları (ekran → `EUR_RATES` → varsayılan sırasıyla; kayıt pano toplamına hemen yansır) ve
+  sağlayıcıların secret olmayan ayarları (veri seti kimliği, form kimlikleri, müşteri kimliği).
+- **Bölgeler:** ülke → sorumlu / yedek kuralları; lead'i olup kuralı olmayan ülkeler; "Havuza uygula" (önce sonucu
+  gösterir). Kural yalnız yeni lead'in otomatik atamasını belirler.
+- **Kişiler sayfası:** yönetici iki kişi kaydını birleştirir (lead'ler taşınır, kaynak gizlenir) ve kuruluşu arşivler.
+
+Canlıya alma adımları: `docs/runbooks/canliya-alma.md`. Canlıdan önce gerçek Postgres 16'da duman testi:
+`docker compose -f docker-compose.postgres.yml up -d`, sonra
+`DATABASE_URL=postgres://crm@127.0.0.1:54329/crm_smoke npm run db:smoke`.
+
 ## Geliştirme kuralları (Faz 0'dan itibaren)
 
 - Mimari kararlar `docs/adr/` altında; açık kararlar ve sahipleri `docs/decisions.md`.
@@ -217,6 +237,7 @@ Google E-Tablolar'daki Meta form dökümü CRM'e kendiliğinden düşer (`docs/r
 | `npm run secrets` | secretlint |
 | `npm run test` / `test:coverage` | Vitest; kapsam eşiği domain + application ≥ %90 |
 | `npm run db:migrate` / `db:migrate-legacy` | Şema migration'ları / eski JSON veriyi taşıma |
+| `npm run db:smoke` | Veritabanı duman testi: bellek içi PGlite ya da `DATABASE_URL`'deki deneme Postgres'i |
 | `npm run verify` | Hepsi sırayla |
 
 ## Giriş ve şifreler

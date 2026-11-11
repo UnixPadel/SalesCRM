@@ -1,4 +1,7 @@
-# Faz 7 — Yönetim paneli: iş emri (taslak, onay bekliyor)
+# Faz 7 — Yönetim paneli: iş emri
+
+**Durum (2026-11-11): tamamlandı.** 7a–7d kabul raporu `docs/faz7-kabul-raporu.md` (sapmalar orada: Google durum
+sorgusu GET, birleştirme yalnız yönetici, `active_form_ids`). 7e, 7f, 7g daha önce bitti.
 
 Tarih: 2026-11-10. Kaynak: `docs/yol-haritasi.md` bölüm 6 satır 7 (Genel plan Faz 6) + `docs/faz6d-kabul-raporu.md`
 "Bilinen eksikler" 1–3. Hosting kararı (ADR-0005) **ertelendi**; Faz 7 ondan bağımsızdır, yerel PGlite ile biter.
