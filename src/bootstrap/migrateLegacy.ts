@@ -192,6 +192,7 @@ export async function migrateLegacy(db: Db, snap: LegacySnapshot, opts: MigrateO
       website: (o.website ?? "").trim().slice(0, 200),
       notes: (o.notes ?? "").trim().slice(0, 4000),
       legacyId: o.id,
+      archivedAt: null,
       createdAt: at,
       updatedAt: at,
     };

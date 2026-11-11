@@ -56,6 +56,8 @@ export interface Person {
   company: string;
   /** Kuruluş bağı (Faz 6d); null = bağsız. */
   organizationId: string | null;
+  /** Faz 7d: başka bir kişiye birleştirildiyse o kişinin kimliği; listelerde gizlenir, silinmez. */
+  mergedIntoId: string | null;
   createdAt: Date;
 }
 

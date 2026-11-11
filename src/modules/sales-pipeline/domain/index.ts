@@ -16,4 +16,5 @@ export * from "./dataQuality";
 export * from "./trackingReport";
 export * from "./events";
 export * from "./filter";
+export * from "./adminRules";
 export * from "./ports";

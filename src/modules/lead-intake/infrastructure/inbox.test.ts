@@ -103,6 +103,43 @@ describe("inbound_webhook_events (PGlite)", () => {
     expect(purged[0]?.payload_purged_at).not.toBeNull();
   });
 
+  it("Faz 7a: özet, başarısız liste (payload'sız) ve yeniden işleme (yalnız failed + payload'lı)", async () => {
+    await enqueue(U(1), "p:1");
+    await enqueue(U(2), "p:2");
+    await enqueue(U(3), "p:3", { id: 3 }, at(-40 * 24 * 60 * MINUTE));
+    await enqueue(U(4), "p:4");
+    await inbox.claimDue(T0, 10, MINUTE);
+    await inbox.markFailed(U(1), { code: "intake.invalid_lead", message: "ad yok" }, at(MINUTE));
+    await inbox.markFailed(U(3), { code: "intake.mapping", message: "eşleme yok" }, at(2 * MINUTE));
+    await inbox.markDone(U(2), "00000000-0000-4000-8000-00000000aaaa", at(MINUTE)).catch(() => undefined);
+    // 30 günden eski satırın payload'ı silinir: yeniden işlenemez.
+    expect(await inbox.purgePayloads(at(-30 * 24 * 60 * MINUTE), at(3 * MINUTE))).toBe(1);
+
+    const s = await inbox.stats(at(-24 * 60 * MINUTE), at(-30 * 24 * 60 * MINUTE));
+    expect(s.counts).toEqual(
+      expect.arrayContaining([
+        { provider: "p", status: "failed", count: 2 },
+        { provider: "p", status: "processing", count: expect.any(Number) as number },
+      ]),
+    );
+    expect(s.receivedLastDay).toBe(3);
+    expect(s.lastPurgedAt).toEqual(at(3 * MINUTE));
+    expect(s.purgeBacklog).toBe(0);
+    expect(s.oldestPendingAt).toEqual(T0);
+
+    const failed = await inbox.listFailed(10);
+    expect(failed.map((f) => [f.id, f.lastErrorCode, f.hasPayload])).toEqual([
+      [U(3), "intake.mapping", false],
+      [U(1), "intake.invalid_lead", true],
+    ]);
+    expect(failed[0]).not.toHaveProperty("payload");
+
+    expect(await inbox.requeueable([U(1), U(3), U(4), "uuid-degil"])).toEqual([U(1)]);
+    expect(await inbox.requeue([U(1), U(3), U(4)], at(5 * MINUTE))).toBe(1);
+    const again = await inbox.claimDue(at(5 * MINUTE), 10, MINUTE);
+    expect(again.map((r) => [r.id, r.attempts])).toContainEqual([U(1), 1]);
+  });
+
   it("başka anahtarla açılmaz (yanlış INBOX_ENCRYPTION_KEY görünür hata verir)", async () => {
     await enqueue(U(1), "p:1");
     const other = pgInboxRepository(db, createAesGcmCipher(generateKeyBase64()));

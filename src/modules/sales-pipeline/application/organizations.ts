@@ -13,7 +13,7 @@ import {
 } from "../domain";
 import { requireAdmin } from "./permissions";
 import { withSummaries, type LeadListItem } from "./queries";
-import type { Actor, UseCaseDeps } from "./types";
+import { currentEurRates, type Actor, type UseCaseDeps } from "./types";
 import { loadActionableLead, territoriesOf } from "./visibility";
 
 /**
@@ -55,6 +55,7 @@ export class CreateOrganization {
         website: f.website ?? "",
         notes: f.notes ?? "",
         legacyId: null,
+        archivedAt: null,
         createdAt: now,
         updatedAt: now,
       };
@@ -209,7 +210,7 @@ export interface OrganizationSummary {
 
 export interface PersonSummary {
   person: Person;
-  organization: Pick<Organization, "id" | "name"> | null;
+  organization: (Pick<Organization, "id" | "name"> & { archived: boolean }) | null;
   /** Görünür lead'ler, yeniden eskiye. */
   leads: LeadListItem[];
 }
@@ -235,16 +236,22 @@ export class PeopleQueries {
     actor: Actor;
     search?: string | undefined;
     limit?: number | undefined;
+    /** Faz 7d: arşivlenenler de listelensin. */
+    includeArchived?: boolean | undefined;
   }): Promise<OrganizationSummary[]> {
+    const rates = await currentEurRates(this.deps);
     return this.deps.uow.run(async (repos) => {
-      const orgs = await repos.organizations.list({ search: input.search, limit: input.limit });
+      const orgs = await repos.organizations.list({
+        search: input.search,
+        limit: input.limit,
+        includeArchived: input.includeArchived,
+      });
       if (!orgs.length) return [];
       const [persons, leads] = await Promise.all([repos.persons.list({}), this.visibleLeads(repos, input.actor)]);
       const withValue = await withSummaries(
         repos,
         leads.filter((l) => l.organizationId !== null),
       );
-      const rates = this.deps.eurRates;
       return orgs.map((organization) => {
         const mine = withValue.filter((l) => l.organizationId === organization.id);
         const open = mine.filter((l) => !isTerminal(l.currentStage));
@@ -284,7 +291,7 @@ export class PeopleQueries {
         const org = person.organizationId ? orgs.get(person.organizationId) : undefined;
         return {
           person,
-          organization: org ? { id: org.id, name: org.name } : null,
+          organization: org ? { id: org.id, name: org.name, archived: org.archivedAt !== null } : null,
           leads: items.filter((l) => l.personId === person.id),
         };
       });

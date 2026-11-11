@@ -1,10 +1,21 @@
 /** Bellek içi sahteler: dağıtıcı ve adaptör testleri bunlarla çalışır. */
 import type { OutboundStageEvent } from "../../sales-pipeline/application";
-import type { DeadRow, OutboundRow, PrepareResult, PreparedEvent, SendResult, SkipReason } from "./dto";
+import type {
+  DeadRow,
+  OutboundDetail,
+  OutboundRow,
+  OutboxListFilter,
+  OutboxStats,
+  PlatformRequestStatus,
+  PrepareResult,
+  PreparedEvent,
+  SendResult,
+  SkipReason,
+} from "./dto";
 import type { OutboxRepository, PlatformSender, ReportMailer, ReportMessage } from "./ports";
 
 export class InMemoryOutbox implements OutboxRepository {
-  rows: (OutboundRow & { finishedAt: Date | null })[] = [];
+  rows: OutboundDetail[] = [];
   private seq = 0;
 
   enqueue(stageEventId: string, provider: string, notBefore: Date): OutboundRow {
@@ -21,6 +32,7 @@ export class InMemoryOutbox implements OutboxRepository {
       sentAt: null,
       createdAt: notBefore,
       finishedAt: null,
+      requestId: null,
     };
     this.rows.push(row);
     return { ...row };
@@ -37,10 +49,52 @@ export class InMemoryOutbox implements OutboxRepository {
     }
     return due.map((r) => ({ ...r }));
   }
-  async markSent(ids: readonly string[], code: number, now: Date) {
+  async markSent(ids: readonly string[], code: number, now: Date, requestId: string | null = null) {
     for (const r of this.rows)
       if (ids.includes(r.id))
-        Object.assign(r, { status: "sent", lastResponseCode: code, sentAt: now, finishedAt: now });
+        Object.assign(r, { status: "sent", lastResponseCode: code, sentAt: now, finishedAt: now, requestId });
+  }
+  async stats(): Promise<OutboxStats> {
+    const counts = new Map<string, number>();
+    const reasons = new Map<string, number>();
+    for (const r of this.rows) {
+      counts.set(`${r.provider}|${r.status}`, (counts.get(`${r.provider}|${r.status}`) ?? 0) + 1);
+      if (r.status === "skipped" && r.skipReason)
+        reasons.set(`${r.provider}|${r.skipReason}`, (reasons.get(`${r.provider}|${r.skipReason}`) ?? 0) + 1);
+    }
+    const due = this.rows.filter((r) => r.status === "pending" || r.status === "failed").map((r) => r.nextAttemptAt);
+    const sent = this.rows.flatMap((r) => (r.status === "sent" && r.sentAt ? [r.sentAt] : []));
+    const split = (k: string) => k.split("|") as [string, string];
+    return {
+      counts: [...counts].map(([k, count]) => ({
+        provider: split(k)[0],
+        status: split(k)[1] as OutboundRow["status"],
+        count,
+      })),
+      skipReasons: [...reasons].map(([k, count]) => ({ provider: split(k)[0], reason: split(k)[1], count })),
+      oldestDueAt: due.length ? new Date(Math.min(...due.map((d) => d.getTime()))) : null,
+      lastSentAt: sent.length ? new Date(Math.max(...sent.map((d) => d.getTime()))) : null,
+    };
+  }
+  async list(filter: OutboxListFilter): Promise<OutboundDetail[]> {
+    return this.rows
+      .filter((r) => filter.statuses.includes(r.status) && (!filter.provider || r.provider === filter.provider))
+      .sort((a, b) => (b.finishedAt ?? b.createdAt).getTime() - (a.finishedAt ?? a.createdAt).getTime())
+      .slice(0, filter.limit)
+      .map((r) => ({ ...r }));
+  }
+  async findByIds(ids: readonly string[]): Promise<OutboundDetail[]> {
+    return this.rows.filter((r) => ids.includes(r.id)).map((r) => ({ ...r }));
+  }
+  async requeue(ids: readonly string[], now: Date) {
+    let n = 0;
+    for (const r of this.rows) {
+      if (!ids.includes(r.id) || (r.status !== "dead" && r.status !== "failed")) continue;
+      if (r.status === "dead") Object.assign(r, { status: "pending", attempts: 0 });
+      Object.assign(r, { nextAttemptAt: now, finishedAt: null });
+      n += 1;
+    }
+    return n;
   }
   async markRetry(id: string, nextAttemptAt: Date, code: number | null, error: string) {
     Object.assign(this.row(id), { status: "failed", nextAttemptAt, lastResponseCode: code, lastError: error });
@@ -87,6 +141,8 @@ export class FakeSender implements PlatformSender {
   private results: SendResult[];
   /** prepare'de skip döndürülecek aşama olayı kimlikleri. */
   skipFor = new Map<string, SkipReason>();
+  /** Verilirse sahte gönderici akıbet sorgusunu destekler (Faz 7c). */
+  requestStatus?: (requestId: string) => Promise<PlatformRequestStatus>;
 
   constructor(provider: string, results: SendResult[] = [{ kind: "ok", code: 200 }]) {
     this.provider = provider;

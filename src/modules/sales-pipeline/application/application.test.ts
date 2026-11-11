@@ -774,7 +774,7 @@ describe("Kuruluşlar ve kişiler (Faz 6d)", () => {
     const people = await sp.people.persons({ actor: ADMIN });
     expect(people).toHaveLength(3);
     const ayse = people.find((p) => p.person.id === a.personId)!;
-    expect(ayse.organization).toEqual({ id: org.id, name: "Kulüp A" });
+    expect(ayse.organization).toEqual({ id: org.id, name: "Kulüp A", archived: false });
     expect(ayse.leads.map((l) => [l.id, l.currentStage, l.value?.amount])).toEqual([[a.id, "PROPOSAL", 1000]]);
     const inOrg = await sp.people.persons({ actor: ADMIN, organizationId: org.id });
     expect(inOrg.map((p) => p.person.id)).toEqual([a.personId]);

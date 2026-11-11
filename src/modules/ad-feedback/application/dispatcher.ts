@@ -148,6 +148,7 @@ export class DispatchOutbox {
         batch.map((e) => e.row.id),
         result.code,
         now,
+        result.requestId ?? null,
       );
       stats.sent += batch.length;
       return;

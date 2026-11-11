@@ -320,6 +320,7 @@ describe("Postgres repository'leri + transaction", () => {
       website: "",
       notes: "",
       legacyId: "org1",
+      archivedAt: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -451,6 +452,62 @@ describe("Postgres repository'leri + transaction", () => {
     const [ctx] = await sp.queries.outboundContext(since.map((e) => e.stageEventId));
     expect(ctx!.lead).toMatchObject({ source: "google_form", platformLeadId: "g-501" });
     expect(ctx!.attribution).toMatchObject({ gclid: "G-1" });
+  });
+
+  it("Faz 7b/7d: bölge kuralı yaz/sil, havuza uygula, kişi birleştirme ve kuruluş arşivi (Postgres)", async () => {
+    const ADMIN = { userId: "admin", isAdmin: true };
+    const pool = (email: string, over: Record<string, unknown> = {}) =>
+      manual({ email, phone: null, actor: ADMIN, assignedUserId: null, ...over });
+    const a = unwrap(await pool("a@example.com")).lead;
+    const b = unwrap(await pool("b@example.com", { phone: "+90 532 123 45 67" })).lead;
+
+    unwrap(await sp.territories.save({ actor: ADMIN, fields: { countryCode: "tr", assignedUserId: "rep-1" } }));
+    unwrap(
+      await sp.territories.save({
+        actor: ADMIN,
+        fields: { countryCode: "TR", assignedUserId: "rep-2", fallbackUserId: "rep-1" },
+      }),
+    );
+    expect(await count("territory_rules")).toBe(1);
+    const o = unwrap(await sp.territories.overview(ADMIN));
+    expect(o.rules[0]).toMatchObject({
+      rule: { assignedUserId: "rep-2", fallbackUserId: "rep-1" },
+      leadCount: 2,
+      poolCount: 2,
+    });
+    expect(unwrap(await sp.territories.applyToPool({ actor: ADMIN, dryRun: true })).total).toBe(2);
+    expect(await count("leads", "assigned_user_id IS NOT NULL")).toBe(0);
+    expect(unwrap(await sp.territories.applyToPool({ actor: ADMIN, dryRun: false })).byUser).toEqual([
+      { userId: "rep-2", count: 2 },
+    ]);
+    expect(await count("leads", "assigned_user_id = 'rep-2'")).toBe(2);
+    unwrap(await sp.territories.remove({ actor: ADMIN, countryCode: "TR" }));
+    expect(await count("territory_rules")).toBe(0);
+
+    // Birleştirme: lead taşınır, telefon hedefe geçer (tekil indeks), kaynak hedefi gösterir.
+    const merged = unwrap(await sp.mergePersons.execute({ targetId: a.personId, sourceId: b.personId, actor: ADMIN }));
+    expect(merged.movedLeads).toBe(1);
+    expect(await count("leads", `person_id = '${a.personId}'`)).toBe(2);
+    expect(await count("persons", `id = '${a.personId}' AND phone_e164 = '+905321234567'`)).toBe(1);
+    expect(
+      await count("persons", `id = '${b.personId}' AND merged_into_id = '${a.personId}' AND phone_e164 IS NULL`),
+    ).toBe(1);
+    expect((await sp.people.persons({ actor: ADMIN })).map((p) => p.person.id)).toEqual([a.personId]);
+    expect((await sp.people.persons({ actor: ADMIN, search: "b@example.com" }))[0]?.person.mergedIntoId).toBe(
+      a.personId,
+    );
+    // Kaynağın e-postasıyla gelen yeni lead hedef kişiye bağlanır.
+    expect(unwrap(await pool("b@example.com", { fullName: "Yeniden" })).lead.personId).toBe(a.personId);
+
+    const org = unwrap(await sp.createOrganization.execute({ fields: { name: "Padel Kulübü" }, actor: ADMIN }));
+    unwrap(await sp.archiveOrganization.execute({ organizationId: org.id, archived: true, actor: ADMIN }));
+    expect(await sp.people.organizations({ actor: ADMIN })).toEqual([]);
+    expect(await sp.people.organizations({ actor: ADMIN, includeArchived: true })).toHaveLength(1);
+    const back = unwrap(
+      await sp.archiveOrganization.execute({ organizationId: org.id, archived: false, actor: ADMIN }),
+    );
+    expect(back.archivedAt).toBeNull();
+    expect(await sp.people.organizations({ actor: ADMIN })).toHaveLength(1);
   });
 
   it("referans veri: aşama sözlüğü ve kayıp nedenleri TR/EN", async () => {

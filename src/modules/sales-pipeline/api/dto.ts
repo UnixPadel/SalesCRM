@@ -92,6 +92,8 @@ export interface OrganizationDto {
   country: string | null;
   website: string;
   notes: string;
+  /** Faz 7d: arşivlendiyse zamanı. */
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -113,6 +115,8 @@ export interface PersonDto {
   country: string | null;
   company: string;
   organizationId: string | null;
+  /** Faz 7d: başka kişiye birleştirildiyse o kişinin kimliği (yalnız aramada görünür). */
+  mergedIntoId: string | null;
   createdAt: string;
 }
 
@@ -129,7 +133,7 @@ export interface OrganizationSummaryDto {
 /** GET /persons?q=&organizationId= — kişi + kuruluş adı + görünür lead'leri. */
 export interface PersonSummaryDto {
   person: PersonDto;
-  organization: { id: string; name: string } | null;
+  organization: { id: string; name: string; archived: boolean } | null;
   leads: LeadListDto[];
 }
 
@@ -378,4 +382,51 @@ export interface NotificationDto {
 export interface NotificationsDto {
   items: NotificationDto[];
   unreadCount: number;
+}
+
+/* ---------------- Faz 7b: bölge kuralları (yalnız yönetici) ---------------- */
+
+export interface TerritoryRuleDto {
+  countryCode: string;
+  assignedUserId: string;
+  fallbackUserId: string | null;
+}
+
+/** GET /territories — kurallar + lead'i olup kuralı olmayan ülkeler. */
+export interface TerritoriesDto {
+  rules: (TerritoryRuleDto & {
+    leadCount: number;
+    poolCount: number;
+    /** Kullanıcı pasif mi; ekip dizini okunamadıysa null. */
+    assignedInactive: boolean | null;
+    fallbackInactive: boolean | null;
+  })[];
+  uncovered: { countryCode: string; leadCount: number; poolCount: number }[];
+}
+
+/** PUT /territories/:cc */
+export interface TerritoryBody {
+  assignedUserId: string;
+  fallbackUserId?: string | null;
+}
+
+/** POST /territories/apply-to-pool — `dryRun` verilmezse kuru çalıştırma. */
+export interface PoolApplyBody {
+  dryRun?: boolean;
+}
+export interface PoolApplyResultDto {
+  dryRun: boolean;
+  total: number;
+  byUser: { userId: string; count: number }[];
+}
+
+/* ---------------- Faz 7d: kişi birleştirme ---------------- */
+
+/** POST /persons/:id/merge — `:id` hedef (kalan) kişi, `sourceId` ona birleşen kişi. */
+export interface MergePersonBody {
+  sourceId: string;
+}
+export interface MergePersonResultDto {
+  personId: string;
+  movedLeads: number;
 }

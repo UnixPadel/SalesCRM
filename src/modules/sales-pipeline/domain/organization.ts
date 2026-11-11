@@ -19,6 +19,8 @@ export interface Organization {
   notes: string;
   /** Eski panodaki kimlik; yalnız taşıma betiği doldurur. */
   legacyId: string | null;
+  /** Faz 7d: arşivlendiyse zamanı; listelerden ve seçim kutularından düşer, bağlı kayıtlar kalır. */
+  archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

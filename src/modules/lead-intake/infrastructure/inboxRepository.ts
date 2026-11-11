@@ -4,7 +4,7 @@
  */
 import type { Queryable } from "../../shared/db";
 import type { PayloadCipher } from "../../shared/kernel";
-import type { InboxEvent, InboxKind, InboxStatus, NewInboxEvent } from "../application";
+import type { InboxEvent, InboxFailedItem, InboxKind, InboxStats, InboxStatus, NewInboxEvent } from "../application";
 import type { InboxRepository } from "../application";
 
 interface Row extends Record<string, unknown> {
@@ -27,6 +27,8 @@ const COLS =
   "id, provider, kind, dedupe_key, payload_ciphertext, received_at, status, attempts, next_attempt_at, last_error_code, last_error, lead_id, processed_at";
 
 const date = (v: Date | string): Date => (v instanceof Date ? v : new Date(v));
+const dateOrNull = (v: Date | string | null | undefined): Date | null => (v == null ? null : date(v));
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function pgInboxRepository(q: Queryable, cipher: PayloadCipher): InboxRepository {
   const fromRow = (r: Row): InboxEvent => ({
@@ -115,6 +117,77 @@ export function pgInboxRepository(q: Queryable, cipher: PayloadCipher): InboxRep
     async findByDedupeKey(key) {
       const rows = await q.query<Row>(`SELECT ${COLS} FROM inbound_webhook_events WHERE dedupe_key = $1`, [key]);
       return rows[0] && fromRow(rows[0]);
+    },
+
+    async stats(daySince, purgeBefore): Promise<InboxStats> {
+      const counts = await q.query<{ provider: string; status: string; n: number | string }>(
+        "SELECT provider, status, count(*)::int AS n FROM inbound_webhook_events GROUP BY provider, status ORDER BY provider, status",
+      );
+      const edge = await q.query<{
+        day: number | string;
+        oldest: Date | string | null;
+        purged: Date | string | null;
+        backlog: number | string;
+      }>(
+        `SELECT (SELECT count(*)::int FROM inbound_webhook_events WHERE received_at >= $1) AS day,
+                (SELECT min(received_at) FROM inbound_webhook_events WHERE status IN ('pending', 'processing')) AS oldest,
+                (SELECT max(payload_purged_at) FROM inbound_webhook_events) AS purged,
+                (SELECT count(*)::int FROM inbound_webhook_events
+                  WHERE received_at < $2 AND payload_ciphertext IS NOT NULL) AS backlog`,
+        [daySince, purgeBefore],
+      );
+      return {
+        counts: counts.map((c) => ({ provider: c.provider, status: c.status as InboxStatus, count: Number(c.n) })),
+        receivedLastDay: Number(edge[0]?.day ?? 0),
+        oldestPendingAt: dateOrNull(edge[0]?.oldest),
+        lastPurgedAt: dateOrNull(edge[0]?.purged),
+        purgeBacklog: Number(edge[0]?.backlog ?? 0),
+      };
+    },
+
+    async listFailed(limit) {
+      const rows = await q.query<Row & { has_payload: boolean }>(
+        `SELECT id, provider, kind, received_at, attempts, last_error_code, last_error, lead_id, processed_at,
+                payload_ciphertext IS NOT NULL AS has_payload
+           FROM inbound_webhook_events WHERE status = 'failed'
+          ORDER BY coalesce(processed_at, received_at) DESC, id LIMIT $1`,
+        [limit],
+      );
+      return rows.map((r): InboxFailedItem => ({
+        id: r.id,
+        provider: r.provider,
+        kind: r.kind as InboxKind,
+        receivedAt: date(r.received_at),
+        attempts: Number(r.attempts),
+        lastErrorCode: r.last_error_code,
+        lastError: r.last_error,
+        leadId: r.lead_id,
+        processedAt: dateOrNull(r.processed_at),
+        hasPayload: r.has_payload,
+      }));
+    },
+
+    async requeueable(ids) {
+      const valid = ids.filter((id) => UUID.test(id));
+      if (!valid.length) return [];
+      const rows = await q.query<{ id: string }>(
+        "SELECT id FROM inbound_webhook_events WHERE id = ANY($1::uuid[]) AND status = 'failed' AND payload_ciphertext IS NOT NULL",
+        [valid],
+      );
+      return rows.map((r) => r.id);
+    },
+
+    async requeue(ids, now) {
+      const valid = ids.filter((id) => UUID.test(id));
+      if (!valid.length) return 0;
+      const rows = await q.query<{ id: string }>(
+        `UPDATE inbound_webhook_events
+            SET status = 'pending', attempts = 0, next_attempt_at = $2, processed_at = NULL
+          WHERE id = ANY($1::uuid[]) AND status = 'failed' AND payload_ciphertext IS NOT NULL
+          RETURNING id`,
+        [valid, now],
+      );
+      return rows.length;
     },
   };
 }

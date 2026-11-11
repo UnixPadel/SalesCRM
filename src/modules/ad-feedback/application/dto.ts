@@ -34,6 +34,34 @@ export interface OutboundRow {
   createdAt: Date;
 }
 
+/** Yönetim paneli satırı: iş kaydı + bitiş zamanı + platformun istek kimliği (varsa). */
+export interface OutboundDetail extends OutboundRow {
+  finishedAt: Date | null;
+  requestId: string | null;
+}
+
+/** Liste öğesi: satır + sales-pipeline'dan lead ve aşama (olay silinmişse null). */
+export interface OutboundListItem extends OutboundDetail {
+  leadId: string | null;
+  stageCode: string | null;
+  occurredAt: Date | null;
+}
+
+export interface OutboxListFilter {
+  statuses: readonly OutboundStatus[];
+  provider?: string | undefined;
+  limit: number;
+}
+
+/** Kuyruk özeti (Faz 7a sağlık paneli). */
+export interface OutboxStats {
+  counts: { provider: string; status: OutboundStatus; count: number }[];
+  skipReasons: { provider: string; reason: string; count: number }[];
+  /** Sırası gelmiş ya da bekleyen (pending/failed) en eski satırın sırası. */
+  oldestDueAt: Date | null;
+  lastSentAt: Date | null;
+}
+
 /** Dead-letter raporu satırı. */
 export interface DeadRow {
   id: string;
@@ -60,7 +88,7 @@ export type PrepareResult = { kind: "ready"; event: PreparedEvent } | { kind: "s
  * (toplu istekte dağıtıcı olayları tek tek yeniden dener, yalnız hatalı olan dead olur).
  */
 export type SendResult =
-  | { kind: "ok"; code: number }
+  | { kind: "ok"; code: number; requestId?: string | null }
   | { kind: "retry"; code: number | null; error: string }
   | { kind: "dead"; code: number | null; error: string };
 
@@ -70,4 +98,13 @@ export interface DispatchStats {
   retried: number;
   dead: number;
   skipped: number;
+}
+
+/** Platformun eşzamansız işleme sonucu (sağlayıcıdan bağımsız biçim; Faz 7c). */
+export type PlatformRequestState = "processing" | "success" | "partial" | "failure" | "unknown";
+export interface PlatformRequestStatus {
+  requestId: string;
+  state: PlatformRequestState;
+  /** Hedef (ör. reklam hesabı) başına satır; tek hedefte tek öğe. */
+  destinations: { state: PlatformRequestState; recordCount: number; errorCount: number; warningCount: number }[];
 }

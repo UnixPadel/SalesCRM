@@ -13,7 +13,7 @@ import {
   type TrackingReport,
 } from "../domain";
 import { parseDayRange } from "./contactQueries";
-import type { Actor, UseCaseDeps } from "./types";
+import { currentEurRates, type Actor, type UseCaseDeps } from "./types";
 import { territoriesOf } from "./visibility";
 
 export interface ReportInputDto {
@@ -69,6 +69,7 @@ export class ReportQueries {
 
   async summary(input: ReportInputDto): Promise<Report> {
     const months = Math.min(36, Math.max(1, Math.floor(input.months ?? 12)));
+    const rates = await currentEurRates(this.deps);
     return this.deps.uow.run(async (repos) => {
       const visibleTo = input.actor.isAdmin
         ? undefined
@@ -81,7 +82,7 @@ export class ReportQueries {
         now: this.deps.clock.now(),
         months,
         timeZone: this.deps.timeZone,
-        rates: this.deps.eurRates,
+        rates,
       });
     });
   }

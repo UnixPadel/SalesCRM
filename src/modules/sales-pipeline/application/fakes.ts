@@ -141,6 +141,11 @@ function reposFor(s: MemoryState): Repositories {
       l.assignedUserId = userId;
       l.updatedAt = updatedAt;
     },
+    async movePerson(fromPersonId, toPersonId, updatedAt) {
+      const mine = s.leads.filter((l) => l.personId === fromPersonId);
+      for (const l of mine) Object.assign(l, { personId: toPersonId, updatedAt });
+      return mine.length;
+    },
     async updateFields(id, fields, updatedAt) {
       const l = s.leads.find((x) => x.id === id);
       if (!l) throw new Error("lead yok");
@@ -200,8 +205,18 @@ function reposFor(s: MemoryState): Repositories {
       return p ? { ...p } : undefined;
     },
     async findByEmailOrPhone(email, phone) {
-      const p = s.persons.find((x) => (email && x.emailNormalized === email) || (phone && x.phoneE164 === phone));
+      let p = s.persons.find((x) => (email && x.emailNormalized === email) || (phone && x.phoneE164 === phone));
+      for (let hop = 0; p?.mergedIntoId && hop < 5; hop++) {
+        const next = s.persons.find((x) => x.id === p!.mergedIntoId);
+        if (!next) break;
+        p = next;
+      }
       return p ? { ...p } : undefined;
+    },
+    async markMerged(sourceId, targetId) {
+      const p = s.persons.find((x) => x.id === sourceId);
+      if (!p) throw new Error("kişi yok");
+      p.mergedIntoId = targetId;
     },
     async list(f) {
       let rows = [...s.persons];
@@ -212,6 +227,7 @@ function reposFor(s: MemoryState): Repositories {
         );
       }
       if (f.organizationId) rows = rows.filter((p) => p.organizationId === f.organizationId);
+      if (!(f.includeMerged ?? Boolean(f.search))) rows = rows.filter((p) => p.mergedIntoId === null);
       rows.sort((a, b) => a.fullName.localeCompare(b.fullName) || a.id.localeCompare(b.id));
       return (f.limit ? rows.slice(0, f.limit) : rows).map((p) => ({ ...p }));
     },
@@ -225,6 +241,11 @@ function reposFor(s: MemoryState): Repositories {
     async update(id, patch) {
       const p = s.persons.find((x) => x.id === id);
       if (!p) throw new Error("kişi yok");
+      // DB'deki tekil indekslerin karşılığı.
+      if (patch.emailNormalized && s.persons.some((x) => x.id !== id && x.emailNormalized === patch.emailNormalized))
+        throw new Error("persons_email_uq");
+      if (patch.phoneE164 && s.persons.some((x) => x.id !== id && x.phoneE164 === patch.phoneE164))
+        throw new Error("persons_phone_uq");
       Object.assign(p, patch);
     },
   };
@@ -255,6 +276,7 @@ function reposFor(s: MemoryState): Repositories {
       }
       if (f.country) rows = rows.filter((o) => o.country === f.country!.toUpperCase());
       if (f.type) rows = rows.filter((o) => o.type === f.type);
+      if (!f.includeArchived) rows = rows.filter((o) => o.archivedAt === null);
       rows.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
       return (f.limit ? rows.slice(0, f.limit) : rows).map((o) => ({ ...o }));
     },
@@ -273,6 +295,11 @@ function reposFor(s: MemoryState): Repositories {
       if (!o) throw new Error("kuruluş yok");
       Object.assign(o, fields);
       o.updatedAt = updatedAt;
+    },
+    async setArchived(id, archivedAt, updatedAt) {
+      const o = s.organizations.find((x) => x.id === id);
+      if (!o) throw new Error("kuruluş yok");
+      Object.assign(o, { archivedAt, updatedAt });
     },
   };
   const stageEvents: StageEventRepository = {
@@ -484,7 +511,20 @@ function reposFor(s: MemoryState): Repositories {
       }
     },
   };
-  const territories: TerritoryRuleSource = { all: async () => s.territories.map((t) => ({ ...t })) };
+  const territories: TerritoryRuleSource = {
+    all: async () => s.territories.map((t) => ({ ...t })),
+    upsert: async (rule) => {
+      const i = s.territories.findIndex((t) => t.countryCode.toUpperCase() === rule.countryCode.toUpperCase());
+      if (i >= 0) s.territories[i] = { ...rule };
+      else s.territories.push({ ...rule });
+    },
+    remove: async (countryCode) => {
+      const i = s.territories.findIndex((t) => t.countryCode.toUpperCase() === countryCode.toUpperCase());
+      if (i < 0) return false;
+      s.territories.splice(i, 1);
+      return true;
+    },
+  };
   const lostReasons: LostReasonSource = { activeCodes: async () => [...s.lostReasons] };
   return { leads, persons, organizations, stageEvents, activities, contactLogs, outbox, territories, lostReasons };
 }

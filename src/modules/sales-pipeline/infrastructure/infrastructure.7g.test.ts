@@ -51,6 +51,7 @@ const personId = async (r: Repositories, n: number) => {
     country: null,
     company: "",
     organizationId: null,
+    mergedIntoId: null,
     createdAt: T0,
   });
   return id;

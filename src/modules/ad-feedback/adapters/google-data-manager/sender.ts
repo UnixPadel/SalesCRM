@@ -66,5 +66,6 @@ export function googleDataManagerSender(o: GoogleSenderOptions): PlatformSender 
       );
       return o.client.ingest(request);
     },
+    requestStatus: (requestId) => o.client.retrieveStatus(requestId),
   };
 }

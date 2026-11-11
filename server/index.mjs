@@ -19,6 +19,7 @@ import { bootSalesPipeline } from "../src/bootstrap/salesPipeline.ts";
 import { bootLeadIntake } from "../src/bootstrap/leadIntake.ts";
 import { bootAdFeedback } from "../src/bootstrap/adFeedback.ts";
 import { bootSheetSync } from "../src/bootstrap/sheetSync.ts";
+import { bootAdmin } from "../src/bootstrap/admin.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // API_PORT (not PORT): dev tooling sets PORT for the Vite dev server.
@@ -254,7 +255,9 @@ const leadIntake = bootLeadIntake(salesPipeline);
 app.use("/webhooks", leadIntake.webhooks);
 app.use("/forms", leadIntake.forms);
 /* Giden olaylar (Faz 4): dakikalık dağıtıcı ve günlük dead-letter raporu aynı süreçte. */
-bootAdFeedback(salesPipeline, leadIntake.settings);
+const adFeedback = bootAdFeedback(salesPipeline, leadIntake.settings);
+/* Yönetim paneli (Faz 7): sağlık, yeniden kuyruğa alma, eşlemeler, ayarlar, kurlar. Yalnız yönetici. */
+const adminRouter = bootAdmin(salesPipeline, leadIntake, adFeedback);
 /* Form tablosu (Google E-Tablolar'daki Meta form dökümü) → CRM; SHEET_SYNC_CSV_URL yoksa kapalı. */
 const sheetSync = bootSheetSync(salesPipeline);
 
@@ -525,6 +528,11 @@ app.post("/api/sheet-sync/run", auth, async (req, res) => {
     return res.status(409).json({ error: "Form tablosu eşitlemesi kapalı.", code: "sheet_sync.disabled" });
   res.json(await sheetSync.runNow());
 });
+
+/* ---- yönetim paneli: yalnız `admin` rolü (görüntüleyici ve satışçı 403 `admin_only`) ---- */
+const adminOnly = (req, res, next) =>
+  req.session?.role === "admin" ? next() : res.status(403).json({ error: "Yalnız yönetici.", code: "admin_only" });
+app.use("/api/admin", auth, adminOnly, adminRouter);
 
 app.use("/api/pipeline", auth, salesPipeline.router);
 

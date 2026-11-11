@@ -1,2 +1,3 @@
-// Faz 0: bos iskelet. Icerik ilgili fazda eklenir; katman kurallari .dependency-cruiser.cjs ile zorlanir.
-export {};
+// integration-settings/api: yönetim paneli router'ı (`/api/admin`, Faz 7a–7c) ve DTO'ları.
+export { createAdminRouter, type AdminRouterDeps, type ProviderInfo } from "./adminRouter";
+export type * from "./dto";

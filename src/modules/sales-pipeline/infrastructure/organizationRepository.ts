@@ -2,7 +2,7 @@ import { queryOne, type Queryable } from "../../shared/db";
 import type { Organization, OrganizationFields, OrganizationListFilter, OrganizationRepository } from "../domain";
 import { organizationFromRow, type OrganizationRow } from "./rows";
 
-const COLS = "id, name, type, country, website, notes, legacy_id, created_at, updated_at";
+const COLS = "id, name, type, country, website, notes, legacy_id, created_at, updated_at, archived_at";
 
 const FIELD_COLUMN: Record<keyof OrganizationFields, string> = {
   name: "name",
@@ -55,13 +55,14 @@ export function pgOrganizationRepository(q: Queryable): OrganizationRepository {
       }
       if (f.country) where.push(`country = ${p(f.country.toUpperCase())}`);
       if (f.type) where.push(`type = ${p(f.type)}`);
+      if (!f.includeArchived) where.push("archived_at IS NULL");
       const sql = `SELECT ${COLS} FROM organizations ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY name, id ${
         f.limit ? `LIMIT ${p(f.limit)}` : ""
       }`;
       return (await q.query<OrganizationRow>(sql, params)).map(organizationFromRow);
     },
     async insert(o: Organization) {
-      await q.query(`INSERT INTO organizations (${COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [
+      await q.query(`INSERT INTO organizations (${COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, [
         o.id,
         o.name,
         o.type,
@@ -71,6 +72,7 @@ export function pgOrganizationRepository(q: Queryable): OrganizationRepository {
         o.legacyId,
         o.createdAt,
         o.updatedAt,
+        o.archivedAt,
       ]);
     },
     async update(id, fields, updatedAt) {
@@ -83,6 +85,13 @@ export function pgOrganizationRepository(q: Queryable): OrganizationRepository {
       }
       if (!sets.length) return;
       await q.query(`UPDATE organizations SET ${sets.join(", ")}, updated_at = $2 WHERE id = $1`, params);
+    },
+    async setArchived(id, archivedAt, updatedAt) {
+      await q.query("UPDATE organizations SET archived_at = $2, updated_at = $3 WHERE id = $1", [
+        id,
+        archivedAt,
+        updatedAt,
+      ]);
     },
   };
 }

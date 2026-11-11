@@ -1,7 +1,7 @@
 import type { ResolvedMapping } from "../../integration-settings/application";
 import type { CreateLeadInput, CreateLeadResult } from "../../sales-pipeline/application";
 import type { Result, RuleError } from "../../shared/kernel";
-import type { InboundLeadDto, InboxEvent, NewInboxEvent } from "./dto";
+import type { InboundLeadDto, InboxEvent, InboxFailedItem, InboxStats, NewInboxEvent } from "./dto";
 
 export interface InboxRepository {
   /** Aynı dedupeKey varsa yazmaz ve "duplicate" döner (UNIQUE). */
@@ -17,6 +17,14 @@ export interface InboxRepository {
   /** Payload'ı siler, satırı bırakır; silinen satır sayısı. */
   purgePayloads(olderThan: Date, now: Date): Promise<number>;
   findByDedupeKey(dedupeKey: string): Promise<InboxEvent | undefined>;
+  /** Faz 7a: sayılar; `daySince` sonrası alınanlar, `purgeBefore` öncesi payload'ı duranlar. */
+  stats(daySince: Date, purgeBefore: Date): Promise<InboxStats>;
+  /** En yeniden eskiye başarısız satırlar (payload okunmaz). */
+  listFailed(limit: number): Promise<InboxFailedItem[]>;
+  /** Verilenlerden yeniden işlenebilir olanların kimlikleri (`failed` ve payload'ı duruyor). */
+  requeueable(ids: readonly string[]): Promise<string[]>;
+  /** `failed` + payload'lı satır → `pending`, deneme 0, sıra şimdi. Tek ifade; değişen satır sayısı. */
+  requeue(ids: readonly string[], now: Date): Promise<number>;
 }
 
 export interface AdapterContext {

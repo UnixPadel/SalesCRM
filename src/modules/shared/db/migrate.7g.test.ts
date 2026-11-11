@@ -51,7 +51,7 @@ describe("migration 0012 (Faz 7g): aşamalı koşu", () => {
 
   beforeAll(async () => {
     db = await createPgliteDb();
-    expect(all.map((m) => m.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(all.map((m) => m.version).slice(0, 12)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
     await migrate(
       db,
       all.filter((m) => m.version <= 11),
@@ -86,7 +86,11 @@ describe("migration 0012 (Faz 7g): aşamalı koşu", () => {
     await act(203, L.proposalOpenOnly, false);
     counts = { leads: await count("leads"), activities: await count("activities"), persons: await count("persons") };
 
-    const second = await migrate(db, all);
+    // 0012'den sonraki migration'lar (Faz 7 ve sonrası) bu testin konusu değil.
+    const second = await migrate(
+      db,
+      all.filter((m) => m.version <= 12),
+    );
     expect(second.applied).toEqual(["0012_faz7g_satis_takip"]);
   });
   afterAll(() => db.close());

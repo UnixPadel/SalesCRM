@@ -487,6 +487,7 @@ export class CreateLead {
       country: p.country,
       company: p.company.trim(),
       organizationId: null,
+      mergedIntoId: null,
       createdAt: p.now,
     };
     await repos.persons.insert(person);

@@ -107,3 +107,30 @@ export interface InboxEvent {
 }
 
 export const dedupeKeyFor = (provider: string, platformLeadId: string): string => `${provider}:${platformLeadId}`;
+
+/** Gelen kutusu özeti (Faz 7a sağlık paneli). */
+export interface InboxStats {
+  counts: { provider: string; status: InboxStatus; count: number }[];
+  /** Son 24 saatte alınan bildirim. */
+  receivedLastDay: number;
+  /** Bekleyen (pending/processing) en eski satırın alınma zamanı. */
+  oldestPendingAt: Date | null;
+  lastPurgedAt: Date | null;
+  /** Saklama süresini aşmış ama payload'ı henüz silinmemiş satır. */
+  purgeBacklog: number;
+}
+
+/** Başarısız satır; payload ve tekilleştirme anahtarı taşımaz (kişisel veri yok). */
+export interface InboxFailedItem {
+  id: string;
+  provider: string;
+  kind: InboxKind;
+  receivedAt: Date;
+  attempts: number;
+  lastErrorCode: string | null;
+  lastError: string | null;
+  leadId: string | null;
+  processedAt: Date | null;
+  /** Payload silinmişse satır yeniden işlenemez. */
+  hasPayload: boolean;
+}

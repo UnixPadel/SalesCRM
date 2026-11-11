@@ -10,8 +10,10 @@ export {
   type ServiceAccountTokenOptions,
   type TokenProvider,
 } from "./auth";
+export { translateRequestStatus } from "./status";
 export {
   GOOGLE_DM_INGEST_URL,
+  GOOGLE_DM_STATUS_URL,
   createDataManagerClient,
   type DataManagerClient,
   type DataManagerClientOptions,

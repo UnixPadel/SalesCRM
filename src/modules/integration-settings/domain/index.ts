@@ -2,3 +2,4 @@
 export * from "./mapping";
 export * from "./stageMapping";
 export * from "./ports";
+export * from "./adminRules";

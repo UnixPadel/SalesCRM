@@ -15,8 +15,11 @@ export {
   type ProcessInboxStats,
 } from "./inboxJobs";
 
+export { InboxHealth, type InboxHealthDeps } from "./health";
+
 import { HOUR, DAY, type Clock, type IdGenerator, type Logger } from "../../shared/kernel";
 import { CreateLeadFromAd } from "./createLeadFromAd";
+import { InboxHealth } from "./health";
 import { AcceptInboundEvent, ProcessInbox, PurgeInboxPayloads, RunBackfill } from "./inboxJobs";
 import type { BackfillSource, InboxRepository, LeadCreator, MappingSource, SourceAdapter } from "./ports";
 
@@ -41,6 +44,8 @@ export interface LeadIntake {
   backfill: RunBackfill;
   purge: PurgeInboxPayloads;
   createLeadFromAd: CreateLeadFromAd;
+  /** Faz 7a: yönetim paneli sorguları ve yeniden işleme. */
+  health: InboxHealth;
 }
 
 export function createLeadIntake(deps: LeadIntakeDeps): LeadIntake {
@@ -72,5 +77,11 @@ export function createLeadIntake(deps: LeadIntakeDeps): LeadIntake {
       retentionMs: deps.retentionDays * DAY,
     }),
     createLeadFromAd,
+    health: new InboxHealth({
+      inbox: deps.inbox,
+      clock: deps.clock,
+      logger: deps.logger,
+      retentionDays: deps.retentionDays,
+    }),
   };
 }

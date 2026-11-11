@@ -190,6 +190,7 @@ export interface PersonRow extends Record<string, unknown> {
   country: string | null;
   company: string;
   organization_id: string | null;
+  merged_into_id: string | null;
   created_at: Date | string;
 }
 
@@ -201,6 +202,7 @@ export const personFromRow = (r: PersonRow): Person => ({
   country: r.country,
   company: r.company,
   organizationId: r.organization_id,
+  mergedIntoId: r.merged_into_id,
   createdAt: date(r.created_at),
 });
 
@@ -212,6 +214,7 @@ export interface OrganizationRow extends Record<string, unknown> {
   website: string;
   notes: string;
   legacy_id: string | null;
+  archived_at: Date | string | null;
   created_at: Date | string;
   updated_at: Date | string;
 }
@@ -224,6 +227,7 @@ export const organizationFromRow = (r: OrganizationRow): Organization => ({
   website: r.website,
   notes: r.notes,
   legacyId: r.legacy_id,
+  archivedAt: r.archived_at === null ? null : date(r.archived_at),
   createdAt: date(r.created_at),
   updatedAt: date(r.updated_at),
 });

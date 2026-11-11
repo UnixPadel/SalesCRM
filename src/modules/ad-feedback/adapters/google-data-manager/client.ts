@@ -5,11 +5,13 @@
  * Google tüm isteği bir bütün olarak reddeder; dağıtıcı 400'de olayları tek tek yeniden dener.
  */
 import type { Logger } from "../../../shared/kernel";
-import type { SendResult } from "../../application";
+import type { PlatformRequestStatus, SendResult } from "../../application";
 import type { GoogleIngestRequest } from "../../builders/google";
 import type { FetchLike, TokenProvider } from "./auth";
+import { translateRequestStatus } from "./status";
 
 export const GOOGLE_DM_INGEST_URL = "https://datamanager.googleapis.com/v1/events:ingest";
+export const GOOGLE_DM_STATUS_URL = "https://datamanager.googleapis.com/v1/requestStatus:retrieve";
 
 export interface DataManagerClientOptions {
   tokens: TokenProvider;
@@ -17,10 +19,13 @@ export interface DataManagerClientOptions {
   fetchImpl?: FetchLike | undefined;
   timeoutMs?: number | undefined;
   ingestUrl?: string | undefined;
+  statusUrl?: string | undefined;
 }
 
 export interface DataManagerClient {
   ingest(request: GoogleIngestRequest): Promise<SendResult>;
+  /** Faz 7c: isteğin eşzamansız işleme sonucu. Ağ hatası ya da 2xx dışı yanıtta fırlatır. */
+  retrieveStatus(requestId: string): Promise<PlatformRequestStatus>;
 }
 
 interface GoogleErrorBody {
@@ -63,7 +68,7 @@ export function createDataManagerClient(o: DataManagerClientOptions): DataManage
           validateOnly: request.validateOnly === true,
           fieldWarnings: json?.fieldWarnings?.length ?? 0,
         });
-        return { kind: "ok", code: res.status };
+        return { kind: "ok", code: res.status, requestId: json?.requestId ?? null };
       }
       const err = json?.error ?? {};
       const message = `${err.message ?? `HTTP ${res.status}`}${err.status ? ` (${err.status})` : ""}`;
@@ -76,6 +81,22 @@ export function createDataManagerClient(o: DataManagerClientOptions): DataManage
       return transient
         ? { kind: "retry", code: res.status, error: message }
         : { kind: "dead", code: res.status, error: message };
+    },
+
+    async retrieveStatus(requestId) {
+      const token = await o.tokens.accessToken();
+      const res = await fetchImpl(`${o.statusUrl ?? GOOGLE_DM_STATUS_URL}?requestId=${encodeURIComponent(requestId)}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        signal: AbortSignal.timeout(timeout),
+      });
+      const json = (await res.json().catch(() => null)) as GoogleErrorBody | null;
+      if (!res.ok) {
+        const e = json?.error ?? {};
+        o.logger.warn("data manager: durum sorgusu reddedildi", { status: res.status, googleStatus: e.status ?? null });
+        throw new Error(`${e.message ?? `HTTP ${res.status}`}${e.status ? ` (${e.status})` : ""}`);
+      }
+      return translateRequestStatus(requestId, json);
     },
   };
 }

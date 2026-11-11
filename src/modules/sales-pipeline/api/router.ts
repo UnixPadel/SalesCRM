@@ -4,6 +4,7 @@ import { RuleError, isAppError, type Logger, type Result } from "../../shared/ke
 import type { Actor, ActivityWithLead, Notification, NotificationQueries, SalesPipeline } from "../application";
 import { DEFAULT_EUR_RATES, QUALIFICATION_QUESTIONS, isStageCode, type EurRates } from "../domain";
 import { readLostReasons, readStageDefinitions } from "../infrastructure";
+import { registerAdminRoutes } from "./adminRoutes";
 import { registerContactRoutes } from "./contactRoutes";
 import { parseLeadFilter, registerTrackingRoutes, trackingReference } from "./trackingRoutes";
 import { activityDto } from "./mappers";
@@ -38,6 +39,8 @@ export interface RouterDeps {
   undoWindowMinutes: number;
   /** Pano toplamları için kurlar; arayüze de verilir. */
   eurRates?: EurRates | undefined;
+  /** Faz 7b: kurların güncel kaynağı (yönetim ekranı ayarı); verilirse `eurRates` yerine bu okunur. */
+  eurRatesSource?: (() => Promise<EurRates>) | undefined;
   /** Yetki anahtarları (Faz 7g, D4); arayüze `/reference.permissions` olarak gider. */
   policy?: { repsEditProducts: boolean } | undefined;
   /** Satış ekibinin saat dilimi; verilmezse Europe/Istanbul. */
@@ -74,10 +77,16 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
   // Faz 7g: temas kaydı uçları ayrı dosyada (iş emri §4.4).
   registerContactRoutes(r, { pipeline, actor, send, sendError });
   registerTrackingRoutes(r, { pipeline, actor, sendError });
+  // Faz 7b/7d: bölge kuralları, kişi birleştirme, kuruluş arşivleme.
+  registerAdminRoutes(r, { pipeline, actor, send, sendError });
 
   r.get("/reference", async (req, res) => {
     if (!actor(req, res, false)) return;
-    const [stages, lostReasons] = await Promise.all([readStageDefinitions(deps.db), readLostReasons(deps.db)]);
+    const [stages, lostReasons, rates] = await Promise.all([
+      readStageDefinitions(deps.db),
+      readLostReasons(deps.db),
+      deps.eurRatesSource ? deps.eurRatesSource() : Promise.resolve(deps.eurRates ?? DEFAULT_EUR_RATES),
+    ]);
     const body: ReferenceDto = {
       stages: stages.map((s) => ({
         code: s.code as ReferenceDto["stages"][number]["code"],
@@ -91,7 +100,7 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
       qualificationQuestions: [...QUALIFICATION_QUESTIONS],
       currencies: CURRENCIES,
       undoWindowMinutes: deps.undoWindowMinutes,
-      eurRates: { ...(deps.eurRates ?? DEFAULT_EUR_RATES) },
+      eurRates: { ...rates },
       ...trackingReference(deps.policy ?? { repsEditProducts: false }, deps.timeZone),
     };
     res.json(body);
@@ -182,7 +191,9 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
     if (!a) return;
     const search = typeof req.query["q"] === "string" ? req.query["q"].trim() || undefined : undefined;
     const limit = Math.min(Number(req.query["limit"]) || 500, 2000);
-    const rows = await pipeline.people.organizations({ actor: a, search, limit });
+    // Faz 7d: `archived=1` arşivlenenleri de getirir (Kişiler sayfasındaki süzgeç).
+    const includeArchived = req.query["archived"] === "1";
+    const rows = await pipeline.people.organizations({ actor: a, search, limit, includeArchived });
     res.json(rows as unknown as OrganizationSummaryDto[]);
   });
 

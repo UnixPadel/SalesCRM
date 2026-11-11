@@ -10,6 +10,7 @@ import {
   googleDataManagerSender,
   parseServiceAccountKey,
   signServiceAccountJwt,
+  translateRequestStatus,
   type FetchLike,
   type TokenProvider,
 } from "./index";
@@ -122,12 +123,57 @@ describe("Data Manager istemcisi: yanıt sınıflandırması", () => {
 
   it("200 → ok; URL events:ingest, token yalnız Authorization başlığında, gövde JSON", async () => {
     const f = vi.fn<FetchLike>(async () => jsonResponse(200, { requestId: "req-1" }));
-    expect(await client(f).ingest(request)).toEqual({ kind: "ok", code: 200 });
+    expect(await client(f).ingest(request)).toEqual({ kind: "ok", code: 200, requestId: "req-1" });
     const [url, init] = f.mock.calls[0]!;
     expect(url).toBe("https://datamanager.googleapis.com/v1/events:ingest");
     expect((init?.headers as Record<string, string>)["Authorization"]).toBe("Bearer tok-1");
     expect(String(init?.body)).not.toContain("tok-1");
     expect(JSON.parse(String(init?.body))).toEqual(request);
+  });
+
+  it("Faz 7c: requestStatus:retrieve GET ile sorulur; yanıt sağlayıcıdan bağımsız biçime çevrilir", async () => {
+    const f = vi.fn<FetchLike>(async () =>
+      jsonResponse(200, {
+        requestStatusPerDestination: [
+          { requestStatus: "SUCCESS", eventsIngestionStatus: { recordCount: "3" } },
+          {
+            requestStatus: "PARTIAL_SUCCESS",
+            eventsIngestionStatus: { recordCount: "3" },
+            errorInfo: { errorCounts: [{ recordCount: "1", reason: "PROCESSING_ERROR_REASON_EVENT_TOO_OLD" }] },
+            warningInfo: { warningCounts: [{ recordCount: "2" }, { recordCount: "1" }] },
+          },
+        ],
+      }),
+    );
+    const status = await client(f).retrieveStatus("req 1/ü");
+    const [url, init] = f.mock.calls[0]!;
+    expect(url).toBe("https://datamanager.googleapis.com/v1/requestStatus:retrieve?requestId=req%201%2F%C3%BC");
+    expect(init?.method).toBe("GET");
+    expect(init?.body).toBeUndefined();
+    expect((init?.headers as Record<string, string>)["Authorization"]).toBe("Bearer tok-1");
+    expect(status).toEqual({
+      requestId: "req 1/ü",
+      state: "partial",
+      destinations: [
+        { state: "success", recordCount: 3, errorCount: 0, warningCount: 0 },
+        { state: "partial", recordCount: 3, errorCount: 1, warningCount: 3 },
+      ],
+    });
+    expect(translateRequestStatus("r", { requestStatusPerDestination: [{ requestStatus: "PROCESSING" }] }).state).toBe(
+      "processing",
+    );
+    expect(translateRequestStatus("r", { requestStatusPerDestination: [{ requestStatus: "FAILED" }] }).state).toBe(
+      "failure",
+    );
+    expect(translateRequestStatus("r", { requestStatusPerDestination: [{ requestStatus: "YENI_DEGER" }] }).state).toBe(
+      "unknown",
+    );
+    expect(translateRequestStatus("r", null)).toEqual({ requestId: "r", state: "unknown", destinations: [] });
+    await expect(
+      client(async () => jsonResponse(404, { error: { message: "Not found", status: "NOT_FOUND" } })).retrieveStatus(
+        "x",
+      ),
+    ).rejects.toThrow("Not found (NOT_FOUND)");
   });
 
   it("400 INVALID_ARGUMENT / 401 / 403 / 404 → dead; 429 RESOURCE_EXHAUSTED / 500 / 503 → retry", async () => {
@@ -268,7 +314,7 @@ describe("googleDataManagerSender", () => {
       "222",
       row,
     ) as { event: PreparedEvent };
-    expect(await s.send([q.event, w.event])).toEqual({ kind: "ok", code: 200 });
+    expect(await s.send([q.event, w.event])).toMatchObject({ kind: "ok", code: 200 });
     const body = JSON.parse(String(f.mock.calls[0]![1]?.body)) as Record<string, unknown>;
     expect(body["encoding"]).toBe("HEX");
     expect(body["validateOnly"]).toBe(true);

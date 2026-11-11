@@ -61,7 +61,8 @@ const FIELD_COLUMN: Record<Exclude<keyof LeadFields, "products">, string> = {
   courtCountBand: "court_count_band",
   adSurface: "ad_surface",
 };
-const PERSON_COLS = "id, full_name, email_normalized, phone_e164, country, company, organization_id, created_at";
+const PERSON_COLS =
+  "id, full_name, email_normalized, phone_e164, country, company, organization_id, created_at, merged_into_id";
 
 export function pgLeadRepository(q: Queryable): LeadRepository {
   return {
@@ -189,6 +190,13 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
     },
     async updateAssignee(id, userId, updatedAt) {
       await q.query("UPDATE leads SET assigned_user_id = $2, updated_at = $3 WHERE id = $1", [id, userId, updatedAt]);
+    },
+    async movePerson(fromPersonId, toPersonId, updatedAt) {
+      const rows = await q.query<{ id: string }>(
+        "UPDATE leads SET person_id = $2, updated_at = $3 WHERE person_id = $1 RETURNING id",
+        [fromPersonId, toPersonId, updatedAt],
+      );
+      return rows.length;
     },
     async updateFields(id, fields, updatedAt) {
       const sets: string[] = [];
@@ -324,7 +332,19 @@ export function pgPersonRepository(q: Queryable): PersonRepository {
           ORDER BY created_at LIMIT 1`,
         [email, phone],
       );
-      return r && personFromRow(r);
+      // Birleştirilmiş kişi hedefine çözülür (zincir yok: hedef birleştirilemez; yine de birkaç adım izlenir).
+      let person = r && personFromRow(r);
+      for (let hop = 0; person?.mergedIntoId && hop < 5; hop++) {
+        const next = await queryOne<PersonRow>(q, `SELECT ${PERSON_COLS} FROM persons WHERE id = $1`, [
+          person.mergedIntoId,
+        ]);
+        if (!next) break;
+        person = personFromRow(next);
+      }
+      return person;
+    },
+    async markMerged(sourceId, targetId) {
+      await q.query("UPDATE persons SET merged_into_id = $2 WHERE id = $1", [sourceId, targetId]);
     },
     async list(f: PersonListFilter) {
       const where: string[] = [];
@@ -340,13 +360,14 @@ export function pgPersonRepository(q: Queryable): PersonRepository {
         );
       }
       if (f.organizationId) where.push(`organization_id = ${p(f.organizationId)}`);
+      if (!(f.includeMerged ?? Boolean(f.search))) where.push("merged_into_id IS NULL");
       const sql = `SELECT ${PERSON_COLS} FROM persons ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY full_name, id ${
         f.limit ? `LIMIT ${p(f.limit)}` : ""
       }`;
       return (await q.query<PersonRow>(sql, params)).map(personFromRow);
     },
     async insert(p: Person) {
-      await q.query(`INSERT INTO persons (${PERSON_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [
+      await q.query(`INSERT INTO persons (${PERSON_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [
         p.id,
         p.fullName,
         p.emailNormalized,
@@ -355,6 +376,7 @@ export function pgPersonRepository(q: Queryable): PersonRepository {
         p.company,
         p.organizationId,
         p.createdAt,
+        p.mergedIntoId,
       ]);
     },
     async update(id, patch) {
@@ -494,6 +516,23 @@ export function pgTerritoryRuleSource(q: Queryable): TerritoryRuleSource {
         assignedUserId: r.assigned_user_id,
         fallbackUserId: r.fallback_user_id,
       }));
+    },
+    async upsert(rule, updatedAt) {
+      await q.query(
+        `INSERT INTO territory_rules (country_code, assigned_user_id, fallback_user_id, updated_at)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (country_code) DO UPDATE
+           SET assigned_user_id = EXCLUDED.assigned_user_id, fallback_user_id = EXCLUDED.fallback_user_id,
+               updated_at = EXCLUDED.updated_at`,
+        [rule.countryCode.toUpperCase(), rule.assignedUserId, rule.fallbackUserId, updatedAt],
+      );
+    },
+    async remove(countryCode) {
+      const rows = await q.query<{ country_code: string }>(
+        "DELETE FROM territory_rules WHERE country_code = $1 RETURNING country_code",
+        [countryCode.toUpperCase()],
+      );
+      return rows.length > 0;
     },
   };
 }

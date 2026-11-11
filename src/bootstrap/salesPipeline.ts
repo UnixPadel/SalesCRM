@@ -24,13 +24,15 @@ import {
   type UserDirectory,
 } from "../modules/sales-pipeline/application";
 import { createSalesPipelineRouter } from "../modules/sales-pipeline/api";
-import { DEFAULT_EUR_RATES, parseEurRates } from "../modules/sales-pipeline/domain";
+import { pgSettingsRepository } from "../modules/integration-settings/infrastructure";
 import {
   PgUnitOfWork,
   createSmtpEmailSender,
   loggingEmailSender,
   pgNotificationStore,
 } from "../modules/sales-pipeline/infrastructure";
+
+import { createEurRatesStore, type EurRatesStore } from "./eurRates";
 
 export interface SessionLike {
   userId?: string;
@@ -47,6 +49,8 @@ export interface SalesPipelineApp {
   db: Db;
   config: AppConfig;
   logger: Logger;
+  /** Faz 7b: kurların kaynağı (ayar → ortam değişkeni → varsayılan); yönetim paneli buradan okur ve yazar. */
+  eurRates: EurRatesStore;
   close(): Promise<void>;
 }
 
@@ -105,9 +109,12 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
   });
   const notifications = new NotificationQueries(notificationStore, systemClock);
 
-  const ratesR = parseEurRates(config.eurRatesJson);
-  if (!ratesR.ok) logger.warn("EUR_RATES geçersiz, varsayılan kurlar kullanılıyor", { code: ratesR.error.code });
-  const eurRates = ratesR.ok ? ratesR.value : DEFAULT_EUR_RATES;
+  const eurRates = createEurRatesStore({
+    settings: pgSettingsRepository(db),
+    envJson: config.eurRatesJson,
+    clock: systemClock,
+    logger,
+  });
 
   const pipeline = createSalesPipeline({
     uow,
@@ -122,7 +129,7 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
     },
     logger,
     undoWindowMs: config.undoWindowMinutes * 60_000,
-    eurRates,
+    eurRatesSource: eurRates.current,
     team: opts.team,
     policy: { repsEditProducts: config.repsEditProducts },
   });
@@ -132,7 +139,7 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
     db,
     logger,
     undoWindowMinutes: config.undoWindowMinutes,
-    eurRates,
+    eurRatesSource: eurRates.current,
     policy: { repsEditProducts: config.repsEditProducts },
     actorOf: (req: Request) => actorFromSession((req as Request & { session?: SessionLike }).session),
   });
@@ -141,5 +148,5 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
     providers: config.enabledProviders,
     email: opts.email ? "custom" : config.smtp.host ? "smtp" : "log",
   });
-  return { router, pipeline, notifications, email, db, config, logger, close: () => db.close() };
+  return { router, pipeline, notifications, email, db, config, logger, eurRates, close: () => db.close() };
 }

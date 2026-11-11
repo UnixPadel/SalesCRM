@@ -44,6 +44,8 @@ export interface LeadRepository {
   findById(id: string): Promise<Lead | undefined>;
   findByPlatformId(source: string, platformLeadId: string): Promise<Lead | undefined>;
   list(filter: LeadListFilter): Promise<Lead[]>;
+  /** Faz 7d (kişi birleştirme): bir kişinin bütün lead'lerini başka kişiye bağlar; taşınan lead sayısı. */
+  movePerson(fromPersonId: string, toPersonId: string, updatedAt: Date): Promise<number>;
   insert(lead: Lead): Promise<void>;
   updateStage(id: string, stage: StageCode, updatedAt: Date): Promise<void>;
   updateAssignee(id: string, userId: string | null, updatedAt: Date): Promise<void>;
@@ -75,13 +77,18 @@ export interface PersonListFilter {
   search?: string | undefined;
   organizationId?: string | undefined;
   limit?: number | undefined;
+  /** Birleştirilmiş (gizli) kişiler de gelsin. Varsayılan: yalnız arama yapılırken gelir ("→ birleşti" rozetiyle). */
+  includeMerged?: boolean | undefined;
 }
 
 export interface PersonRepository {
   findById(id: string): Promise<Person | undefined>;
+  /** Eşleşen kişi başka kişiye birleştirilmişse hedef kişi döner (Faz 7d). */
   findByEmailOrPhone(emailNormalized: string | null, phoneE164: string | null): Promise<Person | undefined>;
   /** Ad, e-posta, telefon, firma araması; ada göre sıralı. */
   list(filter: PersonListFilter): Promise<Person[]>;
+  /** Faz 7d: kaynağı hedefe bağlar (`merged_into_id`). */
+  markMerged(sourceId: string, targetId: string): Promise<void>;
   insert(person: Person): Promise<void>;
   /** Yalnız verilen alanlar değişir (kimlik düzenleme, kuruluş bağı, taşıma). */
   update(
@@ -97,6 +104,8 @@ export interface OrganizationListFilter {
   country?: string | undefined;
   type?: OrganizationType | undefined;
   limit?: number | undefined;
+  /** Arşivlenenler de gelsin (Faz 7d); varsayılan gelmez. */
+  includeArchived?: boolean | undefined;
 }
 
 export interface OrganizationRepository {
@@ -108,6 +117,8 @@ export interface OrganizationRepository {
   list(filter: OrganizationListFilter): Promise<Organization[]>;
   insert(organization: Organization): Promise<void>;
   update(id: string, fields: Partial<OrganizationFields>, updatedAt: Date): Promise<void>;
+  /** Faz 7d: arşivle (zaman) ya da arşivden çıkar (null). */
+  setArchived(id: string, archivedAt: Date | null, updatedAt: Date): Promise<void>;
 }
 
 export interface StageEventRepository {
@@ -137,6 +148,10 @@ export interface OutboxWriter {
 
 export interface TerritoryRuleSource {
   all(): Promise<TerritoryRule[]>;
+  /** Faz 7b: ülkenin kuralını yazar (varsa değiştirir). */
+  upsert(rule: TerritoryRule, updatedAt: Date): Promise<void>;
+  /** Kural vardıysa true. */
+  remove(countryCode: string): Promise<boolean>;
 }
 
 export interface LostReasonSource {

@@ -1,6 +1,17 @@
 import type { ResolvedStageMapping } from "../../integration-settings/application";
 import type { OutboundStageEvent } from "../../sales-pipeline/application";
-import type { DeadRow, OutboundRow, PrepareResult, PreparedEvent, SendResult, SkipReason } from "./dto";
+import type {
+  DeadRow,
+  OutboundDetail,
+  OutboundRow,
+  OutboxListFilter,
+  OutboxStats,
+  PlatformRequestStatus,
+  PrepareResult,
+  PreparedEvent,
+  SendResult,
+  SkipReason,
+} from "./dto";
 
 /** outbound_conversion_events: dağıtıcıya ait iş kaydı. */
 export interface OutboxRepository {
@@ -9,7 +20,8 @@ export interface OutboxRepository {
    * atılır (süreç çökerse satır yeniden alınır). Birden fazla instance'ta SKIP LOCKED ile çakışmaz.
    */
   claimDue(now: Date, limit: number, lockMs: number): Promise<OutboundRow[]>;
-  markSent(ids: readonly string[], responseCode: number, now: Date): Promise<void>;
+  /** `requestId`: platformun istek kimliği (akıbet sorgusu için); yoksa null. */
+  markSent(ids: readonly string[], responseCode: number, now: Date, requestId?: string | null): Promise<void>;
   markRetry(id: string, nextAttemptAt: Date, responseCode: number | null, error: string): Promise<void>;
   markDead(id: string, responseCode: number | null, error: string, now: Date): Promise<void>;
   markSkipped(id: string, reason: SkipReason, now: Date): Promise<void>;
@@ -17,6 +29,16 @@ export interface OutboxRepository {
   listDead(since: Date): Promise<DeadRow[]>;
   /** Geriye doldurma: verilen aşama olayları için satırı olmayanlara `pending` açar; açılan sayı. Mevcut satıra dokunmaz. */
   enqueueMissing(stageEventIds: readonly string[], provider: string, notBefore: Date): Promise<number>;
+  /** Faz 7a: sağlayıcı × durum sayıları ve atlama nedenleri. */
+  stats(): Promise<OutboxStats>;
+  /** En yeniden eskiye (bitiş ya da oluşturma zamanı). */
+  list(filter: OutboxListFilter): Promise<OutboundDetail[]>;
+  findByIds(ids: readonly string[]): Promise<OutboundDetail[]>;
+  /**
+   * `dead` → `pending` (deneme sayısı 0, sıra şimdi); `failed` → sıra şimdi. Başka durumdaki satıra dokunmaz.
+   * Tek ifade (atomik); değişen satır sayısı.
+   */
+  requeue(ids: readonly string[], now: Date): Promise<number>;
 }
 
 /** sales-pipeline: geriye doldurma için aşama olayları (kaynaklara göre, `since` sonrası). */
@@ -44,6 +66,8 @@ export interface PlatformSender {
   /** Platforma özgü ön koşul yoksa (ör. eşleştirme anahtarı) `skip` döner. */
   prepare(context: OutboundStageEvent, eventName: string, row: OutboundRow): PrepareResult;
   send(events: readonly PreparedEvent[]): Promise<SendResult>;
+  /** Faz 7c (isteğe bağlı): gönderilen isteğin platformdaki eşzamansız akıbeti. Hata fırlatabilir. */
+  requestStatus?(requestId: string): Promise<PlatformRequestStatus>;
 }
 
 export interface ReportMessage {

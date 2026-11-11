@@ -27,7 +27,7 @@ import {
   type StageEventOrigin,
   type StageSummary,
 } from "../domain";
-import type { Actor, UseCaseDeps } from "./types";
+import { currentEurRates, type Actor, type UseCaseDeps } from "./types";
 import { canSee, territoriesOf } from "./visibility";
 
 /** Sıcak lead ön süzgeci (SQL); kesin tanım `isHotLead` (açık aşama da ister). */
@@ -292,6 +292,7 @@ export class LeadQueries {
 
   /** Kanban verisi: görünürlük + sorumlu · ülke · kaynak · takipsiz filtreleri; istatistikler filtrelenmiş kümeden. */
   async board(input: BoardInput): Promise<Board> {
+    const rates = await currentEurRates(this.deps);
     return this.deps.uow.run(async (repos) => {
       const visibleTo = input.actor.isAdmin
         ? undefined
@@ -312,7 +313,7 @@ export class LeadQueries {
         { isAdmin: input.actor.isAdmin, timeZone: this.deps.timeZone },
       );
       const filtered = leads.filter((l) => matchesTracking(l, input, input.actor.isAdmin));
-      return { leads: filtered, columns: columnStats(filtered, this.deps.clock.now(), this.deps.eurRates) };
+      return { leads: filtered, columns: columnStats(filtered, this.deps.clock.now(), rates) };
     });
   }
 

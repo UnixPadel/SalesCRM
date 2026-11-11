@@ -4,7 +4,15 @@
  * Satırları sales-pipeline yazar (OutboxWriter, aynı transaction); burada yalnız durum geçişleri.
  */
 import type { Queryable } from "../../shared/db";
-import type { DeadRow, OutboundRow, OutboundStatus, OutboxRepository, SkipReason } from "../application";
+import type {
+  DeadRow,
+  OutboundDetail,
+  OutboundRow,
+  OutboundStatus,
+  OutboxRepository,
+  OutboxStats,
+  SkipReason,
+} from "../application";
 
 interface Row extends Record<string, unknown> {
   id: string;
@@ -19,10 +27,13 @@ interface Row extends Record<string, unknown> {
   sent_at: Date | string | null;
   created_at: Date | string;
   finished_at: Date | string | null;
+  request_id?: string | null;
 }
 
 const COLS =
   "id, stage_event_id, provider, status, skip_reason, attempts, next_attempt_at, last_response_code, last_error, sent_at, created_at, finished_at";
+const DETAIL_COLS = `${COLS}, request_id`;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const date = (v: Date | string): Date => (v instanceof Date ? v : new Date(v));
 const dateOrNull = (v: Date | string | null): Date | null => (v === null ? null : date(v));
@@ -41,8 +52,72 @@ const fromRow = (r: Row): OutboundRow => ({
   createdAt: date(r.created_at),
 });
 
+const detailFromRow = (r: Row): OutboundDetail => ({
+  ...fromRow(r),
+  finishedAt: dateOrNull(r.finished_at),
+  requestId: r.request_id ?? null,
+});
+
 export function pgOutboxRepository(q: Queryable): OutboxRepository {
   return {
+    async stats(): Promise<OutboxStats> {
+      const counts = await q.query<{ provider: string; status: string; n: number | string }>(
+        "SELECT provider, status, count(*)::int AS n FROM outbound_conversion_events GROUP BY provider, status ORDER BY provider, status",
+      );
+      const reasons = await q.query<{ provider: string; skip_reason: string; n: number | string }>(
+        `SELECT provider, skip_reason, count(*)::int AS n FROM outbound_conversion_events
+          WHERE status = 'skipped' AND skip_reason IS NOT NULL GROUP BY provider, skip_reason ORDER BY provider, n DESC`,
+      );
+      const edge = await q.query<{ oldest: Date | string | null; last_sent: Date | string | null }>(
+        `SELECT (SELECT min(next_attempt_at) FROM outbound_conversion_events WHERE status IN ('pending', 'failed')) AS oldest,
+                (SELECT max(sent_at) FROM outbound_conversion_events WHERE status = 'sent') AS last_sent`,
+      );
+      return {
+        counts: counts.map((c) => ({ provider: c.provider, status: c.status as OutboundStatus, count: Number(c.n) })),
+        skipReasons: reasons.map((r) => ({ provider: r.provider, reason: r.skip_reason, count: Number(r.n) })),
+        oldestDueAt: dateOrNull(edge[0]?.oldest ?? null),
+        lastSentAt: dateOrNull(edge[0]?.last_sent ?? null),
+      };
+    },
+
+    async list(filter) {
+      if (!filter.statuses.length) return [];
+      const rows = await q.query<Row>(
+        `SELECT ${DETAIL_COLS} FROM outbound_conversion_events
+          WHERE status = ANY($1::text[]) AND ($2::text IS NULL OR provider = $2)
+          ORDER BY coalesce(finished_at, created_at) DESC, id
+          LIMIT $3`,
+        [[...filter.statuses], filter.provider ?? null, Math.max(1, Math.min(500, filter.limit))],
+      );
+      return rows.map(detailFromRow);
+    },
+
+    async findByIds(ids) {
+      const valid = ids.filter((id) => UUID.test(id));
+      if (!valid.length) return [];
+      const rows = await q.query<Row>(
+        `SELECT ${DETAIL_COLS} FROM outbound_conversion_events WHERE id = ANY($1::uuid[])`,
+        [valid],
+      );
+      return rows.map(detailFromRow);
+    },
+
+    async requeue(ids, now) {
+      const valid = ids.filter((id) => UUID.test(id));
+      if (!valid.length) return 0;
+      const rows = await q.query<{ id: string }>(
+        `UPDATE outbound_conversion_events
+            SET attempts = CASE WHEN status = 'dead' THEN 0 ELSE attempts END,
+                status = CASE WHEN status = 'dead' THEN 'pending' ELSE status END,
+                next_attempt_at = $2,
+                finished_at = NULL
+          WHERE id = ANY($1::uuid[]) AND status IN ('dead', 'failed')
+          RETURNING id`,
+        [valid, now],
+      );
+      return rows.length;
+    },
+
     async claimDue(now, limit, lockMs) {
       const rows = await q.query<Row>(
         `WITH due AS (
@@ -62,13 +137,14 @@ export function pgOutboxRepository(q: Queryable): OutboxRepository {
       return rows.map(fromRow);
     },
 
-    async markSent(ids, responseCode, now) {
+    async markSent(ids, responseCode, now, requestId = null) {
       if (!ids.length) return;
       await q.query(
         `UPDATE outbound_conversion_events
-            SET status = 'sent', last_response_code = $2, last_error = NULL, sent_at = $3, finished_at = $3
+            SET status = 'sent', last_response_code = $2, last_error = NULL, sent_at = $3, finished_at = $3,
+                request_id = $4
           WHERE id = ANY($1::uuid[])`,
-        [[...ids], responseCode, now],
+        [[...ids], responseCode, now, requestId],
       );
     },
 

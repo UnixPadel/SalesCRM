@@ -80,6 +80,9 @@ export {
   type UpdateLeadContactInput,
   type UpdateOrganizationInput,
 } from "./organizations";
+export { ArchiveOrganization, MergePersons, type MergePersonsResult } from "./peopleAdmin";
+export { TerritoryAdmin, type PoolApplyResult, type TerritoryOverview, type TerritoryRow } from "./territories";
+export { currentEurRates } from "./types";
 export { canAct, canSee, loadActionableLead, territoriesOf } from "./visibility";
 export {
   ADMIN_ONLY,
@@ -114,8 +117,10 @@ import { ContactFormQuery, LogContact, UndoLogContact } from "./contacts";
 import { CheckWarning, SetCustomerStatus } from "./leadStatus";
 import { CreateLead } from "./createLead";
 import { CreateOrganization, PeopleQueries, UpdateLeadContact, UpdateOrganization } from "./organizations";
+import { ArchiveOrganization, MergePersons } from "./peopleAdmin";
 import { LeadQueries } from "./queries";
 import { ReportQueries } from "./reports";
+import { TerritoryAdmin } from "./territories";
 import type { UseCaseDeps } from "./types";
 import { UndoStageChange } from "./undoStageChange";
 import { UpdateLeadFields } from "./updateLeadFields";
@@ -143,6 +148,10 @@ export interface SalesPipeline {
   setCustomerStatus: SetCustomerStatus;
   checkWarning: CheckWarning;
   history: ContactQueries;
+  /** Faz 7b/7d: bölge kuralları, kişi birleştirme, kuruluş arşivleme (yalnız yönetici). */
+  territories: TerritoryAdmin;
+  mergePersons: MergePersons;
+  archiveOrganization: ArchiveOrganization;
 }
 
 /** Modülün dışa açık yüzü: api katmanı ve diğer modüller bunu kullanır. */
@@ -171,5 +180,8 @@ export function createSalesPipeline(deps: UseCaseDeps): SalesPipeline {
     setCustomerStatus: new SetCustomerStatus(deps),
     checkWarning: new CheckWarning(deps),
     history: new ContactQueries(deps),
+    territories: new TerritoryAdmin(deps),
+    mergePersons: new MergePersons(deps),
+    archiveOrganization: new ArchiveOrganization(deps),
   };
 }

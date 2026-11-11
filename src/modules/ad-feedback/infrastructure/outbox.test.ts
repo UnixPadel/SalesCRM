@@ -157,6 +157,47 @@ describe("outbound_conversion_events (PGlite)", () => {
     expect(await app.pipeline.queries.stageEventsSince(new Date(Date.now() + MINUTE), ["meta_form"])).toEqual([]);
   });
 
+  it("Faz 7a/7c: özet, liste, yeniden kuyruğa alma (dead → pending, failed → şimdi) ve istek kimliği", async () => {
+    await newLead("555000001");
+    await newLead("555000002");
+    await newLead("555000003");
+    await newLead("555000004");
+    const [a, b, c, d] = await outbox.claimDue(afterWait(), 10, MINUTE);
+    const now = new Date();
+    await outbox.markDead(a!.id, 400, "geçersiz olay", now);
+    await outbox.markRetry(b!.id, new Date(now.getTime() + 720 * MINUTE), 503, "geçici");
+    await outbox.markSent([c!.id], 200, now, "req-77");
+    await outbox.markSkipped(d!.id, "no_consent", now);
+
+    const s = await outbox.stats();
+    expect(s.counts).toEqual([
+      { provider: "meta", status: "dead", count: 1 },
+      { provider: "meta", status: "failed", count: 1 },
+      { provider: "meta", status: "sent", count: 1 },
+      { provider: "meta", status: "skipped", count: 1 },
+    ]);
+    expect(s.skipReasons).toEqual([{ provider: "meta", reason: "no_consent", count: 1 }]);
+    expect(s.lastSentAt).toEqual(now);
+    expect(s.oldestDueAt).not.toBeNull();
+
+    const list = await outbox.list({ statuses: ["dead", "failed"], limit: 10 });
+    expect(list.map((r) => r.status).sort()).toEqual(["dead", "failed"]);
+    expect(await outbox.list({ statuses: ["dead"], provider: "google", limit: 10 })).toEqual([]);
+    const [sent] = await outbox.findByIds([c!.id, "uuid-degil"]);
+    expect(sent).toMatchObject({ status: "sent", requestId: "req-77" });
+
+    const at = new Date(now.getTime() + MINUTE);
+    expect(await outbox.requeue([a!.id, b!.id, c!.id, d!.id, "uuid-degil"], at)).toBe(2);
+    const after = await outbox.findByIds([a!.id, b!.id, c!.id, d!.id]);
+    const by = (id: string) => after.find((r) => r.id === id)!;
+    expect(by(a!.id)).toMatchObject({ status: "pending", attempts: 0, nextAttemptAt: at, finishedAt: null });
+    expect(by(b!.id)).toMatchObject({ status: "failed", attempts: 1, nextAttemptAt: at });
+    expect(by(c!.id).status).toBe("sent");
+    expect(by(d!.id).status).toBe("skipped");
+    // Dağıtıcı yeniden kuyruğa alınan satırları tekrar alır.
+    expect((await outbox.claimDue(at, 10, MINUTE)).map((r) => r.id).sort()).toEqual([a!.id, b!.id].sort());
+  });
+
   it("geri alma, kuyruk satırını skipped (undone) yapar; dağıtıcı onu almaz", async () => {
     const a = unwrap(await newLead("555000001"));
     unwrap(await app.pipeline.changeLeadStage.execute({ leadId: a.lead.id, target: "CONTACTED", actor: REP }));
