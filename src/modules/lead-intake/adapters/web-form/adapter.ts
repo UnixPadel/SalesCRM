@@ -6,6 +6,7 @@
  *   submitted_at   ISO-8601; yoksa null.
  *   page_url       formun bulunduğu sayfa; landing_url verilmemişse onun yerine geçer.
  *   fields         { alan_adı: değer } — form_field_mappings (sağlayıcı "web"); eşlenmeyen alan ek yanıt.
+ *                  `country` ISO kodu boşsa ya da çözülemezse serbest metin `country_input` denenir (6 dil).
  *   attribution    { gclid, gbraid, wbraid, fbclid, fbc, fbp, utm_*, landing_url, click_at } — çerezlerden.
  *   consents       [{ type, granted, text_version, granted_at }]
  *   honeypot       bot tuzağı; doluysa controller lead açmadan 200 döner.
@@ -15,6 +16,8 @@ import { applyMappings, type RawField } from "../../../integration-settings/appl
 import { PermanentError } from "../../../shared/kernel";
 import {
   buildInboundLead,
+  countryCodeFrom,
+  IgnoredInboundEvent,
   type InboundAttribution,
   type InboundConsent,
   type InboundLeadDto,
@@ -24,6 +27,8 @@ import {
 export const WEB_PROVIDER = "web";
 export const WEB_SECRET_NAMES = { hmacKey: "WEB_FORM_HMAC_KEY" } as const;
 export const WEB_HONEYPOT_FIELD = "honeypot";
+/** Serbest metin ülke (eski kayıtlar, önbellekteki eski sayfalar); `country` çözülemezse kullanılır. */
+export const WEB_COUNTRY_INPUT_FIELD = "country_input";
 
 export interface WebFormAttributionPayload {
   gclid?: unknown;
@@ -154,9 +159,21 @@ export function webFormSourceAdapter(): SourceAdapter {
       const p = payload as WebFormPayload | null;
       const submissionId = webFormSubmissionId(p);
       if (!submissionId) throw new PermanentError("web.submission_without_id", "submission_id yok.", {});
+      // Push ucu honeypot'u inbox'tan önce eler; çekme modunda gönderim inbox'a yazılmış olarak gelir.
+      if (isHoneypotFilled(p)) throw new IgnoredInboundEvent("web.honeypot");
       const formId = str(p?.form_id, 128);
       const pageUrl = str(p?.page_url, 2048);
-      const mapped = applyMappings(toRawFields(p?.fields), await ctx.mappingsFor(formId), "extra");
+      const raw = toRawFields(p?.fields);
+      const mapped = applyMappings(raw, await ctx.mappingsFor(formId), "extra");
+      const extra: Record<string, unknown> = pageUrl ? { page_url: pageUrl } : {};
+      if (!countryCodeFrom(mapped.country)) {
+        const input = str(raw.find((f) => f.key === WEB_COUNTRY_INPUT_FIELD)?.value);
+        if (input && countryCodeFrom(input)) {
+          // Ham ISO alanı doluysa ama çözülmediyse admin görsün; ülke serbest metinden gelir.
+          if (mapped.country) extra["country_raw"] = mapped.country;
+          mapped.country = input;
+        }
+      }
       return buildInboundLead({
         source: "web_form",
         provider: WEB_PROVIDER,
@@ -169,7 +186,7 @@ export function webFormSourceAdapter(): SourceAdapter {
         isTest: webFormIsTest(p),
         submittedAt: isoDate(p?.submitted_at),
         defaultCountry: ctx.defaultCountry,
-        extra: pageUrl ? { page_url: pageUrl } : {},
+        extra,
       });
     },
   };

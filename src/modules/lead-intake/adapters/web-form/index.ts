@@ -1,5 +1,6 @@
 // lead-intake/adapters/web-form: unixpadel.com formu — HMAC imza, alan eşlemesi, tıklama kimlikleri, onaylar.
 export {
+  WEB_COUNTRY_INPUT_FIELD,
   WEB_HONEYPOT_FIELD,
   WEB_PROVIDER,
   WEB_SECRET_NAMES,
@@ -20,3 +21,11 @@ export {
   type SignatureFailure,
   type SignatureHeaders,
 } from "./signature";
+export {
+  createWebPullClient,
+  signPullRequest,
+  webPullEndpoint,
+  webPullItemToInbox,
+  type PullFetchLike,
+  type WebPullClientOptions,
+} from "./pull";
