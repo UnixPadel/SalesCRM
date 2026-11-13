@@ -235,6 +235,35 @@ describe("ülke çözümü ve DTO kurulumu", () => {
     expect(countryCodeFrom("Atlantis")).toBeNull();
     expect(countryCodeFrom("")).toBeNull();
   });
+  it("sitenin 6 dili (en, tr, de, fr, ar, ru): yazım farkları, tanım edatı, ß ve hemze", () => {
+    const cases: [string, string][] = [
+      ["Deutschland", "DE"],
+      ["Allemagne", "DE"],
+      ["ألمانيا", "DE"],
+      ["المانيا", "DE"],
+      ["Германия", "DE"],
+      ["Großbritannien", "GB"],
+      ["Grossbritannien", "GB"],
+      ["Royaume-Uni", "GB"],
+      ["Соединённое Королевство", "GB"],
+      ["Соединенное Королевство", "GB"],
+      ["la France", "FR"],
+      ["die Schweiz", "CH"],
+      ["Émirats arabes unis", "AE"],
+      ["الإمارات العربية المتحدة", "AE"],
+      ["المملكة العربية السعودية", "SA"],
+      ["Саудовская Аравия", "SA"],
+      ["Türkei", "TR"],
+      ["تركيا", "TR"],
+      ["Турция", "TR"],
+      ["Ürdün", "JO"],
+      ["Qatar", "QA"],
+      ["قطر", "QA"],
+      ["  Österreich ", "AT"],
+    ];
+    for (const [raw, code] of cases) expect([raw, countryCodeFrom(raw)]).toEqual([raw, code]);
+    expect(countryCodeFrom("Атлантида")).toBeNull();
+  });
   it("ülke alanı yoksa telefonun ülkesi; o da yoksa null", () => {
     expect(resolveCountry(null, "+49 30 901820", "TR")).toBe("DE");
     expect(resolveCountry("Atlantis", "0532 123 45 67", "TR")).toBe("TR");
