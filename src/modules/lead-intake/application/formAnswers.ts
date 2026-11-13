@@ -45,8 +45,9 @@ const QUESTION_SYNONYMS: Record<FormTarget, string[]> = {
     "project timeline",
     "when do you plan to install",
   ],
-  customer_profile: ["musteri profili", "customer profile", "which best describes you"],
-  court_count: ["kort sayisi", "kac kort", "how many courts do you need", "how many courts"],
+  // "project type", "court count": web sitesi teklif formu (çekme API'si v1, `project_type` / `court_count`).
+  customer_profile: ["musteri profili", "customer profile", "which best describes you", "project type"],
+  court_count: ["kort sayisi", "kac kort", "how many courts do you need", "how many courts", "court count"],
 };
 
 const INSTALL_SITE_VALUES: Record<string, InstallSite> = {
@@ -100,6 +101,13 @@ const CUSTOMER_PROFILE_VALUES: Record<string, CustomerProfile> = {
   "otel tatil koyu konut projesi": "hospitality_residential",
   "distributor reseller": "distributor",
   "kulup sahibi isletmeci": "club_operator",
+  // Web sitesi teklif formu, `project_type` (site her dilde İngilizce etiket gönderir; "Architect / consultant" profil
+  // değildir, ek yanıtta kalır).
+  "sports club": "club_operator",
+  "hotel resort": "hospitality_residential",
+  "municipality public": "public_facility",
+  "private residential": "private_home",
+  "distributor partner": "distributor",
   "ev icin ozel kort": "private_home",
   "okul belediye spor tesisi": "public_facility",
   "otel resort konut projesi": "hospitality_residential",

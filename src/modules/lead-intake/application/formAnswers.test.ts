@@ -51,6 +51,24 @@ describe("normalizeFormAnswers", () => {
     expect(r.installSite).toBeNull();
     expect(r.unmatched).toEqual([{ target: "install_site", raw: "Ay'da" }]);
   });
+
+  it("web sitesi teklif formu: project_type → müşteri profili, court_count → kort sayısı", () => {
+    const cases: [string, string][] = [
+      ["Sports club", "club_operator"],
+      ["Hotel / resort", "hospitality_residential"],
+      ["Municipality / public", "public_facility"],
+      ["Private / residential", "private_home"],
+      ["Distributor / partner", "distributor"],
+    ];
+    for (const [label, profile] of cases) {
+      const r = normalizeFormAnswers({}, { project_type: label, court_count: "3", product_slug: "panoramic" });
+      expect(r).toMatchObject({ customerProfile: profile, courtCount: 3, courtCountBand: "2_3", unmatched: [] });
+    }
+    // Mimar / danışman bir müşteri profili değildir: alan boş, ham değer unmatched'ta.
+    const arch = normalizeFormAnswers({}, { project_type: "Architect / consultant" });
+    expect(arch.customerProfile).toBeNull();
+    expect(arch.unmatched).toEqual([{ target: "customer_profile", raw: "Architect / consultant" }]);
+  });
 });
 
 describe("parseCourtAnswer", () => {
