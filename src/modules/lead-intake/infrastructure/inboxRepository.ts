@@ -92,6 +92,13 @@ export function pgInboxRepository(q: Queryable, cipher: PayloadCipher): InboxRep
       );
     },
 
+    async markIgnored(id, code, now) {
+      await q.query(
+        "UPDATE inbound_webhook_events SET status = 'done', lead_id = NULL, processed_at = $3, last_error_code = $2, last_error = NULL WHERE id = $1",
+        [id, code, now],
+      );
+    },
+
     async markRetry(id, nextAttemptAt, error) {
       await q.query(
         "UPDATE inbound_webhook_events SET status = 'pending', next_attempt_at = $2, last_error_code = $3, last_error = $4 WHERE id = $1",

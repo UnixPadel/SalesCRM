@@ -3,7 +3,10 @@
  * ihtiyaç duydukları değeri bu nesneden alır. Secret değerleri loglanmaz, arayüze gitmez.
  */
 export interface AppConfig {
-  /** Postgres bağlantı adresi; boşsa yerel geliştirme PGlite ile çalışır. */
+  /**
+   * Postgres bağlantı adresi; boşsa yerel geliştirme PGlite ile çalışır. DATABASE_URL yoksa Clever Cloud PostgreSQL
+   * eklentisinin bağlı uygulamaya verdiği POSTGRESQL_ADDON_URI kullanılır.
+   */
   databaseUrl: string;
   /** Yerel PGlite veri klasörü (DATABASE_URL yoksa). */
   pgliteDir: string;
@@ -33,6 +36,21 @@ export interface AppConfig {
    * form dökümü). Boşsa kapalı. Adres tablodaki kişisel veriye erişim verir: loglanmaz, arayüze gitmez.
    */
   sheetSync: { csvUrl: string; minutes: number };
+  /**
+   * Web sitesi çekme modu (docs/runbooks/web-form.md "Çekme modu"): sitenin çekme API'si tabanı. Boşsa kapalı.
+   * Anahtar ayrıca secret olarak okunur (WEB_FORM_HMAC_KEY). Yalnız worker'da tanımlanır.
+   */
+  webPull: WebPullConfig;
+}
+
+export interface WebPullConfig {
+  url: string;
+  /** Tur aralığı (saniye); varsayılan 120, en az 15. */
+  seconds: number;
+  /** `/pending` limit (1–100); varsayılan 50. */
+  pageSize: number;
+  /** Tur başına en çok sayfa; varsayılan 10. */
+  maxPages: number;
 }
 
 export interface IntakeConfig {
@@ -88,7 +106,7 @@ const list = (v: string | undefined): string[] =>
 export function loadConfig(env: Env = process.env): AppConfig {
   const undo = num(env["UNDO_WINDOW_MINUTES"], 10);
   return {
-    databaseUrl: env["DATABASE_URL"] ?? "",
+    databaseUrl: (env["DATABASE_URL"] || env["POSTGRESQL_ADDON_URI"] || "").trim(),
     pgliteDir: env["PGLITE_DIR"] ?? "server/data/pglite",
     undoWindowMinutes: undo,
     dispatchDelayMinutes: num(env["DISPATCH_DELAY_MINUTES"], undo),
@@ -122,6 +140,12 @@ export function loadConfig(env: Env = process.env): AppConfig {
     sheetSync: {
       csvUrl: (env["SHEET_SYNC_CSV_URL"] ?? "").trim(),
       minutes: Math.max(1, num(env["SHEET_SYNC_MINUTES"], 5)),
+    },
+    webPull: {
+      url: (env["WEB_PULL_URL"] ?? "").trim(),
+      seconds: Math.max(15, num(env["WEB_PULL_SECONDS"], 120)),
+      pageSize: Math.min(100, Math.max(1, num(env["WEB_PULL_LIMIT"], 50))),
+      maxPages: Math.max(1, num(env["WEB_PULL_MAX_PAGES"], 10)),
     },
   };
 }

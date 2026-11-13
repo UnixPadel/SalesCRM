@@ -92,6 +92,16 @@ describe("config", () => {
     expect(loadConfig({}).repsEditProducts).toBe(true);
     expect(loadConfig({ REPS_EDIT_PRODUCTS: "0" }).repsEditProducts).toBe(false);
   });
+  it("Clever Cloud: DATABASE_URL yoksa POSTGRESQL_ADDON_URI; çekme modu varsayılanları ve sınırları", () => {
+    expect(loadConfig({ POSTGRESQL_ADDON_URI: "postgresql://addon" }).databaseUrl).toBe("postgresql://addon");
+    expect(loadConfig({ DATABASE_URL: "postgres://x", POSTGRESQL_ADDON_URI: "postgresql://y" }).databaseUrl).toBe(
+      "postgres://x",
+    );
+    expect(loadConfig({}).webPull).toEqual({ url: "", seconds: 120, pageSize: 50, maxPages: 10 });
+    expect(
+      loadConfig({ WEB_PULL_URL: " https://s/?rest_route=/x ", WEB_PULL_SECONDS: "5", WEB_PULL_LIMIT: "500" }).webPull,
+    ).toEqual({ url: "https://s/?rest_route=/x", seconds: 15, pageSize: 100, maxPages: 10 });
+  });
   it("secret adıyla okunur", () => {
     expect(readSecret("X", { X: "v" })).toBe("v");
     expect(readSecret("Y", {})).toBe("");

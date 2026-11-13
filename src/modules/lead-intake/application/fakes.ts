@@ -43,6 +43,15 @@ export class InMemoryInbox implements InboxRepository {
     r.processedAt = now;
   }
 
+  async markIgnored(id: string, code: string, now: Date) {
+    const r = this.row(id);
+    r.status = "done";
+    r.leadId = null;
+    r.lastErrorCode = code;
+    r.lastError = null;
+    r.processedAt = now;
+  }
+
   async markRetry(id: string, nextAttemptAt: Date, error: { code: string; message: string }) {
     const r = this.row(id);
     r.status = "pending";

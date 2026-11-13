@@ -74,7 +74,7 @@ describe("ProcessInbox", () => {
   it("sırası gelen satır: adaptör → CreateLead; ülke kuralıyla atanır; satır done ve lead_id dolu", async () => {
     await accept("L-1");
     const stats = await intake.process.runOnce();
-    expect(stats).toEqual({ claimed: 1, done: 1, retried: 0, failed: 0 });
+    expect(stats).toEqual({ claimed: 1, done: 1, ignored: 0, retried: 0, failed: 0 });
     const row = await inbox.findByDedupeKey("fake:L-1");
     expect(row).toMatchObject({ status: "done", attempts: 1, leadId: sp.uow.state.leads[0]?.id });
     const lead = sp.uow.state.leads[0];
@@ -92,7 +92,7 @@ describe("ProcessInbox", () => {
     expect(sp.uow.state.events[0]).toMatchObject({ stageCode: "NEW", origin: "system", actorUserId: null });
     expect(sp.events.published.map((e) => e.type)).toEqual(["LeadCreated", "LeadAssigned"]);
     // ikinci koşuda alınacak satır yok
-    expect(await intake.process.runOnce()).toEqual({ claimed: 0, done: 0, retried: 0, failed: 0 });
+    expect(await intake.process.runOnce()).toEqual({ claimed: 0, done: 0, ignored: 0, retried: 0, failed: 0 });
   });
 
   it("aynı platform kimliği iki farklı inbox satırından gelse de tek lead", async () => {
@@ -147,7 +147,7 @@ describe("ProcessInbox", () => {
     await accept("P", { mode: "permanent" });
     await accept("C", { mode: "crash" });
     await accept("R", { mode: "rule" });
-    expect(await intake.process.runOnce()).toEqual({ claimed: 3, done: 0, retried: 0, failed: 3 });
+    expect(await intake.process.runOnce()).toEqual({ claimed: 3, done: 0, ignored: 0, retried: 0, failed: 3 });
     expect((await inbox.findByDedupeKey("fake:P"))?.lastErrorCode).toBe("platform.bad_request");
     expect((await inbox.findByDedupeKey("fake:C"))?.lastErrorCode).toBe("intake.unexpected");
     expect(await inbox.findByDedupeKey("fake:R")).toMatchObject({

@@ -66,6 +66,8 @@ export interface ProcessInboxDeps {
 export interface ProcessInboxStats {
   claimed: number;
   done: number;
+  /** Lead açılmadan kapatılanlar (IgnoredInboundEvent). */
+  ignored: number;
   retried: number;
   failed: number;
 }
@@ -78,7 +80,7 @@ export class ProcessInbox {
 
   async runOnce(): Promise<ProcessInboxStats> {
     const { inbox, clock, logger } = this.deps;
-    const stats: ProcessInboxStats = { claimed: 0, done: 0, retried: 0, failed: 0 };
+    const stats: ProcessInboxStats = { claimed: 0, done: 0, ignored: 0, retried: 0, failed: 0 };
     const due = await inbox.claimDue(clock.now(), this.deps.batchSize ?? 20, this.deps.lockMs ?? 10 * MINUTE);
     stats.claimed = due.length;
     for (const event of due) {
@@ -88,6 +90,12 @@ export class ProcessInbox {
         await inbox.markDone(event.id, leadId, clock.now());
         stats.done += 1;
       } catch (e: unknown) {
+        if (e instanceof IgnoredInboundEvent) {
+          await inbox.markIgnored(event.id, e.code, clock.now());
+          log.info("inbox: lead açılmadan kapatıldı", { code: e.code });
+          stats.ignored += 1;
+          continue;
+        }
         const error = isAppError(e) || e instanceof UnexpectedError ? e : new UnexpectedError(e);
         const delay = error.kind === "transient" ? this.deps.retryMinutes[event.attempts - 1] : undefined;
         if (delay !== undefined) {
@@ -124,6 +132,18 @@ export class ProcessInbox {
     const r = await this.deps.createLead.execute(dto);
     if (!r.ok) throw r.error;
     return r.value.leadId;
+  }
+}
+
+/**
+ * Adaptör bu olaydan lead açılmamasını ister (ör. web formunda honeypot dolu: bot). Hata değildir: satır `done`
+ * olur, lead bağlanmaz, sebep kodu `last_error_code`'da kalır. Push ucu bu gönderimleri inbox'a hiç yazmaz; çekme
+ * modunda ise sitenin kuyruğu ilerlesin diye önce inbox'a yazılır, ayıklama burada yapılır.
+ */
+export class IgnoredInboundEvent extends Error {
+  constructor(readonly code: string) {
+    super(code);
+    this.name = "IgnoredInboundEvent";
   }
 }
 

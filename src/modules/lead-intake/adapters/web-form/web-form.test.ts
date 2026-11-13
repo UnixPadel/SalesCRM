@@ -276,7 +276,7 @@ describe("uçtan uca", () => {
     expect((await accept("submission-normal.json")).status).toBe("duplicate");
     await accept("submission-test.json");
     await accept("submission-no-contact.json");
-    expect(await intake.process.runOnce()).toEqual({ claimed: 3, done: 2, retried: 0, failed: 1 });
+    expect(await intake.process.runOnce()).toEqual({ claimed: 3, done: 2, ignored: 0, retried: 0, failed: 1 });
 
     const leads = sp.uow.state.leads;
     expect(leads).toHaveLength(2);

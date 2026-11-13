@@ -1,6 +1,7 @@
 /**
  * Kompozisyon kökü, Faz 2–3: inbox deposu → adaptörler → lead-intake işleri → webhook/form router'ları + zamanlayıcı.
  * Secret'lar burada adıyla okunur ve adaptörlere değer olarak verilir; modüller process.env görmez.
+ * Çekme modu (WEB_PULL_URL + WEB_FORM_HMAC_KEY): site talepleri saklar, "web-pull" işi çeker (worker'da tanımlanır).
  */
 import type { Router } from "express";
 import { IntegrationSettings } from "../modules/integration-settings/application";
@@ -18,13 +19,24 @@ import {
   metaSourceAdapter,
   type FetchLike,
 } from "../modules/lead-intake/adapters/meta";
-import { webFormSourceAdapter, WEB_SECRET_NAMES } from "../modules/lead-intake/adapters/web-form";
+import {
+  createWebPullClient,
+  webFormSourceAdapter,
+  webPullItemToInbox,
+  WEB_PROVIDER,
+  WEB_SECRET_NAMES,
+  type PullFetchLike,
+} from "../modules/lead-intake/adapters/web-form";
 import { createFormsRouter, createWebhookRouter } from "../modules/lead-intake/api";
 import {
   createLeadIntake,
+  EMPTY_WEB_PULL_STATUS,
+  PullWebSubmissions,
   type BackfillSource,
   type LeadIntake,
   type SourceAdapter,
+  type WebPullStatus,
+  type WebPullStatusStore,
 } from "../modules/lead-intake/application";
 import { pgInboxRepository } from "../modules/lead-intake/infrastructure";
 import {
@@ -48,15 +60,24 @@ export interface LeadIntakeApp {
   intake: LeadIntake;
   settings: IntegrationSettings;
   scheduler: Scheduler;
-  /** Hangi sağlayıcılar yapılandırıldı (loglar ve sağlık ucu için). */
-  providers: { meta: boolean; google: boolean; web: boolean; encrypted: boolean };
+  /** Hangi sağlayıcılar yapılandırıldı (loglar ve sağlık ucu için). `webPull`: bu süreç siteden çekiyor. */
+  providers: { meta: boolean; google: boolean; web: boolean; webPull: boolean; encrypted: boolean };
+  /** Çekme işi; bu süreçte WEB_PULL_URL + anahtar yoksa null. */
+  webPull: PullWebSubmissions | null;
+  /** Çekmenin son durumu (veritabanından; worker başka süreçte olsa da yönetim paneli buradan okur). */
+  webPullStatus: WebPullStatusStore;
 }
+
+/** integration_settings (provider "web", key "pull_status"): secret ve kişisel veri yok. */
+export const WEB_PULL_STATUS_KEY = "pull_status";
 
 export interface BootLeadIntakeOptions {
   logger?: Logger;
   env?: Env;
   /** Testler: Graph API çağrıları için sahte fetch. */
   metaFetch?: FetchLike;
+  /** Testler: sitenin çekme API'si için sahte fetch. */
+  webPullFetch?: PullFetchLike;
   /** false: zamanlayıcı kurulur ama başlatılmaz (testler, CLI). */
   startScheduler?: boolean;
 }
@@ -126,6 +147,33 @@ export function bootLeadIntake(app: SalesPipelineApp, opts: BootLeadIntakeOption
   const webSecret = read(WEB_SECRET_NAMES.hmacKey);
   const forms = createFormsRouter({ accept: intake.accept, logger, web: webSecret ? { secret: webSecret } : null });
 
+  const webPullStatus: WebPullStatusStore = {
+    load: async () => {
+      const v = await settings.getJson<WebPullStatus | null>(WEB_PROVIDER, WEB_PULL_STATUS_KEY, null);
+      return v && typeof v === "object" ? { ...EMPTY_WEB_PULL_STATUS, ...v } : null;
+    },
+    save: (status) => settings.setJson(WEB_PROVIDER, WEB_PULL_STATUS_KEY, status),
+  };
+  const webPull =
+    config.webPull.url && webSecret
+      ? new PullWebSubmissions({
+          source: createWebPullClient({
+            baseUrl: config.webPull.url,
+            secret: webSecret,
+            ...(opts.webPullFetch ? { fetchImpl: opts.webPullFetch } : {}),
+          }),
+          accept: intake.accept,
+          provider: WEB_PROVIDER,
+          toInbox: webPullItemToInbox,
+          clock: systemClock,
+          logger: logger.child({ job: "web-pull" }),
+          status: webPullStatus,
+          pageSize: config.webPull.pageSize,
+          maxPages: config.webPull.maxPages,
+        })
+      : null;
+  if (config.webPull.url && !webSecret) logger.warn("WEB_PULL_URL tanımlı ama WEB_FORM_HMAC_KEY yok: çekme kapalı");
+
   const scheduler = createScheduler(
     [
       {
@@ -139,6 +187,16 @@ export function bootLeadIntake(app: SalesPipelineApp, opts: BootLeadIntakeOption
               name: "inbox-backfill",
               everyMs: config.intake.backfillIntervalMinutes * MINUTE,
               run: async () => void (await intake.backfill.runOnce()),
+            },
+          ]
+        : []),
+      ...(webPull
+        ? [
+            {
+              name: "web-pull",
+              everyMs: config.webPull.seconds * 1000,
+              runAtStart: true,
+              run: async () => void (await webPull.runOnce()),
             },
           ]
         : []),
@@ -157,8 +215,9 @@ export function bootLeadIntake(app: SalesPipelineApp, opts: BootLeadIntakeOption
     meta: metaConfigured(meta),
     google: Boolean(googleKey),
     web: Boolean(webSecret),
+    webPull: Boolean(webPull),
     encrypted: Boolean(keyB64),
   };
   logger.info("lead-intake hazır", { ...providers, backfill: backfillSources.map((s) => s.provider) });
-  return { webhooks, forms, intake, settings, scheduler, providers };
+  return { webhooks, forms, intake, settings, scheduler, providers, webPull, webPullStatus };
 }

@@ -12,6 +12,8 @@ export interface InboxRepository {
    */
   claimDue(now: Date, limit: number, lockMs: number): Promise<InboxEvent[]>;
   markDone(id: string, leadId: string, now: Date): Promise<void>;
+  /** Lead açılmadan kapatır (bot gönderimi vb.): `done`, lead yok, `last_error_code` = sebep kodu. */
+  markIgnored(id: string, code: string, now: Date): Promise<void>;
   markRetry(id: string, nextAttemptAt: Date, error: { code: string; message: string }): Promise<void>;
   markFailed(id: string, error: { code: string; message: string }, now: Date): Promise<void>;
   /** Payload'ı siler, satırı bırakır; silinen satır sayısı. */
@@ -55,4 +57,72 @@ export interface LeadCreator {
 
 export interface MappingSource {
   mappingsFor(provider: string, formId: string | null): Promise<ResolvedMapping>;
+}
+
+/* ---- Web sitesi çekme modu (docs/runbooks/web-form.md "Çekme modu") ---- */
+
+/** Sitenin `/pending` yanıtındaki bir öğe; doğrulanmamış ham veri. */
+export interface PulledItem {
+  submissionId: unknown;
+  payload: unknown;
+}
+
+export type PullAckStatus = "inserted" | "duplicate";
+
+/**
+ * Talepleri kendi tarafında saklayan kaynak (site). Onaylanana kadar aynı öğeyi en eskiden yeniye yeniden verir.
+ * Hata: `PullSourceError` fırlatır.
+ */
+export interface PullSource {
+  pending(limit: number): Promise<{ items: PulledItem[]; more: boolean }>;
+  ack(items: readonly { submissionId: string; status: PullAckStatus }[]): Promise<{ acked: number; unknown: string[] }>;
+}
+
+/**
+ * Çekme kaynağının hatası. `transient`: ağ, zaman aşımı, 429, 5xx → sonraki turda yeniden denenir.
+ * `config`: 401 (imza/anahtar), 400 (sözleşme), 503 not_configured, bozuk yanıt → yine denenir ama yönetici bakmalı.
+ */
+export class PullSourceError extends Error {
+  constructor(
+    readonly code: string,
+    readonly kind: "transient" | "config",
+    readonly httpStatus: number | null = null,
+  ) {
+    super(code);
+    this.name = "PullSourceError";
+  }
+}
+
+export type WebPullErrorKind = "transient" | "config" | "inbox";
+
+/** Çekme turunun durumu; sağlık paneli için kalıcı yazılır (secret ve kişisel veri yok). */
+export interface WebPullStatus {
+  /** Son turun başladığı an (ISO). */
+  lastRunAt: string | null;
+  /** Son başarılı çekmenin bittiği an (ISO). */
+  lastPullAt: string | null;
+  /** Son tur hatasız bitti mi. */
+  lastRunOk: boolean | null;
+  lastErrorCode: string | null;
+  lastErrorKind: WebPullErrorKind | null;
+  lastErrorAt: string | null;
+  /** Son turdaki sayılar. */
+  lastRound: WebPullRound | null;
+}
+
+export interface WebPullRound {
+  pages: number;
+  fetched: number;
+  inserted: number;
+  duplicate: number;
+  /** Geçerli `submission_id` taşımayan öğe (onaylanamaz). */
+  invalid: number;
+  acked: number;
+  /** Sitenin tanımadığı onay kimlikleri. */
+  unknown: number;
+}
+
+export interface WebPullStatusStore {
+  load(): Promise<WebPullStatus | null>;
+  save(status: WebPullStatus): Promise<void>;
 }

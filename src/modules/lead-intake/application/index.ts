@@ -7,6 +7,7 @@ export { fold, normalizeFormAnswers, parseCourtAnswer, type FormTarget, type Nor
 export { CreateLeadFromAd, type CreateLeadFromAdResult } from "./createLeadFromAd";
 export {
   AcceptInboundEvent,
+  IgnoredInboundEvent,
   ProcessInbox,
   PurgeInboxPayloads,
   RunBackfill,
@@ -16,6 +17,7 @@ export {
 } from "./inboxJobs";
 
 export { InboxHealth, type InboxHealthDeps } from "./health";
+export { EMPTY_WEB_PULL_STATUS, PullWebSubmissions, type PullWebSubmissionsDeps } from "./webPull";
 
 import { HOUR, DAY, type Clock, type IdGenerator, type Logger } from "../../shared/kernel";
 import { CreateLeadFromAd } from "./createLeadFromAd";
