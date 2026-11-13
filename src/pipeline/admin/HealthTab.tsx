@@ -7,6 +7,7 @@ import type {
   OutboxItemDto,
   ProviderHealthDto,
   RequestStatusDto,
+  WebPullHealthDto,
 } from "../../modules/integration-settings/api/dto";
 import { useCrm } from "../../state/CrmContext";
 import { useErrorText, useNow, useReference, useSince } from "../hooks";
@@ -260,6 +261,8 @@ export function HealthTab() {
         </section>
       </div>
 
+      <WebPullPanel pull={health.webPull} now={now} />
+
       <SectionHead title={t("health.failedOutbox")}>
         {failedOut.length > 1 && (
           <Button
@@ -496,6 +499,69 @@ function skipText(t: (k: string) => string, reason: string): string {
 }
 
 /** Durum sayıları: her durum etiketi + sayı (renk tek başına anlam taşımaz; ad yazılıdır). */
+/** Çekme işi en çok 2 dakikada bir koşar; 15 dakikadır koşmadıysa worker durmuş olabilir. */
+const WEB_PULL_STALE_MS = 15 * 60_000;
+
+function WebPullPanel({ pull, now }: { pull: WebPullHealthDto | null; now: number }) {
+  const { t } = useLang();
+  const since = useSince();
+  return (
+    <section className="panel" aria-labelledby="adm-webpull-h">
+      <h2 id="adm-webpull-h" className="sec-h">
+        {t("health.webPull")}
+      </h2>
+      {!pull || !pull.lastRunAt ? (
+        <p className="muted">{t("health.webPull.never")}</p>
+      ) : (
+        <>
+          <StatusTag tone={pull.lastRunOk ? "ok" : "bad"} icon={pull.lastRunOk ? "check" : "ban"}>
+            {t(pull.lastRunOk ? "health.webPull.ok" : "health.webPull.failing")}
+          </StatusTag>
+          <ul className="adm-facts">
+            <li>
+              {pull.lastPullAt
+                ? t("health.webPull.lastPull", { ago: since(pull.lastPullAt, now) })
+                : t("health.webPull.neverPulled")}
+            </li>
+            <li>{t("health.webPull.lastRun", { ago: since(pull.lastRunAt, now) })}</li>
+            {now - new Date(pull.lastRunAt).getTime() > WEB_PULL_STALE_MS && (
+              <li>
+                <StatusTag tone="warn" icon="ban">
+                  {t("health.webPull.stale", { ago: since(pull.lastRunAt, now) })}
+                </StatusTag>
+              </li>
+            )}
+            {pull.lastErrorCode && pull.lastErrorAt && (
+              <li>
+                {t("health.webPull.error", { code: pull.lastErrorCode, ago: since(pull.lastErrorAt, now) })}
+                {pull.lastErrorKind && (
+                  <span className="muted"> — {t(`health.webPull.kind.${pull.lastErrorKind}`)}</span>
+                )}
+              </li>
+            )}
+            {pull.lastRound && (
+              <li>
+                {t("health.webPull.round", {
+                  fetched: pull.lastRound.fetched,
+                  inserted: pull.lastRound.inserted,
+                  duplicate: pull.lastRound.duplicate,
+                  acked: pull.lastRound.acked,
+                })}
+              </li>
+            )}
+            {pull.lastRound && pull.lastRound.invalid > 0 && (
+              <li>{t("health.webPull.invalid", { n: pull.lastRound.invalid })}</li>
+            )}
+            {pull.lastRound && pull.lastRound.unknown > 0 && (
+              <li>{t("health.webPull.unknown", { n: pull.lastRound.unknown })}</li>
+            )}
+          </ul>
+        </>
+      )}
+    </section>
+  );
+}
+
 function StatusCounts({ order, counts }: { order: readonly string[]; counts: readonly CountDto[] }) {
   const { t } = useLang();
   return (

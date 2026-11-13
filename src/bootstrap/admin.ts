@@ -80,6 +80,21 @@ export function bootAdmin(
       return s?.userId || s?.email || "?";
     },
     providers,
+    webPull: async () => {
+      const status = await leadIntake.webPullStatus.load();
+      const configuredHere = leadIntake.providers.webPull;
+      if (!status && !configuredHere) return null;
+      return {
+        configuredHere,
+        lastRunAt: status?.lastRunAt ?? null,
+        lastPullAt: status?.lastPullAt ?? null,
+        lastRunOk: status?.lastRunOk ?? null,
+        lastErrorCode: status?.lastErrorCode ?? null,
+        lastErrorKind: status?.lastErrorKind ?? null,
+        lastErrorAt: status?.lastErrorAt ?? null,
+        lastRound: status?.lastRound ?? null,
+      };
+    },
     generalSecrets: () => [
       secret("INBOX_ENCRYPTION_KEY"),
       secret(app.config.smtp.userSecretName),

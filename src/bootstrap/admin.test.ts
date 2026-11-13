@@ -160,6 +160,31 @@ describe("yönetim paneli API'si", () => {
     expect(raw).not.toContain("PRIVATE KEY");
   });
 
+  it("sağlık: web-pull durumu veritabanından okunur (worker başka süreçte olsa da); hiç çalışmadıysa null", async () => {
+    expect((await call<HealthDto>("admin", "GET", "/api/admin/health")).body.webPull).toBeNull();
+    await intake.webPullStatus.save({
+      lastRunAt: "2026-11-13T09:00:00.000Z",
+      lastPullAt: "2026-11-13T08:58:00.000Z",
+      lastRunOk: false,
+      lastErrorCode: "unauthorized.stale",
+      lastErrorKind: "config",
+      lastErrorAt: "2026-11-13T09:00:01.000Z",
+      lastRound: { pages: 0, fetched: 0, inserted: 0, duplicate: 0, invalid: 0, acked: 0, unknown: 0 },
+    });
+    const r = await call<HealthDto>("admin", "GET", "/api/admin/health");
+    expect(r.body.webPull).toEqual({
+      configuredHere: false,
+      lastRunAt: "2026-11-13T09:00:00.000Z",
+      lastPullAt: "2026-11-13T08:58:00.000Z",
+      lastRunOk: false,
+      lastErrorCode: "unauthorized.stale",
+      lastErrorKind: "config",
+      lastErrorAt: "2026-11-13T09:00:01.000Z",
+      lastRound: { pages: 0, fetched: 0, inserted: 0, duplicate: 0, invalid: 0, acked: 0, unknown: 0 },
+    });
+    await sp.db.query("DELETE FROM integration_settings WHERE provider = 'web' AND key = 'pull_status'");
+  });
+
   it("dead satır yeniden kuyruğa alınır ve dağıtıcı onu tekrar dener; gönderilmiş satır reddedilir", async () => {
     const lead = unwrap(
       await sp.pipeline.createLead.execute({

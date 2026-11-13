@@ -19,6 +19,7 @@ import type {
   ProviderSettingsDto,
   RequestStatusDto,
   StageMappingsDto,
+  WebPullHealthDto,
 } from "./dto";
 
 export interface ProviderInfo {
@@ -43,6 +44,8 @@ export interface AdminRouterDeps {
   actorIdOf(req: Request): string;
   providers(): ProviderInfo[];
   generalSecrets(): { name: string; set: boolean }[];
+  /** Web sitesi çekme durumu (yoksa null). */
+  webPull?(): Promise<WebPullHealthDto | null>;
   stageCodes: readonly string[];
   retentionDays: number;
   eurRates: {
@@ -88,7 +91,11 @@ export function createAdminRouter(deps: AdminRouterDeps): Router {
   /* ---------------- 7a: sağlık ---------------- */
 
   r.get("/health", async (_req, res) => {
-    const [inbox, outbox] = await Promise.all([deps.inbox.stats(), deps.outbox.stats()]);
+    const [inbox, outbox, webPull] = await Promise.all([
+      deps.inbox.stats(),
+      deps.outbox.stats(),
+      deps.webPull ? deps.webPull() : Promise.resolve(null),
+    ]);
     const statusProviders = deps.outbox.statusProviders();
     const providers = await Promise.all(
       deps.providers().map(async (p) => ({
@@ -124,6 +131,7 @@ export function createAdminRouter(deps: AdminRouterDeps): Router {
         oldestDueAt: iso(outbox.oldestDueAt),
         lastSentAt: iso(outbox.lastSentAt),
       },
+      webPull,
     };
     res.json(body);
   });

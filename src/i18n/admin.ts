@@ -65,6 +65,42 @@ export const ADMIN_DICT = {
     "Payload cleanup has not run yet; {n} records older than {days} days waiting",
   ],
   "health.skipReasons": ["Atlama nedenleri", "Skip reasons"],
+  "health.webPull": ["Web sitesi formu (çekme)", "Website form (pull)"],
+  "health.webPull.never": [
+    "Çekme henüz hiç çalışmadı. Sunucudaki worker'da WEB_PULL_URL ve WEB_FORM_HMAC_KEY tanımlanır.",
+    "Pulling has never run. WEB_PULL_URL and WEB_FORM_HMAC_KEY are set on the server worker.",
+  ],
+  "health.webPull.ok": ["Çalışıyor", "Working"],
+  "health.webPull.failing": ["Son tur hata verdi", "Last round failed"],
+  "health.webPull.lastPull": ["Son başarılı çekme: {ago}", "Last successful pull: {ago}"],
+  "health.webPull.neverPulled": ["Henüz başarılı çekme yok", "No successful pull yet"],
+  "health.webPull.lastRun": ["Son tur: {ago}", "Last round: {ago}"],
+  "health.webPull.stale": [
+    "Worker {ago} beri çekme yapmadı; çalıştığını kontrol edin.",
+    "The worker has not pulled for {ago}; check that it is running.",
+  ],
+  "health.webPull.error": ["Son hata: {code} ({ago})", "Last error: {code} ({ago})"],
+  "health.webPull.kind.transient": [
+    "Geçici (ağ, hız sınırı, site hatası): sonraki turda kendiliğinden denenir.",
+    "Temporary (network, rate limit, site error): retried automatically next round.",
+  ],
+  "health.webPull.kind.config": [
+    "Site isteği reddetti: anahtar (401), sözleşme (400) ya da sitede yapılandırma (503). Elle bakılmalı.",
+    "The site rejected the request: key (401), contract (400) or site configuration (503). Needs attention.",
+  ],
+  "health.webPull.kind.inbox": [
+    "Gelen kutusuna yazılamadı (veritabanı). Yazılamayanlar sitede bekler.",
+    "Could not write to the inbox (database). Unwritten items stay on the site.",
+  ],
+  "health.webPull.round": [
+    "Son turda: {fetched} alındı · {inserted} yeni · {duplicate} zaten vardı · {acked} onaylandı",
+    "Last round: {fetched} fetched · {inserted} new · {duplicate} already present · {acked} acknowledged",
+  ],
+  "health.webPull.invalid": [
+    "{n} öğe submission_id taşımıyor, onaylanamadı (site ekibine bildirin).",
+    "{n} items carry no submission_id and could not be acknowledged (tell the site team).",
+  ],
+  "health.webPull.unknown": ["Site {n} onayı tanımadı.", "The site did not recognise {n} acknowledgements."],
   "health.skip.manual_source": ["Elle açılan ya da içe aktarılan lead", "Manual or imported lead"],
   "health.skip.test_lead": ["Test lead'i", "Test lead"],
   "health.skip.no_consent": ["Onay yok", "No consent"],

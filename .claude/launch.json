@@ -42,6 +42,20 @@
         "--set=RELAY_CONSENT_TEXT_VERSION=2026-01"
       ],
       "port": 8790
+    },
+    {
+      "name": "crm-web-pull-smoke",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/dev.mjs",
+        "--dev-login=test1234",
+        "--set=WEB_PULL_URL=http://127.0.0.1:9/?rest_route=/unixpadel/v1/crm",
+        "--set=WEB_PULL_SECONDS=15",
+        "--set=WEB_FORM_HMAC_KEY=smoke-web-form-secret",
+        "--set=INBOX_ENCRYPTION_KEY=c21va2Utc21va2Utc21va2Utc21va2Utc21va2UtMDE=",
+        "--set=PGLITE_DIR=server/data/pglite-web-pull-smoke"
+      ],
+      "port": 5173
     }
   ]
 }

@@ -23,6 +23,32 @@ export interface ProviderHealthDto {
   secrets: { name: string; set: boolean }[];
 }
 
+/**
+ * Web sitesi çekme modu (worker'daki web-pull işi). Durum veritabanından okunur: worker başka süreçte olsa da görünür.
+ * Kişisel veri yok: zamanlar, hata kodu ve sayılar.
+ */
+export interface WebPullHealthDto {
+  /** Bu süreçte çekme açık mı (WEB_PULL_URL + WEB_FORM_HMAC_KEY). Masaüstü uygulamasında normalde false. */
+  configuredHere: boolean;
+  lastRunAt: string | null;
+  /** Son başarılı çekme. */
+  lastPullAt: string | null;
+  lastRunOk: boolean | null;
+  /** network, timeout, rate_limited, http_5xx, unauthorized.<sebep>, bad_request, not_configured, bad_response… */
+  lastErrorCode: string | null;
+  lastErrorKind: "transient" | "config" | "inbox" | null;
+  lastErrorAt: string | null;
+  lastRound: {
+    pages: number;
+    fetched: number;
+    inserted: number;
+    duplicate: number;
+    invalid: number;
+    acked: number;
+    unknown: number;
+  } | null;
+}
+
 export interface HealthDto {
   generatedAt: string;
   providers: ProviderHealthDto[];
@@ -42,6 +68,8 @@ export interface HealthDto {
     oldestDueAt: string | null;
     lastSentAt: string | null;
   };
+  /** Çekme hiç çalışmadıysa ve bu süreçte de yapılandırılmadıysa null. */
+  webPull: WebPullHealthDto | null;
 }
 
 export interface OutboxItemDto {
