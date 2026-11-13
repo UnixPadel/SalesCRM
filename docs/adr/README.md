@@ -20,6 +20,8 @@ Durumlar: **Bekliyor** (karar verilmedi, seçenekler listeli) · **Kabul edildi*
 | [0012](0012-google-data-manager-api.md) | Google geri bildirimi: Data Manager API kimlik doğrulama ve istek biçimi | Kabul edildi |
 | [0013](0013-satis-panosu-veri-modeli.md) | Satış panosu veri modeli: Lead = fırsat, aktiviteler, kuruluşlar, altı aşama kalır | Kabul edildi |
 | [0014](0014-satis-takip-excel-uyumu.md) | Satış takip (Excel) uyumu: temas kaydı, müşteri durumu, ürün tercihleri, türetilen rapor | Kabul edildi |
+| [0015](0015-web-formu-cekme-modu.md) | Web sitesi formu: çekme modu (site saklar, CRM worker'ı çeker) | Kabul edildi |
+| [0016](0016-dagitim-ve-gizli-bilgiler.md) | Masaüstü dağıtımı ve gizli bilgiler: kalın .exe + worker mı, merkezi sunucu + ince .exe mi | Bekliyor |
 
 Şablon:
 

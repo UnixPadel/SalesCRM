@@ -77,6 +77,18 @@ unixpadel.com formu aynı inbox'a `web` sağlayıcısıyla düşer; gelen kutusu
   Kurulum ve başka dil için sözleşme: `docs/runbooks/web-form.md`, karar: ADR-0010.
 - Yerel deneme: `crm-webhook-smoke` + `web-form-relay-smoke` launch ayarları.
 
+## Web sitesi formu: çekme modu ve worker (2026-11)
+
+- **Çekme:** site talepleri kendi tarafında saklar; CRM'in worker'ı `WEB_PULL_SECONDS` (120) saniyede bir imzalı
+  `<taban>/pending` ile çeker, gelen kutusuna (push ile aynı `web:<submission_id>` anahtarı) yazar, yazılanları
+  `<taban>/ack` ile onaylar. CRM'in internete açık adresi gerekmez. Sözleşme v1 ve kurulum:
+  `docs/runbooks/web-form.md` bölüm 7, karar: ADR-0015.
+- **Worker:** `npm run worker` (`server/worker.mjs`): arayüzsüz, yalnız zamanlanmış işler (web-pull, gelen kutusu,
+  Meta yedek senkronu, reklam geri bildirimi, form tablosu) ve `GET /health` → `{ok, webPull, lastPullAt, lastError}`.
+  Şirket kullanıcı tablosuna (MySQL) bağlanmaz. Clever Cloud kurulumu: `docs/runbooks/canliya-alma.md` bölüm 2a.
+- Durum: Yönetim → Sağlık → "Web sitesi formu (çekme)". Yerel deneme: `crm-web-pull-smoke` launch ayarı.
+- Dağıtım ve gizli bilgiler (kalın .exe mi, merkezi sunucu mu): ADR-0016, karar bekliyor.
+
 ## Meta geri bildirimi (Faz 4)
 
 Her aşama değişikliği 10 dakika sonra (geri alma hakkı) Meta'ya CRM olayı olarak gider; dağıtıcı platformdan

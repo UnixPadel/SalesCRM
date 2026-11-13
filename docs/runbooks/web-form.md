@@ -1,5 +1,13 @@
 # Runbook — Web sitesi formu (unixpadel.com → CRM)
 
+İki yol vardır; ikisi de aynı imzayı, aynı anahtarı (`WEB_FORM_HMAC_KEY`), aynı gelen kutusunu ve aynı mükerrer
+anahtarını (`web:<submission_id>`) kullanır:
+
+- **Çekme modu (2026-11, birincil):** site talepleri kendi tarafında saklar; CRM'in worker'ı imzalı isteklerle çeker ve
+  onaylar. CRM'in internete açık bir adresi gerekmez. **Bölüm 7.**
+- **Push (Faz 3):** site sunucusundaki aktarıcı her gönderimi `POST /forms/web` ucuna iter. CRM'in internete açık
+  olmasını ister; bugünkü dağıtımda (masaüstü uygulaması + worker) bu uca ulaşılamaz. Bölüm 1–6.
+
 Faz 3. Site formu tarayıcıdan değil **site sunucusundan** CRM'e gönderilir; imza anahtarı tarayıcıya inmez.
 Referans uygulama: `integrations/web-form-relay/` (bağımlılıksız Node süreci). Site başka dilde çalışıyorsa
 aynı sözleşme o dilde uygulanır (bölüm 3 ve 4).
@@ -126,3 +134,112 @@ Yerel deneme: `.claude/launch.json` → `crm-webhook-smoke` (CRM, anahtar `smoke
 Yeni anahtar üret → önce CRM'de güncelle ve yeniden başlat → aktarıcıda güncelle ve yeniden başlat.
 Aradaki saniyelerde aktarıcı 401 alır, dosyalar `failed/` altına düşer; yeni anahtar devreye girince
 dosyaları `queue/` köküne geri taşı. Düşük trafikli saatte yapılır.
+
+## 7. Çekme modu (site saklar, CRM çeker)
+
+```
+tarayıcı ──form──▶ site (WordPress eklentisi) ──talebi saklar──┐
+                                                               │  her 2 dk
+CRM worker ──imzalı POST <taban>/pending──────────────────────▶│
+           ◀── en eskiden yeniye en çok 50 talep, more ────────┘
+           ──▶ gelen kutusu (web:<submission_id>) ──▶ lead
+           ──imzalı POST <taban>/ack (inserted | duplicate)──▶ site talebi "alındı" işaretler
+```
+
+Site tarafını başka ekip yazar; sözleşme **v1** tek taraflı değiştirilmez.
+
+### 7.1 Sözleşme v1 (site sunar)
+
+Taban `WEB_PULL_URL`, ör. `https://www.unixpadel.com/?rest_route=/unixpadel/v1/crm`. Uçlar `<taban>/pending` ve
+`<taban>/ack`: `rest_route` değerinin sonuna eklenir (kalıcı bağlantılı adreste, ör. `/wp-json/unixpadel/v1/crm`, yola).
+İkisi de `POST`, `application/json`. İmza push ile aynıdır (bölüm 4): `X-Webform-Timestamp`, `X-Webform-Signature:
+sha256=<hex HMAC-SHA256(anahtar, "<timestamp>." + ham gövde)>`; fark 300 saniyeyi aşarsa `401 stale`.
+
+- `/pending`: gövde `{"op":"pending","limit":50}` (1–100) → `200 {"ok":true,"items":[{"submission_id":"<uuid>",
+  "payload":{…}}],"more":true|false}`. En eskiden yeniye; onaylanana kadar aynı öğe yine gelir.
+- `/ack`: gövde `{"op":"ack","items":[{"submission_id":"<uuid>","status":"inserted"|"duplicate"}]}` →
+  `200 {"ok":true,"acked":<n>,"unknown":["<uuid>"]}`. İdempotent.
+- Hatalar: `401 {"ok":false,"reason":"missing|malformed|stale|mismatch"}`, `400` gövde/op hatalı, `429` hız,
+  `503 {"ok":false,"error":"not_configured"}`.
+
+`payload` (v1): `form_id` ("quote"), `submitted_at`, `page_url`, `is_test`, `honeypot` (""), `consents`
+(`[{"type":"kvkk","granted":true,"text_version":"2026-01"}]`), `attribution` (`gclid`, `gbraid`, `wbraid`, `fbclid`,
+`fbc`, `fbp`, `utm_*`, `landing_url`), `fields`. `submission_id` payload'da değil üst seviyededir; CRM onu payload'a
+yazar ve push gövdesiyle aynı biçimde saklar.
+
+### 7.2 Alanlar → lead
+
+| `fields` anahtarı | Lead'de | Eşleme |
+|---|---|---|
+| `name` | Ad soyad | seed 0005 |
+| `company`, `email`, `phone` | Firma, e-posta, telefon | seed 0005 |
+| `country` (ISO-3166 alpha-2) | Ülke (bölge ataması buna göre) | seed 0005 |
+| `country_input` (serbest metin) | `country` boş ya da çözülemezse ülke buradan; ham metin ek yanıtta | seed 0014 + adaptör; en, tr, de, fr, ar, ru adları |
+| `product_interest` | İlgilendiği ürün | seed 0005 |
+| `project_type` | Müşteri profili (aşağıda) | seed 0014 + `normalizeFormAnswers` |
+| `court_count` | Kort sayısı ve bandı (1–999) | seed 0014 + `normalizeFormAnswers` |
+| `message` | Not | seed 0005 |
+| `product_slug`, `page_language`, `import_source` | Ek yanıt | seed 0005 / 0014 |
+
+`project_type` → müşteri profili: Sports club → kulüp işletmecisi, Hotel / resort → otel/konut, Municipality / public →
+kamu tesisi, Private / residential → özel ev, Distributor / partner → distribütör. Architect / consultant bir profil
+değildir, ek yanıtta kalır. Ülke ne `country`'den ne `country_input`'tan çözülürse telefonun ülkesi kullanılır
+(`country_source: phone`).
+
+### 7.3 CRM'in davranışı
+
+- Tur: her `WEB_PULL_SECONDS` (varsayılan 120) saniyede bir; açılışta hemen bir kez. Sayfa başına `WEB_PULL_LIMIT`
+  (50), `more: true` iken tur başına en çok `WEB_PULL_MAX_PAGES` (10) sayfa. Kalan sonraki turda.
+- Her öğe push ucunun kapısından gelen kutusuna yazılır; **yazımı kesinleşenler** onaylanır (`inserted` ya da zaten
+  varsa `duplicate`). Onay yolda kaybolursa site öğeyi yine verir; CRM `duplicate` der, ikinci lead açılmaz.
+- **Bot ve bozuk öğeler kuyruğu tıkamaz:** `submission_id`'si olan her öğe yazılır ve onaylanır. Honeypot'u dolu
+  gönderim gelen kutusunda lead açılmadan kapanır (`web.honeypot`); bozuk gövde "İşlenemeyen bildirimler"e düşer.
+  `submission_id`'siz öğe onaylanamaz ve sayılır (Sağlık panelinde uyarı; site ekibine bildirilir).
+- Ağ hatası, zaman aşımı, 429, 5xx: o sayfa onaylanmaz, sonraki turda yeniden denenir.
+  401, 400, 503 `not_configured`, bozuk yanıt: aynı, ama Sağlık panelinde "site isteği reddetti" diye görünür.
+- İki süreç aynı anda çekse de tek lead açılır (gelen kutusunda UNIQUE mükerrer anahtarı, işleyicide SKIP LOCKED).
+- Eski kayıtlar (`import_source: "wp-legacy"`): normal web lead'i gibi işlenir; lead tarihi `submitted_at`'tır, bölge
+  kuralına göre atanır ve satışçıya "yeni lead" bildirimi düşer. Kişinin Excel'den ya da form tablosundan gelmiş açık
+  lead'i varsa yeni lead açılmaz, o lead benimsenir (boş alanlar dolar). `gclid` taşıyan eski kayıtlar için reklam
+  geri bildirimi de denenir; Google 90 günden eski tıklamayı reddeder (Sağlık → Gönderilemeyen olaylar).
+- Loglarda kişisel veri yoktur: yalnız sayılar ve hata kodları.
+
+### 7.4 Kurulum
+
+Worker'da (Clever Cloud, `docs/runbooks/canliya-alma.md` bölüm 2a):
+
+| Değişken | Değer |
+|---|---|
+| `WEB_PULL_URL` | sitenin verdiği taban adres |
+| `WEB_FORM_HMAC_KEY` | `npm run secrets:key` çıktısı; **aynı değer** sitenin eklenti ayarına girilir |
+| `WEB_PULL_SECONDS`, `WEB_PULL_LIMIT`, `WEB_PULL_MAX_PAGES` | isteğe bağlı (120, 50, 10) |
+
+Masaüstü uygulamasına (.exe) bu değişkenler **girilmez**: çekmeyi yalnız worker yapar.
+
+### 7.5 Doğrulama
+
+1. Worker logunda `lead-intake hazır … "webPull":true` ve zamanlayıcı listesinde `web-pull@120000ms`.
+2. `GET https://<worker-adresi>/health` → `{"ok":true,"webPull":true,"lastPullAt":"…","lastError":null}`.
+3. Sitede `is_test` işaretli bir teklif formu gönder → en geç 2 dakika sonra Lead listesinde ("Test lead'leri" açık)
+   "Web" rozetiyle; Yönetim → Sağlık → "Web sitesi formu (çekme)": son tur 1 alındı · 1 yeni · 1 onaylandı.
+4. Sitenin yönetim ekranında talep "CRM'e aktarıldı" görünür (site ekibinin ekranı).
+
+Yerel deneme: `.claude/launch.json` → `crm-web-pull-smoke` (ulaşılamayan adres; Sağlık panelinde `network` görünür).
+
+Sorun giderme (Yönetim → Sağlık'taki son hata kodu):
+
+| Kod | Anlamı | Ne yapılır |
+|---|---|---|
+| `unauthorized.mismatch` | Anahtarlar farklı | Site ve worker'daki `WEB_FORM_HMAC_KEY` aynı mı |
+| `unauthorized.stale` | Saat farkı 5 dakikadan fazla | Site sunucusunun saati (NTP) |
+| `unauthorized.missing`, `unauthorized.malformed` | İmza başlığı gitmedi ya da bozuk | Önbellek / ters proxy başlıkları siliyor olabilir (site ekibi) |
+| `not_configured` | Sitede anahtar girilmemiş | Eklenti ayarı (site ekibi) |
+| `bad_request` | Sözleşme uyuşmazlığı | Site ekibine sürüm sorulur; tek taraflı değiştirilmez |
+| `network`, `timeout`, `http_5xx`, `rate_limited` | Geçici | Kendiliğinden düzelir; uzun sürerse site erişimi |
+| `inbox.write_failed` | Veritabanı yazamadı | Postgres eklentisi; yazılamayanlar sitede bekler |
+
+### 7.6 Anahtar değiştirme (çekme)
+
+Yeni anahtar üret → sitenin eklenti ayarına gir → worker'da `WEB_FORM_HMAC_KEY`'i güncelle ve yeniden başlat
+(`clever restart`). Aradaki dakikalarda turlar `unauthorized.mismatch` verir; talepler sitede bekler, hiçbiri
+kaybolmaz. Push aktarıcısı da çalışıyorsa aynı değer ona da girilir.
