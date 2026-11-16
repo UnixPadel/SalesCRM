@@ -138,6 +138,20 @@ describe("field_data → InboundLeadDto", () => {
     expect(dto.extraAnswers["country_raw"]).toBe("test lead: dummy data for country");
   });
 
+  it("test lead'i: Meta'nın köşeli parantezli biçimi de tanınır (<test lead: dummy data for …>)", () => {
+    const lead = {
+      id: "555000003",
+      field_data: [
+        { name: "adı_soyadı", values: ["<test lead: dummy data for adı_soyadı>"] },
+        { name: "e-posta", values: ["test@fb.com"] },
+      ],
+    } as GraphLead;
+    expect(isMetaTestLead(lead)).toBe(true);
+    expect(
+      isMetaTestLead({ id: "1", field_data: [{ name: "adı_soyadı", values: ["Test Leadoğlu"] }] } as GraphLead),
+    ).toBe(false);
+  });
+
   it("eksik alanlar: ad + soyad birleşir, yerel telefon varsayılan ülkeyle, e-posta null", async () => {
     const dto = await graphLeadToDto(fixture<GraphLead>("lead-missing-fields.json"), ctx);
     expect(dto).toMatchObject({ fullName: "Mehmet Kaya", email: null, phone: "05419876543", country: "TR", city: "" });

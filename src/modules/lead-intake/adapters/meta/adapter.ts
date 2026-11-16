@@ -24,8 +24,11 @@ export type MetaInboxPayload = ({ kind: "change" } & LeadgenChange) | { kind: "l
 export const changePayload = (c: LeadgenChange): MetaInboxPayload => ({ kind: "change", ...c });
 export const leadPayload = (lead: GraphLead): MetaInboxPayload => ({ kind: "lead", lead });
 
-/** Lead Ads Testing Tool lead'leri: değerler "test lead: dummy data for <alan>" biçimindedir. */
-const TEST_VALUE = /^test lead: dummy data/i;
+/**
+ * Lead Ads Testing Tool lead'leri: değerler "test lead: dummy data for <alan>" biçimindedir. 2026-11'den beri Meta
+ * değeri köşeli parantezle gönderir: "<test lead: dummy data for adı_soyadı>" (canlıda görüldü, 2026-11-16).
+ */
+const TEST_VALUE = /^\s*<?\s*test lead: dummy data/i;
 
 export function isMetaTestLead(lead: GraphLead): boolean {
   return (lead.field_data ?? []).some((f) => (f.values ?? []).some((v) => TEST_VALUE.test(String(v))));
