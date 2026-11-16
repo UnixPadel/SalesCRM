@@ -1,6 +1,6 @@
 # ADR-0016: Masaüstü dağıtımı ve gizli bilgiler — kalın .exe + worker mı, merkezi sunucu + ince .exe mi
 
-- Durum: **Bekliyor** — karar: Yönetim (Elshan)
+- Durum: **Kabul edildi** — karar: Yönetim (Elshan), 2026-11-16
 - Tarih: 2026-11-13 (taslak)
 - İlgili: ADR-0004 (secret deposu), ADR-0005 (hosting, bekliyor), ADR-0015 (web formu çekme modu)
 
@@ -67,6 +67,25 @@ bildirimi .exe'de kapatılır, yalnız worker yapar (bunun için bir anahtar ekl
 
 ## Karar
 
-Verilmedi.
+**2. Merkezi CRM sunucusu (Clever Cloud) + tarayıcı ya da ince kabuk** (Elshan, 2026-11-16: "1. seçeneği yapalım").
 
-## Sonuçlar (karar sonrası doldurulacak)
+- `server/index.mjs` Clever Cloud'da tek Node uygulaması olarak çalışır: arayüz (`dist/`), API, webhook ve form uçları,
+  bütün zamanlanmış işler (web sitesi çekme dahil). Ayrı worker uygulaması kurulmaz; `server/worker.mjs` kodda kalır
+  (ileride işler ayrılırsa).
+- Çalışanlar CRM'i tarayıcıdan açar (`crm.unixpadel.com`, ADR-0005 seçenek A). İnce kabuk (.exe) isteğe bağlıdır ve
+  yalnız bu adresi açar; içinde gizli bilgi bulunmaz.
+- Gizli bilgiler yalnız Clever Cloud ortam değişkenlerindedir (ADR-0004). Bilgisayarlara hiçbir bağlantı bilgisi
+  dağıtılmaz.
+
+## Sonuçlar
+
+- Sunucu internete açıktır; üretim kipinde (`NODE_ENV=production`) sertleştirme açılır: giriş deneme sınırı (kullanıcı
+  adı ve IP başına), `Secure` oturum çerezi, güvenlik başlıkları, Clever Cloud yük dengeleyicisine güven (1 atlama),
+  `CRM_DEV_PASSWORD` yok sayılır, yerel Admin şifresi yalnız `CRM_ADMIN_PASSWORD`'dan okunur (diske yazılmaz),
+  veritabanı adresi yoksa sunucu açılmaz (geçici diskte PGlite ile veri kaybı olmasın).
+- `GET /health` (oturumsuz): veritabanı ve web sitesi çekme durumu; Clever Cloud sağlık denetimi bunu kullanır.
+- Oturumlar sunucu belleğindedir: yeniden dağıtımda herkes yeniden giriş yapar. Tek instance çalışır.
+- Kurulum adımları: `docs/runbooks/canliya-alma.md` bölüm 2a.
+- Gelen kutusu anahtarı (`INBOX_ENCRYPTION_KEY`) yalnız sunucudadır; masaüstü kurulumlarıyla uyum sorunu kalkar.
+- Önerilen, zorunlu olmayan: `AUTH_DB_URL` için `KullaniciBilgileri` üzerinde yalnız `SELECT` yetkili ayrı bir MySQL
+  kullanıcısı (öteki programın sahibi açar).

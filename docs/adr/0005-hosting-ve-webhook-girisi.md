@@ -1,6 +1,6 @@
 # ADR-0005: Hosting ve webhook giriş yolu
 
-- Durum: **Bekliyor** — karar: Yazılım + IT. Hedef tarih: Faz 2 başlamadan.
+- Durum: **Kabul edildi** (A. Clever Cloud) — karar: Yönetim (Elshan), 2026-11-16, ADR-0016 ile birlikte
 - Tarih: 2026-10-27
 
 ## Bağlam
@@ -9,7 +9,10 @@ CRM'in bugün nerede çalıştığı belgelenmemiş. Bilinenler: giriş tablosu 
 
 ## Karar
 
-Verilmedi. Aşağıdaki üç seçenekten biri seçilince bu bölüm doldurulur.
+**A. Clever Cloud** (2026-11-16, ADR-0016). CRM tek Node uygulaması olarak Paris bölgesinde, PostgreSQL 16 eklentisi
+`SALES_CRM` ile çalışır. Alan adı `crm.unixpadel.com` (CNAME → Clever Cloud; TLS sertifikasını Clever Cloud Let's
+Encrypt ile kendisi üretir). Uygulama doğrudan internettedir: `/api/*` oturum ister, `/webhooks/*` ve `/forms/*` imza
+ister, giriş ucu deneme sınırlıdır. Kurulum: `docs/runbooks/canliya-alma.md` bölüm 2a.
 
 ## Seçenekler
 

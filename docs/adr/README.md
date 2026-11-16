@@ -10,7 +10,7 @@ Durumlar: **Bekliyor** (karar verilmedi, seçenekler listeli) · **Kabul edildi*
 | [0002](0002-veritabani.md) | Veritabanı: Postgres | Kabul edildi |
 | [0003](0003-kuyruk-ve-outbox.md) | Kuyruk ve arka plan işleri: Postgres outbox + pg-boss | Kabul edildi |
 | [0004](0004-secret-deposu.md) | Secret deposu: ortam değişkenleri, kodda yalnız referans | Kabul edildi (araç hosting'e bağlı) |
-| [0005](0005-hosting-ve-webhook-girisi.md) | Hosting ve webhook giriş yolu | **Bekliyor** |
+| [0005](0005-hosting-ve-webhook-girisi.md) | Hosting ve webhook giriş yolu | Kabul edildi (Clever Cloud) |
 | [0006](0006-asama-modeli-gecisi.md) | Mevcut 5 kolondan 6 aşamalı modele geçiş | **Bekliyor** |
 | [0007](0007-kod-kalitesi-araclari.md) | Lint, format, test, mimari test, secret tarayıcı, CI | Kabul edildi |
 | [0008](0008-pglite-ve-tsx.md) | Testlerde ve yerelde PGlite; sunucu çalışma zamanı tsx | Kabul edildi |
@@ -21,7 +21,7 @@ Durumlar: **Bekliyor** (karar verilmedi, seçenekler listeli) · **Kabul edildi*
 | [0013](0013-satis-panosu-veri-modeli.md) | Satış panosu veri modeli: Lead = fırsat, aktiviteler, kuruluşlar, altı aşama kalır | Kabul edildi |
 | [0014](0014-satis-takip-excel-uyumu.md) | Satış takip (Excel) uyumu: temas kaydı, müşteri durumu, ürün tercihleri, türetilen rapor | Kabul edildi |
 | [0015](0015-web-formu-cekme-modu.md) | Web sitesi formu: çekme modu (site saklar, CRM worker'ı çeker) | Kabul edildi |
-| [0016](0016-dagitim-ve-gizli-bilgiler.md) | Masaüstü dağıtımı ve gizli bilgiler: kalın .exe + worker mı, merkezi sunucu + ince .exe mi | Bekliyor |
+| [0016](0016-dagitim-ve-gizli-bilgiler.md) | Masaüstü dağıtımı ve gizli bilgiler: kalın .exe + worker mı, merkezi sunucu + ince .exe mi | Kabul edildi (merkezi sunucu) |
 
 Şablon:
 

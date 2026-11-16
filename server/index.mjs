@@ -9,11 +9,12 @@ import "./env.mjs";
 import express from "express";
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { authDbEnabled, authDbLabel, checkLogin, checkTable, listDirectory, listTeam } from "./authDb.mjs";
+import { createLoginLimiter } from "./loginLimiter.mjs";
 import { emailsOf, USERS, userFor } from "./users.mjs";
 import { bootSalesPipeline } from "../src/bootstrap/salesPipeline.ts";
 import { bootLeadIntake } from "../src/bootstrap/leadIntake.ts";
@@ -22,8 +23,29 @@ import { bootSheetSync } from "../src/bootstrap/sheetSync.ts";
 import { bootAdmin } from "../src/bootstrap/admin.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// API_PORT (not PORT): dev tooling sets PORT for the Vite dev server.
-const PORT = Number(process.env.API_PORT) || 8787;
+/**
+ * Üretim kipi (ADR-0016: Clever Cloud'da internete açık merkezi sunucu). Açıkken: Secure çerez, giriş deneme sınırı
+ * (her kipte), yük dengeleyiciye güven, CRM_DEV_PASSWORD yok sayılır, Admin şifresi yalnız CRM_ADMIN_PASSWORD'dan,
+ * veritabanı adresi zorunlu.
+ */
+const PRODUCTION = process.env.NODE_ENV === "production";
+// API_PORT: yerelde (scripts/dev.mjs PORT'u Vite'a bırakır, API'den siler). PORT: Clever Cloud verir (8080).
+const PORT = Number(process.env.API_PORT) || Number(process.env.PORT) || 8787;
+const HOST = process.env.API_HOST || (PRODUCTION ? "0.0.0.0" : undefined);
+
+if (PRODUCTION && !(process.env.DATABASE_URL || process.env.POSTGRESQL_ADDON_URI)) {
+  if (process.env.ALLOW_PGLITE_IN_PRODUCTION === "1") {
+    console.warn("[crm] üretim kipinde PGlite (ALLOW_PGLITE_IN_PRODUCTION=1): yalnız yerel deneme içindir");
+  } else {
+    // Clever Cloud'un diski kalıcı değil: PGlite ile açılırsa her dağıtımda veri kaybolur.
+    console.error("[crm] NODE_ENV=production ama DATABASE_URL / POSTGRESQL_ADDON_URI yok: sunucu açılmadı");
+    process.exit(1);
+  }
+}
+if (PRODUCTION && process.env.CRM_DEV_PASSWORD) {
+  console.warn("[crm] CRM_DEV_PASSWORD üretim kipinde yok sayılıyor");
+  delete process.env.CRM_DEV_PASSWORD;
+}
 const IMAP_HOST = process.env.IMAP_HOST || "mail.unixpadel.com";
 const IMAP_PORT = Number(process.env.IMAP_PORT) || 993;
 const MAIL_DOMAIN = (process.env.MAIL_DOMAIN || "unixpadel.com").toLowerCase();
@@ -45,6 +67,8 @@ const FREEMAIL =
 /* ---------------- local config (admin password) ---------------- */
 
 function loadConfig() {
+  // Üretimde disk kalıcı değil ve şifre dosyada durmamalı: Admin şifresi yalnız CRM_ADMIN_PASSWORD'dan okunur.
+  if (PRODUCTION) return {};
   mkdirSync(DATA_DIR, { recursive: true });
   let cfg = {};
   try {
@@ -60,7 +84,23 @@ function loadConfig() {
   return cfg;
 }
 const config = loadConfig();
-const adminPassword = () => process.env.CRM_ADMIN_PASSWORD || config.adminPassword;
+const adminPassword = () => process.env.CRM_ADMIN_PASSWORD || config.adminPassword || "";
+if (PRODUCTION && adminPassword().length < 12) {
+  console.warn("[crm] CRM_ADMIN_PASSWORD yok ya da 12 karakterden kısa: yerel Admin hesabı kapalı");
+}
+/** Sabit süreli karşılaştırma (karakter karakter erken çıkış şifre uzunluğu/ön eki sızdırmasın). */
+const sameSecret = (a, b) =>
+  timingSafeEqual(createHash("sha256").update(String(a)).digest(), createHash("sha256").update(String(b)).digest());
+const adminLoginOk = (password) => {
+  const expected = adminPassword();
+  if (!expected || (PRODUCTION && expected.length < 12)) return false;
+  return sameSecret(password, expected);
+};
+
+/** Oturum çerezi: üretimde yalnız HTTPS (Clever Cloud'da "Force HTTPS" açık olmalı). */
+const COOKIE_FLAGS = `Path=/; HttpOnly; SameSite=Lax${PRODUCTION ? "; Secure" : ""}`;
+const loginLimiter = createLoginLimiter();
+setInterval(() => loginLimiter.sweep(), 600e3).unref();
 
 /* ---------------- sessions (memory only) ---------------- */
 
@@ -246,6 +286,16 @@ const team = teamDirectory();
 
 const app = express();
 app.disable("x-powered-by");
+// Clever Cloud yük dengeleyicisi (Sōzu) istemci adresini X-Forwarded-For'un SONUNA ekler: 1 atlamaya güvenilir,
+// req.ip o son adres olur (deneme sınırı bunu kullanır). Yerelde güvenilmez. TRUST_PROXY ile değiştirilebilir.
+app.set("trust proxy", process.env.TRUST_PROXY !== undefined ? Number(process.env.TRUST_PROXY) : PRODUCTION ? 1 : 0);
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "same-origin");
+  res.setHeader("X-Frame-Options", "DENY");
+  if (PRODUCTION) res.setHeader("Strict-Transport-Security", "max-age=31536000");
+  next();
+});
 
 /* ---- satış pipeline'ı ve gelen lead akışı (src/modules) ----
  * Webhook'lar ve web formu ucu oturumsuzdur ve imza için ham gövde ister: genel JSON ayrıştırıcıdan
@@ -261,6 +311,28 @@ const adminRouter = bootAdmin(salesPipeline, leadIntake, adFeedback);
 /* Form tablosu (Google E-Tablolar'daki Meta form dökümü) → CRM; SHEET_SYNC_CSV_URL yoksa kapalı. */
 const sheetSync = bootSheetSync(salesPipeline);
 
+/**
+ * Sağlık denetimi (oturumsuz; Clever Cloud CC_HEALTH_CHECK_PATH=/health). Veritabanı yanıt vermiyorsa 503. `ok` yalnız
+ * son web sitesi çekme turunun hatasız olup olmadığını söyler; kişisel veri ve sunucu adı içermez.
+ */
+app.get("/health", async (_req, res) => {
+  res.setHeader("cache-control", "no-store");
+  const pull = leadIntake.webPull?.status() ?? null;
+  try {
+    await salesPipeline.db.query("SELECT 1 AS one");
+  } catch {
+    return res.status(503).json({ ok: false, lastPullAt: pull?.lastPullAt ?? null, lastError: "db_unreachable" });
+  }
+  res.json({
+    ok: pull ? pull.lastRunOk !== false : true,
+    webPull: Boolean(pull),
+    lastPullAt: pull?.lastPullAt ?? null,
+    lastError: pull && pull.lastRunOk === false ? pull.lastErrorCode : null,
+  });
+});
+
+// Oturumsuz giriş ucu küçük gövde alır; büyük sınır yalnız oturumlu uçlar için.
+app.use("/api/auth", express.json({ limit: "10kb" }));
 app.use(express.json({ limit: "25mb" }));
 
 const publicUser = (s) => ({
@@ -285,11 +357,25 @@ app.post("/api/auth/login", async (req, res) => {
   const password = String(req.body?.password || "");
   if (!email) return res.status(400).json({ error: "Kullanıcı adı girin." });
   if (!password) return res.status(400).json({ error: "Şifre girin." });
+  const limitKey = email;
+  const ip = req.ip || "";
+  const wait = loginLimiter.retryAfter(limitKey, ip);
+  if (wait > 0) {
+    res.setHeader("Retry-After", String(wait));
+    return res
+      .status(429)
+      .json({ error: `Çok fazla hatalı deneme. ${Math.ceil(wait / 60)} dakika sonra yeniden deneyin.` });
+  }
+  /** Başarısız deneme: sayaç artar, yanıt döner. */
+  const deny = (status, error) => {
+    loginLimiter.fail(limitKey, ip);
+    return res.status(status).json({ error });
+  };
   const who = userFor(email);
 
-  const devBypass = process.env.CRM_DEV_PASSWORD && password === process.env.CRM_DEV_PASSWORD;
+  const devBypass = Boolean(process.env.CRM_DEV_PASSWORD) && sameSecret(password, process.env.CRM_DEV_PASSWORD);
   if (who.local) {
-    if (password !== adminPassword()) return res.status(401).json({ error: "Admin şifresi hatalı." });
+    if (!adminLoginOk(password)) return deny(401, "Admin şifresi hatalı.");
   } else if (devBypass) {
     /* accepted */
   } else if (authDbEnabled()) {
@@ -302,9 +388,10 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(502).json({ error: "Kullanıcı veritabanına bağlanılamadı. Yöneticinize haber verin." });
     }
     if (!r.ok)
-      return res
-        .status(r.inactive ? 403 : 401)
-        .json({ error: r.inactive ? "Bu hesap pasif. Yöneticinize başvurun." : "Kullanıcı adı ya da şifre hatalı." });
+      return deny(
+        r.inactive ? 403 : 401,
+        r.inactive ? "Bu hesap pasif. Yöneticinize başvurun." : "Kullanıcı adı ya da şifre hatalı.",
+      );
     // Known team members keep the spelling the board already uses as `owner` ("Yuşa"), others use the table's first name.
     const known = r.email ? userFor(r.email) : null;
     who.name =
@@ -320,12 +407,12 @@ app.post("/api/auth/login", async (req, res) => {
       await c.connect();
       await c.logout();
     } catch (e) {
-      if (e.authenticationFailed || e.responseStatus === "NO")
-        return res.status(401).json({ error: "E-posta ya da şifre hatalı." });
+      if (e.authenticationFailed || e.responseStatus === "NO") return deny(401, "E-posta ya da şifre hatalı.");
       console.error("[login]", e.message);
-      return res.status(502).json({ error: "Posta sunucusuna bağlanılamadı: " + e.message });
+      return res.status(502).json({ error: "Posta sunucusuna bağlanılamadı. Yöneticinize haber verin." });
     }
   }
+  loginLimiter.succeed(limitKey);
   const sid = randomBytes(24).toString("base64url");
   const session = {
     email,
@@ -340,7 +427,7 @@ app.post("/api/auth/login", async (req, res) => {
     cache: new Map(),
   };
   sessions.set(sid, session);
-  res.setHeader("set-cookie", `crm_sid=${sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL / 1000}`);
+  res.setHeader("set-cookie", `crm_sid=${sid}; ${COOKIE_FLAGS}; Max-Age=${SESSION_TTL / 1000}`);
   res.json({ user: publicUser(session) });
 });
 
@@ -352,7 +439,7 @@ app.get("/api/auth/me", (req, res) => {
 
 app.post("/api/auth/logout", (req, res) => {
   sessions.delete(cookies(req).crm_sid);
-  res.setHeader("set-cookie", "crm_sid=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+  res.setHeader("set-cookie", `crm_sid=; ${COOKIE_FLAGS}; Max-Age=0`);
   res.status(204).end();
 });
 
@@ -507,7 +594,7 @@ app.get("/api/users", auth, async (req, res) => {
       };
     } catch (e) {
       console.error("[users]", e.message);
-      if (!teamCache.list) return res.status(502).json({ error: "Kullanıcı tablosu okunamadı: " + e.message });
+      if (!teamCache.list) return res.status(502).json({ error: "Kullanıcı tablosu okunamadı." });
     }
   }
   res.json(teamCache.list);
@@ -562,8 +649,9 @@ O zaman arayüz bu adresten açılır.</p>
   });
 }
 
-app.listen(PORT, async () => {
-  console.log(`[crm] server on http://localhost:${PORT}`);
+const server = app.listen(PORT, HOST, async () => {
+  console.log(`[crm] server on http://${HOST && HOST !== "0.0.0.0" ? HOST : "localhost"}:${PORT}`);
+  if (PRODUCTION) console.log("[crm] üretim kipi: Secure çerez, giriş deneme sınırı, yük dengeleyiciye güven");
   console.log(
     MAIL_ENABLED
       ? `[crm] e-posta okuma açık (imap ${IMAP_HOST}:${IMAP_PORT})`
@@ -585,3 +673,19 @@ app.listen(PORT, async () => {
   }
   void emailsOf;
 });
+
+/* Clever Cloud yeniden dağıtımda SIGTERM gönderir: zamanlayıcıları durdur, veritabanını düzgün kapat. */
+let stopping = false;
+async function shutdown(signal) {
+  if (stopping) return;
+  stopping = true;
+  console.log(`[crm] duruyor (${signal})`);
+  leadIntake.scheduler.stop();
+  adFeedback.scheduler.stop();
+  sheetSync?.scheduler.stop();
+  server.close();
+  await salesPipeline.close().catch(() => undefined);
+  process.exit(0);
+}
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));

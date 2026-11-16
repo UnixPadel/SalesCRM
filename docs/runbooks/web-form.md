@@ -3,10 +3,10 @@
 İki yol vardır; ikisi de aynı imzayı, aynı anahtarı (`WEB_FORM_HMAC_KEY`), aynı gelen kutusunu ve aynı mükerrer
 anahtarını (`web:<submission_id>`) kullanır:
 
-- **Çekme modu (2026-11, birincil):** site talepleri kendi tarafında saklar; CRM'in worker'ı imzalı isteklerle çeker ve
+- **Çekme modu (2026-11, birincil):** site talepleri kendi tarafında saklar; CRM sunucusu imzalı isteklerle çeker ve
   onaylar. CRM'in internete açık bir adresi gerekmez. **Bölüm 7.**
 - **Push (Faz 3):** site sunucusundaki aktarıcı her gönderimi `POST /forms/web` ucuna iter. CRM'in internete açık
-  olmasını ister; bugünkü dağıtımda (masaüstü uygulaması + worker) bu uca ulaşılamaz. Bölüm 1–6.
+  olmasını ister; CRM artık internette (ADR-0016) ama çekme modu birincildir. Bölüm 1–6.
 
 Faz 3. Site formu tarayıcıdan değil **site sunucusundan** CRM'e gönderilir; imza anahtarı tarayıcıya inmez.
 Referans uygulama: `integrations/web-form-relay/` (bağımlılıksız Node süreci). Site başka dilde çalışıyorsa
@@ -209,7 +209,7 @@ değildir, ek yanıtta kalır. Ülke ne `country`'den ne `country_input`'tan ç�
 
 ### 7.4 Kurulum
 
-Worker'da (Clever Cloud, `docs/runbooks/canliya-alma.md` bölüm 2a):
+CRM uygulamasında (Clever Cloud, `docs/runbooks/canliya-alma.md` bölüm 2a):
 
 | Değişken | Değer |
 |---|---|
@@ -217,12 +217,12 @@ Worker'da (Clever Cloud, `docs/runbooks/canliya-alma.md` bölüm 2a):
 | `WEB_FORM_HMAC_KEY` | `npm run secrets:key` çıktısı; **aynı değer** aynı bölümdeki "Shared key" alanına girilir (ya da `wp-config.php`'de `define('UPX_CRM_HMAC_KEY', '…')`) |
 | `WEB_PULL_SECONDS`, `WEB_PULL_LIMIT`, `WEB_PULL_MAX_PAGES` | isteğe bağlı (120, 50, 10) |
 
-Masaüstü uygulamasına (.exe) bu değişkenler **girilmez**: çekmeyi yalnız worker yapar.
+Çekmeyi CRM sunucusu yapar (ADR-0016: merkezi sunucu; ayrı worker kurulmaz).
 
 ### 7.5 Doğrulama
 
-1. Worker logunda `lead-intake hazır … "webPull":true` ve zamanlayıcı listesinde `web-pull@120000ms`.
-2. `GET https://<worker-adresi>/health` → `{"ok":true,"webPull":true,"lastPullAt":"…","lastError":null}`.
+1. Uygulama logunda `lead-intake hazır … "webPull":true` ve zamanlayıcı listesinde `web-pull@120000ms`.
+2. `GET https://crm.unixpadel.com/health` → `{"ok":true,"webPull":true,"lastPullAt":"…","lastError":null}`.
 3. Teklif formunu adresin sonuna `?upx_test=1` ekleyerek aç (ör. `https://www.unixpadel.com/tr/contact-us/?upx_test=1`)
    ve gönder → `is_test: true` gider; en geç 2 dakika sonra Lead listesinde ("Test lead'leri" açık) "Web" rozetiyle;
    Yönetim → Sağlık → "Web sitesi formu (çekme)": son tur 1 alındı · 1 yeni · 1 onaylandı.
@@ -235,7 +235,7 @@ Sorun giderme (Yönetim → Sağlık'taki son hata kodu):
 
 | Kod | Anlamı | Ne yapılır |
 |---|---|---|
-| `unauthorized.mismatch` | Anahtarlar farklı | Site ve worker'daki `WEB_FORM_HMAC_KEY` aynı mı |
+| `unauthorized.mismatch` | Anahtarlar farklı | Site ve CRM uygulamasındaki `WEB_FORM_HMAC_KEY` aynı mı |
 | `unauthorized.stale` | Saat farkı 5 dakikadan fazla | Site sunucusunun saati (NTP) |
 | `unauthorized.missing`, `unauthorized.malformed` | İmza başlığı gitmedi ya da bozuk | Önbellek / ters proxy başlıkları siliyor olabilir (site ekibi) |
 | `not_configured` | Sitede anahtar girilmemiş | Eklenti ayarı (site ekibi) |
@@ -245,6 +245,6 @@ Sorun giderme (Yönetim → Sağlık'taki son hata kodu):
 
 ### 7.6 Anahtar değiştirme (çekme)
 
-Yeni anahtar üret → sitenin eklenti ayarına gir → worker'da `WEB_FORM_HMAC_KEY`'i güncelle ve yeniden başlat
+Yeni anahtar üret → sitenin eklenti ayarına gir → CRM uygulamasında `WEB_FORM_HMAC_KEY`'i güncelle ve yeniden başlat
 (`clever restart`). Aradaki dakikalarda turlar `unauthorized.mismatch` verir; talepler sitede bekler, hiçbiri
 kaybolmaz. Push aktarıcısı da çalışıyorsa aynı değer ona da girilir.
