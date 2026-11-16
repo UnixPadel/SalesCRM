@@ -515,9 +515,12 @@
   flex-direction: column;
   gap: var(--s-1);
 }
+/* Tablo sayfanın kalan yüksekliğini doldurur (sayfa altında boşluk kalmaz); dikey ve yatay kaydırma tek yerde,
+   başlık satırı ve ilk iki sütun yapışık. Az satırda kutu içerik kadar kısalır. */
 .ll-wrap {
   overflow: auto;
-  max-block-size: calc(100dvh - 220px);
+  flex: 0 1 auto;
+  min-block-size: 0;
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   background: var(--surface-1);
@@ -895,6 +898,10 @@
 }
 .ll-page .ll-wrap {
   max-inline-size: 100%;
+}
+/* Lead listesi ana alanın tamamını kaplar; tablo kutusu kalan yüksekliği alır (.ll-wrap). */
+.ll-page {
+  flex: 1 1 auto;
 }
 .new-more {
   border: 1px solid var(--border);

@@ -50,9 +50,9 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
 
   return (
     <header className="hdr">
-      <a className="wordmark" href="#/list" aria-label="Unixpadel satış panosu, ana sayfa">
-        <b>unixpadel</b>
-        <span>satış panosu</span>
+      <a className="wordmark" href="#/list" aria-label="Unixpadel Satış Panosu, ana sayfa">
+        <b>Unixpadel</b>
+        <span>Satış Panosu</span>
       </a>
       <nav className="nav" aria-label="Ana menü">
         {NAV.map((n) => (

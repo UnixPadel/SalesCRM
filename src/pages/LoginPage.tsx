@@ -30,8 +30,8 @@ export function LoginPage() {
     <div className="login">
       <div className="login-card">
         <div className="wordmark">
-          <b>unixpadel</b>
-          <span>satış panosu</span>
+          <b>Unixpadel</b>
+          <span>Satış Panosu</span>
         </div>
         <h1>Giriş yap</h1>
         <form onSubmit={submit} noValidate>
