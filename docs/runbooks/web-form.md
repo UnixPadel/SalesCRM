@@ -222,7 +222,7 @@ CRM uygulamasında (Clever Cloud, `docs/runbooks/canliya-alma.md` bölüm 2a):
 ### 7.5 Doğrulama
 
 1. Uygulama logunda `lead-intake hazır … "webPull":true` ve zamanlayıcı listesinde `web-pull@120000ms`.
-2. `GET https://crm.unixpadel.com/health` → `{"ok":true,"webPull":true,"lastPullAt":"…","lastError":null}`.
+2. `GET https://salescrm.unixpadel.com/health` → `{"ok":true,"webPull":true,"lastPullAt":"…","lastError":null}`.
 3. Teklif formunu adresin sonuna `?upx_test=1` ekleyerek aç (ör. `https://www.unixpadel.com/tr/contact-us/?upx_test=1`)
    ve gönder → `is_test: true` gider; en geç 2 dakika sonra Lead listesinde ("Test lead'leri" açık) "Web" rozetiyle;
    Yönetim → Sağlık → "Web sitesi formu (çekme)": son tur 1 alındı · 1 yeni · 1 onaylandı.

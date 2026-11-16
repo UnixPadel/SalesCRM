@@ -10,8 +10,8 @@ CRM'in bugün nerede çalıştığı belgelenmemiş. Bilinenler: giriş tablosu 
 ## Karar
 
 **A. Clever Cloud** (2026-11-16, ADR-0016). CRM tek Node uygulaması olarak Paris bölgesinde, PostgreSQL 16 eklentisi
-`SALES_CRM` ile çalışır. Alan adı `crm.unixpadel.com` (CNAME → Clever Cloud; TLS sertifikasını Clever Cloud Let's
-Encrypt ile kendisi üretir). Uygulama doğrudan internettedir: `/api/*` oturum ister, `/webhooks/*` ve `/forms/*` imza
+`SALES_CRM` ile çalışır. Alan adı `salescrm.unixpadel.com` (ajans önerisi `crm` yerine; Cloudflare DNS'te CNAME →
+Clever Cloud, proxy kapalı; TLS sertifikasını Clever Cloud Let's Encrypt ile kendisi üretir). Uygulama doğrudan internettedir: `/api/*` oturum ister, `/webhooks/*` ve `/forms/*` imza
 ister, giriş ucu deneme sınırlıdır. Kurulum: `docs/runbooks/canliya-alma.md` bölüm 2a.
 
 ## Seçenekler
@@ -27,7 +27,7 @@ Yazılımın önerisi: **A** hızlı başlangıç için, **B** uzun vadede. C ya
 ## Karar için gereken bilgi
 
 - CRM'in bugün nerede çalıştığı ve kimin yönettiği (IT).
-- `crm.unixpadel.com` alan adının DNS yönetimi kimde (IT / MarcaDM).
+- CRM alan adının DNS yönetimi kimde (IT / MarcaDM). Yanıt (2026-11-16): `unixpadel.com` Cloudflare'de.
 - Aylık hosting bütçesi (Yönetim).
 
 ## Sonuçlar (karar sonrası doldurulacak)

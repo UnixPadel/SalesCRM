@@ -2,7 +2,7 @@
 
 Kaynak: "Unixpadel — Lead → CRM Entegrasyon Rehberi" (MarcaDM) bölüm 7 ve `docs/yol-haritasi.md` bölüm 7. Bu belge
 canlıya alma adımlarını yazar. Hosting kararı verildi (2026-11-16, ADR-0005 A ve ADR-0016): CRM, Clever Cloud'da tek
-Node uygulaması olarak çalışır; çalışanlar `crm.unixpadel.com` adresini tarayıcıdan açar. Kurulum bölüm 2a'dadır.
+Node uygulaması olarak çalışır; çalışanlar `salescrm.unixpadel.com` adresini tarayıcıdan açar. Kurulum bölüm 2a'dadır.
 
 Kural: bir adım doğrulanmadan sonrakine geçilmez. Gizli anahtarlar yalnız hosting'in gizli ayar deposuna girilir;
 e-postaya, sohbete, koda ve bu depoya yazılmaz.
@@ -11,7 +11,7 @@ e-postaya, sohbete, koda ve bu depoya yazılmaz.
 
 | # | Adım | Kim | Bitti sayılır |
 |---|---|---|---|
-| 1 | Clever Cloud uygulaması ve alan adı `crm.unixpadel.com` (bölüm 2a) | IT + Yazılım | Adres HTTPS ile açılıyor, giriş ekranı görünüyor |
+| 1 | Clever Cloud uygulaması ve alan adı `salescrm.unixpadel.com` (bölüm 2a) | IT + Yazılım | Adres HTTPS ile açılıyor, giriş ekranı görünüyor |
 | 2 | Postgres 16 (Clever Cloud `SALES_CRM`), uygulamaya bağlı (bölüm 2a) | IT + Yazılım | `/health` 200; şema sürümü 14 |
 | 3 | Gizli anahtarlar (aşağıdaki tablo) | IT | Yönetim → Sağlık'ta ilgili satırlar "tanımlı" |
 | 4 | Dağıtım: GitHub `main` → Clever Cloud (derleme ve başlatma kendiliğinden) | Yazılım | `/api/auth/me` 401 dönüyor, giriş ekranı açılıyor |
@@ -49,7 +49,7 @@ Yedek: hosting'in günlük Postgres yedeği açık olmalı; canlıya almadan ön
 
 Dağıtım (ADR-0016, 2026-11-16): CRM, Clever Cloud'da **tek Node.js uygulamasıdır**: arayüz, API, webhook ve form uçları,
 bütün zamanlanmış işler (web sitesi çekme, gelen kutusu → lead, Meta yedek senkronu, reklam geri bildirimi, form
-tablosu). Ayrı worker kurulmaz (`server/worker.mjs` kodda kalır, kullanılmaz). Çalışanlar `https://crm.unixpadel.com`
+tablosu). Ayrı worker kurulmaz (`server/worker.mjs` kodda kalır, kullanılmaz). Çalışanlar `https://salescrm.unixpadel.com`
 adresini tarayıcıdan açar; bilgisayarlarda hiçbir bağlantı bilgisi bulunmaz. Veritabanı Clever Cloud PostgreSQL 16
 eklentisi **SALES_CRM** (Paris, encryption at rest açık).
 
@@ -86,12 +86,16 @@ adları sayfaları (`https://www.clever.cloud/developers/doc/deploy/applications
 6. **Dağıt.** İlk dağıtımda migration'lar açılışta uygulanır. Logda `[crm] üretim kipi: …`, `sales-pipeline hazır …
    "db":"postgres"` ve `lead-intake hazır … "webPull":true` görünmeli. Bağlantı TLS hatası verirse `DATABASE_URL`
    olarak `POSTGRESQL_ADDON_URI` değerinin sonuna `?sslmode=require` eklenmiş hali girilir.
-7. **Alan adı.** Uygulama → Domain names → `crm.unixpadel.com` ekle. DNS yönetiminde (IT / MarcaDM):
-   `crm` için `CNAME` → `domain.par.clever-cloud.com.` Sertifika kendiliğinden gelir (birkaç dakika).
+7. **Alan adı.** Uygulama → Domain names → `salescrm.unixpadel.com` ekle (Route boş), **primary** yap; test adresi
+   `…cleverapps.io` doğrulama bitene kadar kalır. `unixpadel.com`'un DNS'i **Cloudflare**'dedir (ad sunucuları
+   `aspen` / `maxim.ns.cloudflare.com`); hosting panelindeki (cPanel) DNS bölgesi kullanılmaz, oraya girilen kayıt
+   etkisizdir. Cloudflare → `unixpadel.com` → DNS → Records → Add record: Type `CNAME`, Name `salescrm`, Target
+   `domain.par.clever-cloud.com`, Proxy status **DNS only** (gri bulut; turuncu bulutla Clever Cloud sertifika alamaz),
+   TTL Auto. Sertifika kendiliğinden gelir (birkaç dakika).
 8. **Doğrula.**
-   - `GET https://crm.unixpadel.com/health` → `200 {"ok":true,"webPull":true,…}`. Site anahtarı henüz girilmediyse
+   - `GET https://salescrm.unixpadel.com/health` → `200 {"ok":true,"webPull":true,…}`. Site anahtarı henüz girilmediyse
      `ok:false`, `lastError:"not_configured"` normaldir; veritabanına ulaşılamıyorsa 503.
-   - `https://crm.unixpadel.com` giriş ekranını açar; şirket kullanıcı adıyla ve Admin hesabıyla giriş denenir.
+   - `https://salescrm.unixpadel.com` giriş ekranını açar; şirket kullanıcı adıyla ve Admin hesabıyla giriş denenir.
    - Şema sürümü 14: PostgreSQL eklentisinin sorgu ekranından `SELECT max(version) FROM schema_migrations;`.
    - `docs/runbooks/web-form.md` bölüm 7.5'teki test gönderimi.
 9. **Çalışanlara dağıtım.** Adres paylaşılır; Edge/Chrome'da "Uygulama olarak yükle" ya da masaüstü kısayolu yeterlidir.
@@ -109,7 +113,7 @@ adları sayfaları (`https://www.clever.cloud/developers/doc/deploy/applications
 | `CC_NODE_DEV_DEPENDENCIES` | `install` (arayüz derlemesi için Vite) | Hayır |
 | `CC_POST_BUILD_HOOK` | `npm run build:only` | Hayır |
 | `CC_HEALTH_CHECK_PATH` | `/health` | Hayır |
-| `PUBLIC_BASE_URL` | `https://crm.unixpadel.com` | Hayır |
+| `PUBLIC_BASE_URL` | `https://salescrm.unixpadel.com` | Hayır |
 | `AUTH_DB_URL` (gerekirse `AUTH_DB_TABLE`) | Giriş için şirket kullanıcı tablosu (`UNIXPADEL_ST`, salt okunur) | Evet |
 | `CRM_ADMIN_PASSWORD` | Yerel Admin hesabı; en az 12 karakter, yoksa Admin kapalı | Evet |
 | `INBOX_ENCRYPTION_KEY` | `npm run secrets:key`; yedeği güvenli yerde saklanır, değiştirilmez | Evet |

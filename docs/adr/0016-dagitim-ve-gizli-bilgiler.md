@@ -72,7 +72,7 @@ bildirimi .exe'de kapatılır, yalnız worker yapar (bunun için bir anahtar ekl
 - `server/index.mjs` Clever Cloud'da tek Node uygulaması olarak çalışır: arayüz (`dist/`), API, webhook ve form uçları,
   bütün zamanlanmış işler (web sitesi çekme dahil). Ayrı worker uygulaması kurulmaz; `server/worker.mjs` kodda kalır
   (ileride işler ayrılırsa).
-- Çalışanlar CRM'i tarayıcıdan açar (`crm.unixpadel.com`, ADR-0005 seçenek A). İnce kabuk (.exe) isteğe bağlıdır ve
+- Çalışanlar CRM'i tarayıcıdan açar (`salescrm.unixpadel.com`, ADR-0005 seçenek A). İnce kabuk (.exe) isteğe bağlıdır ve
   yalnız bu adresi açar; içinde gizli bilgi bulunmaz.
 - Gizli bilgiler yalnız Clever Cloud ortam değişkenlerindedir (ADR-0004). Bilgisayarlara hiçbir bağlantı bilgisi
   dağıtılmaz.
