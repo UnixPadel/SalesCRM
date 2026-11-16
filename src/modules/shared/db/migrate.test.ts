@@ -13,7 +13,7 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
 
   it("dosyaları sırayla uygular, ikinci çalıştırmada atlar", async () => {
     const files = readMigrations(MIGRATIONS_DIR);
-    expect(files.map((f) => f.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+    expect(files.map((f) => f.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
     const first = await migrate(db, files);
     expect(first.applied).toEqual([
       "0001_faz1_core",
@@ -30,10 +30,11 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
       "0012_faz7g_satis_takip",
       "0013_faz7_admin",
       "0014_web_pull_seed",
+      "0015_meta_tr_form_fields",
     ]);
     const second = await migrate(db, files);
     expect(second.applied).toEqual([]);
-    expect(second.skipped).toHaveLength(14);
+    expect(second.skipped).toHaveLength(15);
   });
 
   it("on sekiz tablo ve seed verisi var", async () => {
@@ -69,7 +70,7 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
     expect(stages.filter((s) => s.is_terminal).map((s) => s.code)).toEqual(["WON", "LOST"]);
     expect(await db.query("SELECT code FROM lost_reasons")).toHaveLength(7);
     expect(await db.query("SELECT * FROM territory_rules")).toHaveLength(0);
-    expect(await db.query("SELECT id FROM form_field_mappings WHERE provider = 'meta'")).toHaveLength(16);
+    expect(await db.query("SELECT id FROM form_field_mappings WHERE provider = 'meta'")).toHaveLength(24);
     expect(await db.query("SELECT id FROM form_field_mappings WHERE provider = 'google'")).toHaveLength(14);
     expect(await db.query("SELECT id FROM form_field_mappings WHERE provider = 'web'")).toHaveLength(19);
     expect(await db.query("SELECT key FROM integration_settings")).toHaveLength(9);

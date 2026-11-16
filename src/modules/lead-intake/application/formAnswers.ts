@@ -38,15 +38,24 @@ const QUESTION_SYNONYMS: Record<FormTarget, string[]> = {
     "where do you plan to install",
     // Meta form dökümü ("UNIXPADEL Form Kampanyası Verisi", 2026-11).
     "where will the court be installed",
+    // Meta TR formu ("Plate Court - Qualified Lead TR - 2026", anahtar `kort_nereye_kurulacak?`).
+    "kort nereye kurulacak",
   ],
   install_timeline: [
     "kurulum zamani",
     "what is your estimated project timeline",
     "project timeline",
     "when do you plan to install",
+    "kurulumu ne zaman", // Meta TR formu: `kurulumu_ne_zaman_planlıyorsunuz?`
   ],
   // "project type", "court count": web sitesi teklif formu (çekme API'si v1, `project_type` / `court_count`).
-  customer_profile: ["musteri profili", "customer profile", "which best describes you", "project type"],
+  customer_profile: [
+    "musteri profili",
+    "customer profile",
+    "which best describes you",
+    "project type",
+    "sizi en iyi hangisi tanimliyor", // Meta TR formu: `sizi_en_iyi_hangisi_tanımlıyor?`
+  ],
   court_count: ["kort sayisi", "kac kort", "how many courts do you need", "how many courts", "court count"],
 };
 
@@ -67,6 +76,9 @@ const INSTALL_SITE_VALUES: Record<string, InstallSite> = {
   "cati ustu rooftop": "rooftop",
   rooftop: "rooftop",
   "mevcut zemin asfalt beton": "existing_ground",
+  // Meta "Plate Court - Qualified Lead" 2026 formları (TR / EN).
+  "mevcut tenis kortu asfalt beton zemin": "existing_ground",
+  "existing tennis court asphalt concrete": "existing_ground",
   "existing asphalt or concrete": "existing_ground",
   diger: "other",
   other: "other",

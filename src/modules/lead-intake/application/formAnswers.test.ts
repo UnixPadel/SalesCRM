@@ -69,6 +69,74 @@ describe("normalizeFormAnswers", () => {
     expect(arch.customerProfile).toBeNull();
     expect(arch.unmatched).toEqual([{ target: "customer_profile", raw: "Architect / consultant" }]);
   });
+
+  it("Meta 'Plate Court - Qualified Lead' 2026 formları: TR ve EN anahtarları, her seçenek eşleşir", () => {
+    const tr = (site: string, when: string, who: string, courts: string) => ({
+      "kort_nereye_kurulacak?": site,
+      "kurulumu_ne_zaman_planlıyorsunuz?": when,
+      "sizi_en_iyi_hangisi_tanımlıyor?": who,
+      "kaç_kort_planlıyorsunuz?": courts,
+    });
+    expect(
+      normalizeFormAnswers(
+        {},
+        tr(
+          "Mevcut tenis kortu / asfalt / beton zemin",
+          "3-6 ay içinde",
+          "Yeni padel tesisi açacak yatırımcı",
+          "2-3 kort",
+        ),
+      ),
+    ).toMatchObject({
+      installSite: "existing_ground",
+      installTimeline: "m3_6",
+      customerProfile: "investor",
+      courtCountBand: "2_3",
+      unmatched: [],
+    });
+    const trOptions = {
+      site: [
+        "Mevcut tenis kortu / asfalt / beton zemin",
+        "Çatı / teras",
+        "Kapalı salon",
+        "Sahil / rüzgarlı alan",
+        "Henüz arazi/yer yok",
+      ],
+      when: ["3 ay içinde", "3-6 ay içinde", "6-12 ay içinde", "Şimdilik araştırıyorum"],
+      who: [
+        "Padel kulübü sahibi / işletmecisi",
+        "Yeni padel tesisi açacak yatırımcı",
+        "Otel / tatil köyü / konut projesi",
+        "Okul / belediye / spor tesisi",
+        "Distribütör / bayi",
+        "Evim için özel kort",
+      ],
+      courts: ["1 kort", "2-3 kort", "4-6 kort", "7+ kort"],
+    };
+    for (let i = 0; i < 6; i++) {
+      const r = normalizeFormAnswers(
+        {},
+        tr(trOptions.site[i % 5]!, trOptions.when[i % 4]!, trOptions.who[i]!, trOptions.courts[i % 4]!),
+      );
+      expect(r.unmatched).toEqual([]);
+    }
+    const en = normalizeFormAnswers(
+      {},
+      {
+        "where_will_the_court_be_installed?": "Existing tennis court / asphalt / concrete",
+        "when_do_you_plan_to_install?": "Just researching for now",
+        "which_best_describes_you?": "Private court for my home",
+        "how_many_courts_are_you_planning?": "7+ courts",
+      },
+    );
+    expect(en).toMatchObject({
+      installSite: "existing_ground",
+      installTimeline: "researching",
+      customerProfile: "private_home",
+      courtCountBand: "7_plus",
+      unmatched: [],
+    });
+  });
 });
 
 describe("parseCourtAnswer", () => {
