@@ -146,7 +146,10 @@ CRM worker ──imzalı POST <taban>/pending───────────�
            ──imzalı POST <taban>/ack (inserted | duplicate)──▶ site talebi "alındı" işaretler
 ```
 
-Site tarafını başka ekip yazar; sözleşme **v1** tek taraflı değiştirilmez.
+Site tarafını başka ekip yazar; sözleşme **v1** tek taraflı değiştirilmez. Site uygulaması: `UnixPadel/web-unixpadel`
+deposu, `wp-plugin/includes/crm-pull.php` (dal `feat/crm-pull`, 2026-11-16). Talepler WordPress'te "Quote requests"
+(`upx_quote`) olarak saklanır; bu dosya öncesinde kaydedilmiş talepler metinlerinden ayrıştırılıp
+`import_source: "wp-legacy"` ile gönderilir, çöp kutusundakiler hiç gönderilmez.
 
 ### 7.1 Sözleşme v1 (site sunar)
 
@@ -210,8 +213,8 @@ Worker'da (Clever Cloud, `docs/runbooks/canliya-alma.md` bölüm 2a):
 
 | Değişken | Değer |
 |---|---|
-| `WEB_PULL_URL` | sitenin verdiği taban adres |
-| `WEB_FORM_HMAC_KEY` | `npm run secrets:key` çıktısı; **aynı değer** sitenin eklenti ayarına girilir |
+| `WEB_PULL_URL` | `https://www.unixpadel.com/?rest_route=/unixpadel/v1/crm` (WP admin → Settings → Unixpadel Static → Sales CRM connection → "Address for the CRM") |
+| `WEB_FORM_HMAC_KEY` | `npm run secrets:key` çıktısı; **aynı değer** aynı bölümdeki "Shared key" alanına girilir (ya da `wp-config.php`'de `define('UPX_CRM_HMAC_KEY', '…')`) |
 | `WEB_PULL_SECONDS`, `WEB_PULL_LIMIT`, `WEB_PULL_MAX_PAGES` | isteğe bağlı (120, 50, 10) |
 
 Masaüstü uygulamasına (.exe) bu değişkenler **girilmez**: çekmeyi yalnız worker yapar.
@@ -220,9 +223,11 @@ Masaüstü uygulamasına (.exe) bu değişkenler **girilmez**: çekmeyi yalnız 
 
 1. Worker logunda `lead-intake hazır … "webPull":true` ve zamanlayıcı listesinde `web-pull@120000ms`.
 2. `GET https://<worker-adresi>/health` → `{"ok":true,"webPull":true,"lastPullAt":"…","lastError":null}`.
-3. Sitede `is_test` işaretli bir teklif formu gönder → en geç 2 dakika sonra Lead listesinde ("Test lead'leri" açık)
-   "Web" rozetiyle; Yönetim → Sağlık → "Web sitesi formu (çekme)": son tur 1 alındı · 1 yeni · 1 onaylandı.
-4. Sitenin yönetim ekranında talep "CRM'e aktarıldı" görünür (site ekibinin ekranı).
+3. Teklif formunu adresin sonuna `?upx_test=1` ekleyerek aç (ör. `https://www.unixpadel.com/tr/contact-us/?upx_test=1`)
+   ve gönder → `is_test: true` gider; en geç 2 dakika sonra Lead listesinde ("Test lead'leri" açık) "Web" rozetiyle;
+   Yönetim → Sağlık → "Web sitesi formu (çekme)": son tur 1 alındı · 1 yeni · 1 onaylandı.
+4. WP admin → Quote requests listesinin "CRM" sütununda talep "✓ In CRM" ve tarih görünür; ayar sayfasında
+   "Last fetch" son çekme zamanını gösterir.
 
 Yerel deneme: `.claude/launch.json` → `crm-web-pull-smoke` (ulaşılamayan adres; Sağlık panelinde `network` görünür).
 
