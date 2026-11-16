@@ -31,6 +31,8 @@ export interface GraphClient {
   getFormLeads(formId: string, since: Date): Promise<GraphLead[]>;
   subscribePage(pageId: string, pageAccessToken?: string): Promise<{ success: boolean }>;
   getSubscribedApps(pageId: string, pageAccessToken?: string): Promise<unknown>;
+  /** Sistem kullanıcısı token'ıyla sayfanın erişim token'ı (`subscribed_apps` sayfa token'ı ister, hata #210). */
+  getPageAccessToken(pageId: string): Promise<string>;
 }
 
 export const LEAD_FIELDS =
@@ -134,5 +136,12 @@ export function createGraphClient(o: GraphClientOptions): GraphClient {
       ),
 
     getSubscribedApps: (pageId, pageToken) => call("GET", `${pageId}/subscribed_apps`, {}, pageToken ?? o.token),
+
+    async getPageAccessToken(pageId) {
+      const r = await call<{ access_token?: string }>("GET", pageId, { fields: "access_token" }, o.token);
+      if (!r.access_token)
+        throw new Error("Sayfa token'ı alınamadı: sistem kullanıcısı bu sayfaya atanmamış olabilir.");
+      return r.access_token;
+    },
   };
 }

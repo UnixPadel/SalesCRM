@@ -189,6 +189,7 @@ describe("kaynak adaptörü ve yedek senkron", () => {
     getFormLeads: vi.fn(async () => []),
     subscribePage: vi.fn(async () => ({ success: true })),
     getSubscribedApps: vi.fn(async () => ({})),
+    getPageAccessToken: vi.fn(async () => "page-token"),
   });
 
   it("change payload'ı Graph'tan çeker; lead payload'ı çağrı yapmaz; tanınmayan payload kalıcı hata", async () => {
@@ -331,6 +332,16 @@ describe("Graph API istemcisi", () => {
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://graph.facebook.com/v26.0/100200300/subscribed_apps?subscribed_fields=leadgen");
     expect(init.method).toBe("POST");
+  });
+
+  it("getPageAccessToken: sayfa kimliğiyle access_token alanını ister; yoksa hata", async () => {
+    const fetchImpl = vi.fn(async () => json(200, { access_token: "PAGE-TOKEN", id: "100200300" }));
+    expect(await client(fetchImpl).getPageAccessToken("100200300")).toBe("PAGE-TOKEN");
+    const [url] = fetchImpl.mock.calls[0] as unknown as [string];
+    expect(new URL(url).pathname).toBe("/v26.0/100200300");
+    expect(new URL(url).searchParams.get("fields")).toBe("access_token");
+    const empty = vi.fn(async () => json(200, { id: "100200300" }));
+    await expect(client(empty).getPageAccessToken("100200300")).rejects.toThrow(/Sayfa token/);
   });
 });
 

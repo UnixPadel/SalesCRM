@@ -9,16 +9,16 @@ staging'de internete açık HTTPS adres (ADR-0005). Secret değerleri bu belgeye
 |---|---|---|
 | `META_APP_SECRET` | Uygulama → Ayarlar → Temel | Webhook imzası bununla doğrulanır |
 | `META_VERIFY_TOKEN` | Biz üretiriz: `npm run secrets:key` | Webhook kaydında "Doğrulama belirteci" alanına aynı değer |
-| `META_SYSTEM_USER_TOKEN` | Business Manager → Sistem kullanıcıları → Token üret | İzinler: `leads_retrieval`, `pages_manage_ads`, `pages_show_list`, `pages_read_engagement`; sayfa sistem kullanıcısına atanmış olmalı. Süresiz token tercih edilir. |
+| `META_SYSTEM_USER_TOKEN` | Business Manager → Sistem kullanıcıları → Token üret | İzinler: `leads_retrieval`, `pages_manage_ads`, `pages_manage_metadata`, `pages_show_list`, `pages_read_engagement`. Sistem kullanıcısı rolü **Employee**; uygulama (Manage app) ve sayfa (Full control) atanmış olmalı, yoksa izin listesi boş gelir. Süre: Never. Yalnız üretildiğinde bir kez gösterilir. |
 | `META_GRAPH_API_VERSION` | — | Tek yer; varsayılan `v26.0` |
-| `META_PAGE_ID`, `META_FORM_IDS` | Sayfa ve form kimlikleri | `integration_settings` tablosu doluysa o kazanır (`active_form_ids`) |
+| `META_PAGE_ID`, `META_FORM_IDS` | Sayfa ve form kimlikleri. Sayfa kimliği: Business settings → Pages → ID (**uygulama kimliği / App ID değil**) | `integration_settings` tablosu doluysa o kazanır (`active_form_ids`) |
 | `INBOX_ENCRYPTION_KEY` | `npm run secrets:key` | Inbox payload şifreleme anahtarı; staging ve canlıda zorunlu |
 
 Yeniden başlatma sonrası log satırı `lead-intake hazır` içinde `meta: true, encrypted: true` görünmeli.
 
 ## 2. Webhook kaydı (Meta uygulama paneli)
 
-1. Uygulama → Webhooks → **Page** nesnesi → "Subscribe to this object".
+1. Uygulama → Webhooks → üstteki açılır listede **Page** (User değil; `leadgen` yalnız Page'de) → "Subscribe to this object".
 2. Callback URL: `https://<crm-adresi>/webhooks/meta` — Doğrulama belirteci: `META_VERIFY_TOKEN` değeri.
    Meta GET ile `hub.challenge` gönderir; sunucu 200 + challenge döner (yanlış belirteç → 403).
 3. Alan: **leadgen** → Subscribe.
@@ -33,8 +33,11 @@ Webhook kaydı yetmez; sayfa uygulamaya abone edilmelidir:
 npx tsx scripts/meta-subscribe.ts --page <PAGE_ID>
 ```
 
-Çıktıda `subscribed_fields` içinde `leadgen` görünmeli. Yalnız kontrol: `--check`. Sistem kullanıcısı
-token'ı sayfa için yetkili değilse `--page-token <SAYFA_TOKENI>` ile sayfa token'ı verilir (loglanmaz).
+Çıktıda `subscribed_fields` içinde `leadgen` görünmeli. Yalnız kontrol: `--check`. Betik `.env`'yi okur ve
+sayfa token'ını sistem kullanıcısı token'ıyla kendisi alır (`subscribed_apps` sayfa token'ı ister, hata #210);
+gerekirse `--page-token <SAYFA_TOKENI>` ile elle verilir (loglanmaz). Token'ı `.env`'ye geçici yazdıysanız iş bitince
+silin. Canlı kurulum (2026-11-16): sayfa Unixpadel `106484928277062`, uygulama Unixpadel Sales CRM
+`1042317835556744`, abonelik `leadgen` yapıldı.
 
 ## 4. Doğrulama (Lead Ads Testing Tool)
 

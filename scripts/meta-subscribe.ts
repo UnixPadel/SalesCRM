@@ -3,9 +3,11 @@
  *
  *   npx tsx scripts/meta-subscribe.ts --page <PAGE_ID> [--page-token <SAYFA_TOKENI>] [--check]
  *
- * `--check` yalnız mevcut abonelikleri listeler. Sayfa token'ı verilmezse META_SYSTEM_USER_TOKEN kullanılır
- * (sistem kullanıcısı sayfaya atanmış olmalı). Token argümanı loglanmaz.
+ * `--check` yalnız mevcut abonelikleri listeler. Sayfa token'ı verilmezse META_SYSTEM_USER_TOKEN ile sayfanın
+ * token'ı alınır (sistem kullanıcısı sayfaya atanmış olmalı; `subscribed_apps` sayfa token'ı ister). Hiçbir token
+ * yazdırılmaz. `.env` okunur. Sayfa kimliği uygulama kimliği (App ID) değildir: Business settings → Pages → ID.
  */
+import "../server/env.mjs";
 import { createLogger, loadConfig, readSecret } from "../src/modules/shared/kernel";
 import { createGraphClient, metaConfig } from "../src/modules/lead-intake/adapters/meta";
 
@@ -24,8 +26,8 @@ async function main() {
     console.error("Sayfa kimliği gerekli: --page <PAGE_ID> ya da META_PAGE_ID.");
     process.exit(2);
   }
-  const pageToken = opt("--page-token");
   const graph = createGraphClient({ version: cfg.graphVersion, token: cfg.systemUserToken, logger });
+  const pageToken = opt("--page-token") ?? (await graph.getPageAccessToken(pageId));
   if (!args.includes("--check")) {
     const r = await graph.subscribePage(pageId, pageToken);
     logger.info("abonelik isteği", { pageId, success: r.success });
