@@ -515,12 +515,13 @@
   flex-direction: column;
   gap: var(--s-1);
 }
-/* Tablo sayfanın kalan yüksekliğini doldurur (sayfa altında boşluk kalmaz); dikey ve yatay kaydırma tek yerde,
-   başlık satırı ve ilk iki sütun yapışık. Az satırda kutu içerik kadar kısalır. */
+/* Lead'ler sayfanın parçasıdır: ayrı kaydırma kutusu yok, ana alan (main.page) dikey ve yatay kayar; başlık satırı
+   üstte, ilk iki sütun solda yapışık kalır. position: relative, hücrelerdeki ekran okuyucu metinlerini (sr-only,
+   position: absolute) tablonun içinde tutar; yoksa belge binlerce piksel uzar ve sayfa dışarıdan da kayar. */
 .ll-wrap {
-  overflow: auto;
-  flex: 0 1 auto;
-  min-block-size: 0;
+  position: relative;
+  inline-size: max-content;
+  min-inline-size: 100%;
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   background: var(--surface-1);
@@ -896,12 +897,10 @@
 .reports-page > .sr {
   margin-block-end: var(--s-6);
 }
-.ll-page .ll-wrap {
-  max-inline-size: 100%;
-}
-/* Lead listesi ana alanın tamamını kaplar; tablo kutusu kalan yüksekliği alır (.ll-wrap). */
+/* Lead listesi içerik kadar uzar; kaydırmayı ana alan yapar (.ll-wrap'in notu). */
 .ll-page {
-  flex: 1 1 auto;
+  flex: none;
+  overflow: visible;
 }
 .new-more {
   border: 1px solid var(--border);
@@ -928,8 +927,12 @@
   .ll .sticky.s1 {
     inset-inline-start: 0;
   }
-  .ll .sticky.s0 {
+  /* Dar ekranda tarih sütunu solda yapışmaz; başlık hücresi yine üstte kalır. */
+  .ll td.sticky.s0 {
     position: static;
+  }
+  .ll th.sticky.s0 {
+    inset-inline-start: auto;
   }
 }
 

@@ -757,6 +757,12 @@ input[type="number"]::-webkit-outer-spin-button {
   grid-template-rows: auto minmax(0, 1fr);
   block-size: 100%;
 }
+/* Uygulama açıkken belge kaymaz; kaydırmayı yalnız ana alan (main.page) yapar. Böylece bir öğe taşsa bile sayfanın
+   dışında ikinci bir kaydırma çubuğu çıkmaz. Giriş ekranı (.shell yok) normal kayar. */
+html:has(.shell),
+html:has(.shell) body {
+  overflow: hidden;
+}
 .hdr {
   display: flex;
   align-items: center;
