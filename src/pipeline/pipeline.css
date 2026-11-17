@@ -237,6 +237,17 @@ a.pl-row:focus-visible {
 .fact-row dt {
   color: var(--text-3);
   font-size: var(--t-sm);
+  overflow-wrap: anywhere;
+}
+/* Kaynak detayı: etiketler form sorusu olabilir (uzun); geniş sütun, dar ekranda alt alta. */
+.facts-wide .fact-row {
+  grid-template-columns: minmax(140px, 260px) minmax(0, 1fr);
+}
+@media (max-width: 560px) {
+  .facts-wide .fact-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
 }
 .fact-row dd {
   margin: 0;

@@ -548,7 +548,7 @@ export function SourceDetail({ lead }: { lead: LeadListDto }) {
   return (
     <details className="panel">
       <summary className="sec-h">{t("lead.sourceDetail")}</summary>
-      <dl className="facts-dl">
+      <dl className="facts-dl facts-wide">
         {lead.platformLeadId && (
           <Fact label={t("lead.platformId")}>
             <code>{lead.platformLeadId}</code>
@@ -558,7 +558,7 @@ export function SourceDetail({ lead }: { lead: LeadListDto }) {
         {lead.campaign.adName && <Fact label={t("lead.ad")}>{lead.campaign.adName}</Fact>}
         {rows.map((r) => (
           <Fact key={r.key} label={r.labelKey ? t(r.label) : r.label}>
-            {r.value}
+            {r.valueKey ? t(r.value) : r.value}
           </Fact>
         ))}
       </dl>

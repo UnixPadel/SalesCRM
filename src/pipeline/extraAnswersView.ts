@@ -22,7 +22,31 @@ export const EXTRA_LABELS: Record<string, string> = {
   excel_warning: "extra.excel_warning",
   platform_lead_id: "extra.platform_lead_id",
   sheet_row: "extra.sheet_row",
+  platform: "extra.platform",
+  is_organic: "extra.is_organic",
 };
+
+/** Meta'nın platform kısaltmaları → okunur ad. */
+const PLATFORM_NAMES: Record<string, string> = {
+  fb: "Facebook",
+  ig: "Instagram",
+  msg: "Messenger",
+  an: "Audience Network",
+  wa: "WhatsApp",
+};
+
+/**
+ * Ham form anahtarı ya da seçenek kodu → okunur metin: "kort_nereye_kurulacak?" → "Kort nereye kurulacak?",
+ * "padel_kulübü_sahibi_/_işletmecisi" → "Padel kulübü sahibi / işletmecisi". Boşluk içeren metne dokunulmaz
+ * (kişinin kendi yazdığı cevap).
+ */
+export function humanize(raw: string): string {
+  if (!raw.includes("_")) return raw;
+  const s = raw.replace(/_+/g, " ").replace(/\s+/g, " ").trim();
+  if (!s) return raw;
+  const first = /[çğıöşüÇĞİÖŞÜ]/.test(s) ? s[0]!.toLocaleUpperCase("tr") : s[0]!.toUpperCase();
+  return first + s.slice(1);
+}
 
 function valueText(v: unknown): string {
   if (v === null || v === undefined) return "—";
@@ -39,6 +63,8 @@ export interface ExtraRow {
   label: string;
   labelKey: boolean;
   value: string;
+  /** `value` bir çeviri anahtarı (Evet / Hayır). */
+  valueKey?: boolean;
 }
 
 /** Satırlar: düz değerler olduğu gibi; nesneler "üst · alt" anahtarlarına açılır (yalnız bir düzey). */
@@ -49,11 +75,23 @@ export function extraAnswerRows(extra: Record<string, unknown>): ExtraRow[] {
     const known = EXTRA_LABELS[k];
     if (v && typeof v === "object" && !Array.isArray(v)) {
       for (const [k2, v2] of Object.entries(v as Record<string, unknown>)) {
-        out.push({ key: `${k}.${k2}`, label: `${known ? k : k} · ${k2}`, labelKey: false, value: valueText(v2) });
+        out.push({ key: `${k}.${k2}`, label: `${k} · ${k2}`, labelKey: false, value: valueText(v2) });
       }
       continue;
     }
-    out.push({ key: k, label: known ?? k, labelKey: !!known, value: valueText(v) });
+    if (typeof v === "boolean") {
+      out.push({
+        key: k,
+        label: known ?? humanize(k),
+        labelKey: !!known,
+        value: v ? "common.yes" : "common.no",
+        valueKey: true,
+      });
+      continue;
+    }
+    const text = valueText(v);
+    const value = k === "platform" ? (PLATFORM_NAMES[text.toLowerCase()] ?? text) : known ? text : humanize(text);
+    out.push({ key: k, label: known ?? humanize(k), labelKey: !!known, value });
   }
   return out;
 }
