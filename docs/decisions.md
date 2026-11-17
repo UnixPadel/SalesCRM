@@ -9,7 +9,7 @@ Genel plan'daki sekiz karar. İlk ikisi verilmeden Faz 1'e başlanmaz. Durum: **
 | 3 | Hosting ve webhook girişi | Yazılım + IT | Bekliyor | [ADR-0005](adr/0005-hosting-ve-webhook-girisi.md) |
 | 4 | Teknoloji yığını ve secret deposu | Yazılım | Verildi | [ADR-0001](adr/0001-teknoloji-yigini.md), [ADR-0002](adr/0002-veritabani.md), [ADR-0003](adr/0003-kuyruk-ve-outbox.md), [ADR-0004](adr/0004-secret-deposu.md) |
 | 5 | Aşama adları (TR/EN) ve "Nitelikli" için üç soru | Satış + MarcaDM | Bekliyor (varsayılanla kodlandı) | [ADR-0006](adr/0006-asama-modeli-gecisi.md); Faz 1 seed'i: `db/migrations/0002_faz1_seed.sql`, sorular `src/modules/sales-pipeline/domain/qualification.ts`. Onay gelince yeni migration ile ad/metin değişir. |
-| 6 | KVKK ve GDPR görüşü: hash'li verinin yurt dışına aktarımı, onay metni, saklama süreleri | Hukuk | Bekliyor | Sorular aşağıda |
+| 6 | KVKK ve GDPR görüşü: hash'li verinin yurt dışına aktarımı, onay metni, saklama süreleri | Hukuk | Verildi (Yönetim beyanı, 2026-11-17: KVKK onayı var) | Sorular aşağıda; onay metni ve sürümü kayda geçirilmeli |
 | 7 | Optimizasyon olayı (Meta ve Google'da hangi aşama) | MarcaDM | Bekliyor | 2 numaralı ölçüme bağlı |
 | 8 | Ülke → sorumlu ve yedek satışçı tablosu | Satış | Kısmen (2026-11-10) | 22 ülkenin kuralı Excel LİSTELER sayfasından yazıldı (`db:import-excel`); yedek satışçı hiçbirinde yok; lead gelen 60 ülkenin kuralı yok. Artık Yönetim → Bölgeler ekranından düzenlenir (Faz 7b). Satışın gözden geçirmesi bekleniyor |
 
@@ -35,7 +35,7 @@ Genel plan'daki sekiz karar. İlk ikisi verilmeden Faz 1'e başlanmaz. Durum: **
 
 | # | İş | Sahip | Durum | Not |
 |---|---|---|---|---|
-| 17 | CRM veri seti (dataset) kimliği ve Conversions API token'ının teslimi; `ENABLED_PROVIDERS=meta` | MarcaDM + IT | Bekliyor | `docs/runbooks/meta-capi.md` bölüm 1; veri seti Unixpadel Business Manager'da (madde 1) |
+| 17 | CRM veri seti (dataset) kimliği ve Conversions API token'ının teslimi; `ENABLED_PROVIDERS=meta` | MarcaDM + IT | Verildi (2026-11-17: veri seti kimliği hazır; token = sistem kullanıcısı token'ı, `META_CAPI_TOKEN` boş) | `docs/runbooks/meta-capi.md` bölüm 1; veri seti Unixpadel Business Manager'da (madde 1) |
 | 18 | Aylık Meta lead hacmi eşiğin altında: MarcaDM'e yazılı bildirim | Yönetim | Bekliyor | Metin aşağıda; akış ölçüm amaçlı açık kalır, kampanya hedefi çevrilmez |
 | 19 | Meta olay adlarının onayı (seed `0006`: Yeni Lead, İletişim Kuruldu, Nitelikli Lead, Teklif Gönderildi, Kazanıldı, Kaybedildi; optimizasyon hedefi Nitelikli Lead) | MarcaDM + Satış | Bekliyor (varsayılanla kodlandı) | Değişiklik migration ya da Faz 6 ekranı ile; madde 5 ve 7 ile birlikte |
 | 20 | Dead-letter raporu alıcıları (`OUTBOX_REPORT_TO`) ve staging Test Olayları kodu (`META_TEST_EVENT_CODE`) | IT + MarcaDM | Bekliyor | Test kodu yalnız staging; canlıda boş |
