@@ -4,7 +4,7 @@ import { useLang, type Lang } from "../i18n";
 import { navigate, type Route } from "../router";
 import { NotificationsBell } from "../pipeline/NotificationsBell";
 import { pipelineApi } from "../pipeline/api";
-import { useReference, useTodayCount } from "../pipeline/hooks";
+import { usePoolCount, useReference, useTodayCount } from "../pipeline/hooks";
 import { useCrm, type Theme } from "../state/CrmContext";
 import { Avatar, Button, Icon } from "./ui";
 
@@ -29,10 +29,18 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
 
   // Faz 6a: "Bugün" rozeti yeni aktivite ucundan (gecikmiş + bugün).
   const dueCount = useTodayCount();
+  const poolCount = usePoolCount();
 
   // Bütün sayfalar yeni pipeline'dan (Faz 6d'den itibaren).
   const NAV: { r: Route; icon: string; label: string; badge?: number; badgeLabel?: string; bad?: boolean }[] = [
     { r: "list", icon: "list", label: t("nav.list") },
+    {
+      r: "pool",
+      icon: "inbox",
+      label: t("nav.pool"),
+      badge: poolCount,
+      badgeLabel: t("nav.pool.badge", { n: poolCount }),
+    },
     { r: "pipeline", icon: "columns", label: t("nav.board") },
     {
       r: "activities",

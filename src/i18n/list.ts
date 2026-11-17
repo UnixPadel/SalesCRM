@@ -2,6 +2,17 @@
 export const LIST_DICT = {
   "nav.list": ["Lead listesi", "Lead list"],
   "list.title": ["Lead listesi", "Lead list"],
+  "nav.pool": ["Ortak havuz", "Shared pool"],
+  "nav.pool.badge": ["{n} açık lead sorumlu bekliyor", "{n} open leads waiting for an owner"],
+  "pool.title": ["Ortak havuz", "Shared pool"],
+  "pool.hint.rep": [
+    'Sorumlusu olmayan lead\'ler. "Üstlen" ile kendinize alın; aldığınız lead artık havuzda görünmez.',
+    'Leads without an owner. Use "Take" to claim one; a claimed lead leaves the pool.',
+  ],
+  "pool.hint.admin": [
+    "Sorumlusu olmayan lead'ler. Lead'i açıp bir temsilciye atayın. Ülke kuralı eklediyseniz Yönetim → Bölgeler → Havuza uygula ile toplu atanır.",
+    "Leads without an owner. Open a lead to assign it. After adding a country rule, Admin → Territories → Apply to pool assigns them in bulk.",
+  ],
   "list.count": ["{n} lead", "{n} leads"],
   "list.caption": ["Lead listesi · {n} lead", "Lead list · {n} leads"],
   "list.search": ["Ad, telefon, e-posta ya da Excel No", "Name, phone, e-mail or Excel no"],

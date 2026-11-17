@@ -13,6 +13,7 @@ import type {
 } from "../modules/sales-pipeline/api/dto";
 import { useCrm } from "../state/CrmContext";
 import { PipelineError, pipelineApi } from "./api";
+import { contactApi } from "./contact/contactApi";
 
 /** Hata → kullanıcı metni: önce kod çevirisi, yoksa sunucu mesajı. */
 export function useErrorText() {
@@ -170,6 +171,35 @@ export function useTodayCount() {
         .catch(() => undefined);
     load();
     const id = setInterval(load, 60_000);
+    window.addEventListener("hashchange", load);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      window.removeEventListener("hashchange", load);
+    };
+  }, [user]);
+  return count;
+}
+
+/**
+ * "Ortak havuz" sekmesinin rozeti: kullanıcının görebildiği, sorumlusu olmayan açık (kazanılmamış, kaybedilmemiş)
+ * lead sayısı. Test lead'leri sayılmaz (sunucu varsayılanı).
+ */
+export function usePoolCount() {
+  const { user } = useCrm();
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    const load = () =>
+      contactApi
+        .leads(new URLSearchParams({ owner: "pool", limit: "2000" }))
+        .then(
+          (rows) => alive && setCount(rows.filter((l) => l.currentStage !== "WON" && l.currentStage !== "LOST").length),
+        )
+        .catch(() => undefined);
+    load();
+    const id = setInterval(load, 120_000);
     window.addEventListener("hashchange", load);
     return () => {
       alive = false;

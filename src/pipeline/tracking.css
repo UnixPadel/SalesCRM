@@ -492,6 +492,15 @@
   color: var(--text-2);
   font-size: var(--t-sm);
 }
+/* Ortak havuz sekmesi: listenin üstündeki tek satırlık açıklama. */
+.ll-pool-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
 .ll-from {
   display: flex;
   flex-wrap: wrap;
