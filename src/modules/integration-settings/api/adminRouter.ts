@@ -32,7 +32,7 @@ export interface ProviderInfo {
   listed: boolean;
   secrets: { name: string; set: boolean }[];
   /** Ekrandan düzenlenebilen (secret olmayan) ayar anahtarları. */
-  settings: { key: string; kind: "text" | "list" }[];
+  settings: { key: string; kind: "text" | "list"; pattern?: RegExp }[];
 }
 
 export interface AdminRouterDeps {
@@ -334,15 +334,19 @@ export function createAdminRouter(deps: AdminRouterDeps): Router {
       if (!def || typeof raw !== "string" || text.length > MAX_SETTING) {
         return fail(res, new RuleError("setting.invalid", "Ayar anahtarı ya da değeri geçersiz.", { key }));
       }
-      const value =
+      const items =
         def.kind === "list"
-          ? JSON.stringify(
-              text
-                .split(",")
-                .map((x) => x.trim())
-                .filter(Boolean),
-            )
-          : text;
+          ? text
+              .split(",")
+              .map((x) => x.trim())
+              .filter(Boolean)
+          : [text];
+      // Biçim denetimi (ör. Meta kimlikleri yalnız rakam): yanlış alana token yapıştırılması gibi hatalar kaydedilmez.
+      // Boş değer serbesttir (ayar silinir). Değer hata yanıtına yazılmaz.
+      if (def.pattern && items.some((x) => x && !def.pattern!.test(x))) {
+        return fail(res, new RuleError("setting.invalid_format", "Değer beklenen biçimde değil.", { key }));
+      }
+      const value = def.kind === "list" ? JSON.stringify(items) : text;
       await settings.set(p.provider, key, value);
       changed.push(key);
     }

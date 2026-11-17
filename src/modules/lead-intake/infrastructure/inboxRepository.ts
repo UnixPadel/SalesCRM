@@ -3,7 +3,7 @@
  * okurken çözülür. Sıra alma `FOR UPDATE SKIP LOCKED` ile: birden fazla instance aynı satırı almaz.
  */
 import type { Queryable } from "../../shared/db";
-import type { PayloadCipher } from "../../shared/kernel";
+import { redactSecrets, type PayloadCipher } from "../../shared/kernel";
 import type { InboxEvent, InboxFailedItem, InboxKind, InboxStats, InboxStatus, NewInboxEvent } from "../application";
 import type { InboxRepository } from "../application";
 
@@ -102,14 +102,14 @@ export function pgInboxRepository(q: Queryable, cipher: PayloadCipher): InboxRep
     async markRetry(id, nextAttemptAt, error) {
       await q.query(
         "UPDATE inbound_webhook_events SET status = 'pending', next_attempt_at = $2, last_error_code = $3, last_error = $4 WHERE id = $1",
-        [id, nextAttemptAt, error.code, error.message.slice(0, 2000)],
+        [id, nextAttemptAt, error.code, redactSecrets(error.message).slice(0, 2000)],
       );
     },
 
     async markFailed(id, error, now) {
       await q.query(
         "UPDATE inbound_webhook_events SET status = 'failed', processed_at = $2, last_error_code = $3, last_error = $4 WHERE id = $1",
-        [id, now, error.code, error.message.slice(0, 2000)],
+        [id, now, error.code, redactSecrets(error.message).slice(0, 2000)],
       );
     },
 

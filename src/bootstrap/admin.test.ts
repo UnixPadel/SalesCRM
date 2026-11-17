@@ -349,6 +349,17 @@ describe("yönetim paneli API'si", () => {
       values: { outbound_enabled: "false" },
     });
     expect([bad.status, bad.body.code]).toEqual([422, "setting.invalid"]);
+    // Meta kimlikleri yalnız rakam: veri seti ya da form alanına yapıştırılan token reddedilir, eski değer kalır.
+    const token = await call<{ code: string }>("admin", "PUT", "/api/admin/settings/meta", {
+      values: { dataset_id: "EAA" + "Zz9".repeat(20) },
+    });
+    expect([token.status, token.body.code]).toEqual([422, "setting.invalid_format"]);
+    expect(JSON.stringify(token.body)).not.toContain("EAA");
+    const badList = await call<{ code: string }>("admin", "PUT", "/api/admin/settings/meta", {
+      values: { active_form_ids: "111, abc" },
+    });
+    expect(badList.body.code).toBe("setting.invalid_format");
+    expect(await intake.settings.get("meta", "dataset_id")).toBe("987654");
   });
 
   it("EUR kuru ekrandan değişir → pano toplamı ve referans hemen yeni kurla", async () => {

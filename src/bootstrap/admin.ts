@@ -17,6 +17,11 @@ import type { AdFeedbackApp } from "./adFeedback";
 import type { LeadIntakeApp } from "./leadIntake";
 import type { SalesPipelineApp, SessionLike } from "./salesPipeline";
 
+/** Meta sayfa / form / veri seti kimlikleri: yalnız rakam. */
+const META_NUMERIC_ID = /^\d{1,25}$/;
+/** Google Ads müşteri kimliği: 10 hane, tireli ya da tiresiz. */
+const GOOGLE_CUSTOMER_ID = /^\d{3}-?\d{3}-?\d{4}$/;
+
 export interface BootAdminOptions {
   env?: Env;
 }
@@ -44,9 +49,10 @@ export function bootAdmin(
         secret(META_CAPI_SECRET_NAMES.token),
       ],
       settings: [
-        { key: "dataset_id", kind: "text" },
-        { key: "page_id", kind: "text" },
-        { key: "active_form_ids", kind: "list" },
+        // Meta kimlikleri yalnız rakamdır; token gibi metinler reddedilir (2026-11-17: veri seti alanına token girilmişti).
+        { key: "dataset_id", kind: "text", pattern: META_NUMERIC_ID },
+        { key: "page_id", kind: "text", pattern: META_NUMERIC_ID },
+        { key: "active_form_ids", kind: "list", pattern: META_NUMERIC_ID },
       ],
     },
     {
@@ -56,8 +62,8 @@ export function bootAdmin(
       listed: listed("google"),
       secrets: [secret(GOOGLE_SECRET_NAMES.webhookKey), secret(GOOGLE_DM_SECRET_NAMES.serviceAccountKey)],
       settings: [
-        { key: "customer_id", kind: "text" },
-        { key: "login_customer_id", kind: "text" },
+        { key: "customer_id", kind: "text", pattern: GOOGLE_CUSTOMER_ID },
+        { key: "login_customer_id", kind: "text", pattern: GOOGLE_CUSTOMER_ID },
       ],
     },
     {

@@ -331,6 +331,10 @@ export const ADMIN_DICT = {
     "This provider has no feedback, or the value is invalid.",
   ],
   "err.setting.invalid": ["Ayar anahtarı ya da değeri geçersiz.", "The setting key or value is invalid."],
+  "err.setting.invalid_format": [
+    "Değer beklenen biçimde değil (Meta kimlikleri yalnız rakamdan oluşur; token buraya girilmez).",
+    "The value is not in the expected format (Meta IDs are digits only; a token does not go here).",
+  ],
   "err.mapping.stage_invalid": [
     "Aşama kodu geçersiz ya da iki kez verilmiş.",
     "The stage code is invalid or repeated.",

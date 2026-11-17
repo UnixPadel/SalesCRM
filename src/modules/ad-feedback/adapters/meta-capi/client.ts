@@ -3,7 +3,7 @@
  * başlığında (URL'de ve gövdede değil; loglara sızmasın). Yanıt sınıflandırması dağıtıcının SendResult'ına:
  *  2xx → ok · 429, 5xx, Graph geçici kodları, zaman aşımı, ağ → retry · 400 ve diğer 4xx → dead.
  */
-import type { Logger } from "../../../shared/kernel";
+import { redactSecrets, type Logger } from "../../../shared/kernel";
 import type { SendResult } from "../../application";
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -34,6 +34,14 @@ export function createCapiClient(o: CapiClientOptions): CapiClient {
     async sendEvents(datasetId, body) {
       if (!o.token) return { kind: "retry", code: null, error: "Conversions API token'ı tanımlı değil." };
       if (!datasetId) return { kind: "retry", code: null, error: "Veri seti kimliği tanımlı değil." };
+      // Veri seti kimliği yalnız rakamdır. Yanlış alana yapıştırılmış bir token Meta'ya adres olarak gitmesin
+      // (Meta hata mesajında geri yazar); olay beklemede kalır, kimlik düzeltilince gider.
+      if (!/^\d{1,25}$/.test(datasetId))
+        return {
+          kind: "retry",
+          code: null,
+          error: "Veri seti kimliği geçersiz (yalnız rakam olmalı); Yönetim → Ayarlar → Meta.",
+        };
       const url = `https://graph.facebook.com/${o.graphVersion}/${encodeURIComponent(datasetId)}/events`;
       let res: Response;
       try {
@@ -58,7 +66,9 @@ export function createCapiClient(o: CapiClientOptions): CapiClient {
         return { kind: "ok", code: res.status };
       }
       const err = json?.error ?? {};
-      const message = `${err.message ?? `HTTP ${res.status}`}${err.code !== undefined ? ` (code ${err.code}${err.error_subcode ? `/${err.error_subcode}` : ""})` : ""}`;
+      const message = redactSecrets(
+        `${err.message ?? `HTTP ${res.status}`}${err.code !== undefined ? ` (code ${err.code}${err.error_subcode ? `/${err.error_subcode}` : ""})` : ""}`,
+      );
       const transient =
         res.status === 429 || res.status >= 500 || (err.code !== undefined && TRANSIENT_CODES.has(err.code));
       o.logger.warn("capi: istek reddedildi", {

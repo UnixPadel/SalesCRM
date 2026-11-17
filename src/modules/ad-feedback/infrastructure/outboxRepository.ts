@@ -4,6 +4,7 @@
  * Satırları sales-pipeline yazar (OutboxWriter, aynı transaction); burada yalnız durum geçişleri.
  */
 import type { Queryable } from "../../shared/db";
+import { redactSecrets } from "../../shared/kernel";
 import type {
   DeadRow,
   OutboundDetail,
@@ -151,14 +152,14 @@ export function pgOutboxRepository(q: Queryable): OutboxRepository {
     async markRetry(id, nextAttemptAt, responseCode, error) {
       await q.query(
         "UPDATE outbound_conversion_events SET status = 'failed', next_attempt_at = $2, last_response_code = $3, last_error = $4 WHERE id = $1",
-        [id, nextAttemptAt, responseCode, error.slice(0, 2000)],
+        [id, nextAttemptAt, responseCode, redactSecrets(error).slice(0, 2000)],
       );
     },
 
     async markDead(id, responseCode, error, now) {
       await q.query(
         "UPDATE outbound_conversion_events SET status = 'dead', last_response_code = $2, last_error = $3, finished_at = $4 WHERE id = $1",
-        [id, responseCode, error.slice(0, 2000), now],
+        [id, responseCode, redactSecrets(error).slice(0, 2000), now],
       );
     },
 

@@ -8,3 +8,4 @@ export * from "./config";
 export * from "./logger";
 export * from "./crypto";
 export * from "./scheduler";
+export * from "./redact";
