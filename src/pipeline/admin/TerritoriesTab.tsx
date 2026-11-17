@@ -6,7 +6,7 @@ import type { PoolApplyResultDto, TerritoriesDto } from "../../modules/sales-pip
 import { useCrm } from "../../state/CrmContext";
 import { useErrorText, useTeamNames } from "../hooks";
 import { adminApi } from "./adminApi";
-import { ConfirmDialog, LoadError, SectionHead, useLoad } from "./bits";
+import { ConfirmDialog, LoadError, SectionHead, useLoad, useAdminCanWrite, Write } from "./bits";
 
 /**
  * Bölgeler sekmesi (Faz 7b): ülke → sorumlu / yedek kuralları. Sorumlu ya da yedek seçimi satırda hemen kaydedilir.
@@ -47,6 +47,7 @@ function useCountryLabel() {
 }
 
 export function TerritoriesTab() {
+  const canWrite = useAdminCanWrite();
   const { t } = useLang();
   const { toast } = useCrm();
   const errText = useErrorText();
@@ -135,14 +136,16 @@ export function TerritoriesTab() {
   return (
     <div className="adm-stack">
       <SectionHead title={t("terr.title")} help={t("terr.help")}>
-        <Button
-          icon="users"
-          loading={applying === "loading"}
-          onClick={() => void openApply()}
-          disabled={!data.rules.length}
-        >
-          {t("terr.apply")}
-        </Button>
+        <Write>
+          <Button
+            icon="users"
+            loading={applying === "loading"}
+            onClick={() => void openApply()}
+            disabled={!data.rules.length}
+          >
+            {t("terr.apply")}
+          </Button>
+        </Write>
       </SectionHead>
 
       {data.rules.length === 0 ? (
@@ -177,7 +180,7 @@ export function TerritoriesTab() {
                       <select
                         className="bare"
                         value={r.assignedUserId}
-                        disabled={busy === r.countryCode}
+                        disabled={!canWrite || busy === r.countryCode}
                         aria-label={`${countryLabel(r.countryCode)}: ${t("terr.col.owner")}`}
                         onChange={(e) => void save(r.countryCode, e.target.value, r.fallbackUserId)}
                       >
@@ -199,7 +202,7 @@ export function TerritoriesTab() {
                       <select
                         className="bare"
                         value={r.fallbackUserId ?? ""}
-                        disabled={busy === r.countryCode}
+                        disabled={!canWrite || busy === r.countryCode}
                         aria-label={`${countryLabel(r.countryCode)}: ${t("terr.col.fallback")}`}
                         onChange={(e) => void save(r.countryCode, r.assignedUserId, e.target.value || null)}
                       >
@@ -223,9 +226,11 @@ export function TerritoriesTab() {
                   <td className="num">{r.poolCount}</td>
                   <td>
                     <div className="row-actions">
-                      <Button size="sm" variant="ghost" icon="trash" onClick={() => setRemoving(r)}>
-                        {t("terr.remove")}
-                      </Button>
+                      <Write>
+                        <Button size="sm" variant="ghost" icon="trash" onClick={() => setRemoving(r)}>
+                          {t("terr.remove")}
+                        </Button>
+                      </Write>
                     </div>
                   </td>
                 </tr>
@@ -265,6 +270,7 @@ export function TerritoriesTab() {
                     <div className="adm-inline">
                       <select
                         value={draft[u.countryCode] ?? ""}
+                        disabled={!canWrite}
                         aria-label={`${countryLabel(u.countryCode)}: ${t("terr.col.owner")}`}
                         onChange={(e) => setDraft({ ...draft, [u.countryCode]: e.target.value })}
                       >
@@ -275,15 +281,17 @@ export function TerritoriesTab() {
                           </option>
                         ))}
                       </select>
-                      <Button
-                        size="sm"
-                        icon="plus"
-                        disabled={!draft[u.countryCode]}
-                        loading={busy === u.countryCode}
-                        onClick={() => void save(u.countryCode, draft[u.countryCode]!, null)}
-                      >
-                        {t("terr.addRule")}
-                      </Button>
+                      <Write>
+                        <Button
+                          size="sm"
+                          icon="plus"
+                          disabled={!draft[u.countryCode]}
+                          loading={busy === u.countryCode}
+                          onClick={() => void save(u.countryCode, draft[u.countryCode]!, null)}
+                        >
+                          {t("terr.addRule")}
+                        </Button>
+                      </Write>
                     </div>
                   </td>
                 </tr>
@@ -305,44 +313,46 @@ export function TerritoriesTab() {
         </div>
       )}
 
-      <form
-        className="adm-inline adm-addother"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void addOther();
-        }}
-      >
-        <b>{t("terr.addOther")}</b>
-        <input
-          className="adm-input adm-cur"
-          value={newCode}
-          maxLength={2}
-          placeholder="FR"
-          aria-label={t("terr.addCountry")}
-          onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-        />
-        <select
-          value={draft["__new"] ?? ""}
-          aria-label={t("terr.col.owner")}
-          onChange={(e) => setDraft({ ...draft, __new: e.target.value })}
+      <Write>
+        <form
+          className="adm-inline adm-addother"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void addOther();
+          }}
         >
-          <option value="">{t("terr.chooseOwner")}</option>
-          {team.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-        <Button
-          type="submit"
-          size="sm"
-          icon="plus"
-          disabled={newCode.trim().length !== 2 || !draft["__new"]}
-          loading={busy === newCode.trim().toUpperCase() && newCode.trim().length === 2}
-        >
-          {t("terr.addRule")}
-        </Button>
-      </form>
+          <b>{t("terr.addOther")}</b>
+          <input
+            className="adm-input adm-cur"
+            value={newCode}
+            maxLength={2}
+            placeholder="FR"
+            aria-label={t("terr.addCountry")}
+            onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+          />
+          <select
+            value={draft["__new"] ?? ""}
+            aria-label={t("terr.col.owner")}
+            onChange={(e) => setDraft({ ...draft, __new: e.target.value })}
+          >
+            <option value="">{t("terr.chooseOwner")}</option>
+            {team.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+          <Button
+            type="submit"
+            size="sm"
+            icon="plus"
+            disabled={newCode.trim().length !== 2 || !draft["__new"]}
+            loading={busy === newCode.trim().toUpperCase() && newCode.trim().length === 2}
+          >
+            {t("terr.addRule")}
+          </Button>
+        </form>
+      </Write>
 
       {removing && (
         <ConfirmDialog

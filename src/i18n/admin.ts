@@ -11,6 +11,15 @@ export const ADMIN_DICT = {
     "Entegrasyon ayarlarını ve bölge kurallarını yalnız yönetici görür ve değiştirir.",
     "Only the admin can see and change integration settings and territory rules.",
   ],
+  "admin.readOnly": [
+    "Salt okunur: bu paneli görebilirsiniz ama değişiklik yapamazsınız.",
+    "Read-only: you can view this panel but cannot make changes.",
+  ],
+  "reports.denied.title": ["Raporlar bu hesaba kapalı", "Reports are not available for this account"],
+  "reports.denied.body": [
+    "Raporları yönetici, satış ekibi ve görüntüleyiciler görür.",
+    "Reports are visible to the admin, the sales team and viewers.",
+  ],
   "admin.refresh": ["Şimdi yenile", "Refresh now"],
   "admin.updated": ["{ago} güncellendi", "updated {ago}"],
   "admin.save": ["Kaydet", "Save"],

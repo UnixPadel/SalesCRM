@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Header } from "./components/Header";
 import { Toasts } from "./components/Toasts";
-import { Skeleton } from "./components/ui";
+import { Empty, Skeleton } from "./components/ui";
+import { useLang } from "./i18n";
 import { LoginPage } from "./pages/LoginPage";
 import { ActivitiesPage } from "./pipeline/ActivitiesPage";
 import { AdminPage } from "./pipeline/admin/AdminPage";
@@ -19,7 +20,8 @@ import { useCrm } from "./state/CrmContext";
  * Bugün, Kişiler ve kuruluşlar, Raporlar. Eski JSON panosu ve sayfaları Faz 6d ile kaldırıldı.
  */
 export default function App() {
-  const { authChecked, user } = useCrm();
+  const { authChecked, user, isMarketing } = useCrm();
+  const { t } = useLang();
   const [{ route, q, id, params }, setLoc] = useState(parseHash);
   const [newLead, setNewLead] = useState(false);
 
@@ -55,7 +57,13 @@ export default function App() {
         ) : route === "activities" ? (
           <ActivitiesPage params={params} />
         ) : route === "reports" ? (
-          <ReportsPage params={params} />
+          isMarketing ? (
+            <section className="pl-page">
+              <Empty title={t("reports.denied.title")}>{t("reports.denied.body")}</Empty>
+            </section>
+          ) : (
+            <ReportsPage params={params} />
+          )
         ) : route === "admin" ? (
           <AdminPage params={params} />
         ) : (

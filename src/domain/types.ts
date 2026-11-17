@@ -3,8 +3,11 @@
 
 export type Currency = "EUR" | "USD" | "GBP" | "TRY";
 
-/** admin: her şey · rep: kendi müşterileri + havuz · viewer: salt okunur (muhasebe, fabrika, lojistik, gözlemci). */
-export type Role = "admin" | "rep" | "viewer";
+/**
+ * admin: her şey · rep: kendi müşterileri + havuz · viewer: salt okunur (muhasebe, fabrika, lojistik, gözlemci) ·
+ * marketing: pazarlama / ajans, salt okunur, Raporlar kapalı, Yönetim salt okunur (server/roles.mjs).
+ */
+export type Role = "admin" | "rep" | "viewer" | "marketing";
 /** Şirket kullanıcı tablosundaki kişi (ya da yerel Admin). */
 export interface TeamMember {
   /** Kalıcı kimlik (kullanıcı tablosundaki KullaniciID); pipeline ataması bu değerle tutulur. */

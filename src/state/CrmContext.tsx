@@ -30,8 +30,10 @@ interface CrmCtx {
   logout: () => Promise<void>;
   /** Admin her şeyi görür ve yapar. */
   isAdmin: boolean;
-  /** Görüntüleyici (muhasebe, fabrika, lojistik…) bakar, değiştiremez. */
+  /** Görüntüleyici (muhasebe, fabrika, lojistik…) ve pazarlama bakar, değiştiremez. */
   isViewer: boolean;
+  /** Pazarlama / ajans (CRM_MARKETING_USERS): salt okunur; Raporlar kapalı, Yönetim salt okunur. */
+  isMarketing: boolean;
   theme: Theme;
   setTheme: (t: Theme) => void;
   toasts: Toast[];
@@ -123,7 +125,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     isAdmin: user?.role === "admin",
-    isViewer: user?.role === "viewer",
+    isViewer: user?.role === "viewer" || user?.role === "marketing",
+    isMarketing: user?.role === "marketing",
     theme,
     setTheme,
     toasts,

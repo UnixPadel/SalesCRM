@@ -5,24 +5,26 @@ import { setHashParams } from "../../router";
 import { useCrm } from "../../state/CrmContext";
 import { useErrorText } from "../hooks";
 import { adminApi } from "./adminApi";
-import { LoadError, useLoad } from "./bits";
+import { AdminWriteCtx, LoadError, useAdminCanWrite, useLoad } from "./bits";
 import { HealthTab } from "./HealthTab";
 import { MappingsTab } from "./MappingsTab";
 import { SettingsTab } from "./SettingsTab";
 import { TerritoriesTab } from "./TerritoriesTab";
 
 /**
- * Yönetim paneli (Faz 7, `#/admin`): Sağlık · Eşlemeler · Ayarlar · Bölgeler. Yalnız `admin` rolü; satışçı ve
- * görüntüleyici bu adresi yazarsa "yetki yok" sayfası görür (sunucu da 403 döner). Sekme URL'de tutulur.
+ * Yönetim paneli (Faz 7, `#/admin`): Sağlık · Eşlemeler · Ayarlar · Bölgeler. `admin` rolü görür ve değiştirir;
+ * pazarlama rolü salt okunur görür (değişiklik düğmeleri gizli, alanlar kilitli; sunucu da yazmayı 403 ile reddeder).
+ * Satışçı ve görüntüleyici bu adresi yazarsa "yetki yok" sayfası görür. Sekme URL'de tutulur.
  */
+
 const TABS = ["health", "mappings", "settings", "territories"] as const;
 type Tab = (typeof TABS)[number];
 const isTab = (v: string | null): v is Tab => (TABS as readonly string[]).includes(v ?? "");
 
 export function AdminPage({ params }: { params: URLSearchParams }) {
   const { t } = useLang();
-  const { isAdmin } = useCrm();
-  if (!isAdmin) {
+  const { isAdmin, isMarketing } = useCrm();
+  if (!isAdmin && !isMarketing) {
     return (
       <section className="pl-page" aria-labelledby="adm-h">
         <h1 id="adm-h" className="pl-title">
@@ -32,7 +34,11 @@ export function AdminPage({ params }: { params: URLSearchParams }) {
       </section>
     );
   }
-  return <AdminTabs tab={isTab(params.get("tab")) ? (params.get("tab") as Tab) : "health"} />;
+  return (
+    <AdminWriteCtx.Provider value={isAdmin}>
+      <AdminTabs tab={isTab(params.get("tab")) ? (params.get("tab") as Tab) : "health"} />
+    </AdminWriteCtx.Provider>
+  );
 }
 
 function AdminTabs({ tab }: { tab: Tab }) {
@@ -43,6 +49,7 @@ function AdminTabs({ tab }: { tab: Tab }) {
   const { data, error, reload } = useLoad(load);
   const providers = (data?.providers ?? []).map((p) => ({ provider: p.provider, hasOutbound: p.outbound !== null }));
   const needsProviders = tab === "mappings" || tab === "settings";
+  const canWrite = useAdminCanWrite();
 
   return (
     <section className="pl-page adm-page" aria-labelledby="adm-h">
@@ -67,6 +74,11 @@ function AdminTabs({ tab }: { tab: Tab }) {
           ))}
         </div>
       </div>
+      {!canWrite && (
+        <p className="adm-ro" role="note">
+          {t("admin.readOnly")}
+        </p>
+      )}
       <div id="adm-panel" role="tabpanel" aria-labelledby={`adm-tab-${tab}`}>
         {tab === "health" ? (
           <HealthTab />

@@ -116,6 +116,7 @@ adları sayfaları (`https://www.clever.cloud/developers/doc/deploy/applications
 | `PUBLIC_BASE_URL` | `https://salescrm.unixpadel.com` | Hayır |
 | `AUTH_DB_URL` (gerekirse `AUTH_DB_TABLE`) | Giriş için şirket kullanıcı tablosu (`UNIXPADEL_ST`, salt okunur) | Evet |
 | `CRM_ADMIN_PASSWORD` | Yerel Admin hesabı; en az 12 karakter, yoksa Admin kapalı | Evet |
+| `CRM_MARKETING_USERS` | Pazarlama / ajans hesapları (ör. MarcaDM), virgülle kullanıcı adı, e-posta ya da KullaniciID. Bu kişiler lead'leri salt okunur görür, Raporlar kapalı, Yönetim salt okunur (`server/roles.mjs`). Kullanıcı tabloya YetkiTuru **Gozlemci** olarak eklenir (sütun sabit bir ENUM; yeni değer eklenmez) | Hayır |
 | `INBOX_ENCRYPTION_KEY` | `npm run secrets:key`; yedeği güvenli yerde saklanır, değiştirilmez | Evet |
 | `WEB_FORM_HMAC_KEY` | `npm run secrets:key`; aynı değer sitenin "Shared key" alanında | Evet |
 | `WEB_PULL_URL` | `https://www.unixpadel.com/?rest_route=/unixpadel/v1/crm` | Hayır |

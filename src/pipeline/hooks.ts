@@ -202,7 +202,7 @@ export function useTeamNames() {
     },
     [team, user, t],
   );
-  const assignable = useMemo(() => team.filter((m) => m.role !== "viewer"), [team]);
+  const assignable = useMemo(() => team.filter((m) => m.role !== "viewer" && m.role !== "marketing"), [team]);
   return { team: assignable, nameOf };
 }
 

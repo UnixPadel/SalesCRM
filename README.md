@@ -286,11 +286,15 @@ Faz 2: `INBOX_ENCRYPTION_KEY`, `META_*`, `GOOGLE_LEAD_FORM_KEY`, `SMTP_*`, `PUBL
 | Admin | admin@unixpadel.com + `server/data/config.json` içindeki `adminPassword` | **admin** (posta kutusu yok) |
 | Salah, Yuşa, Ahlem, Mohamed, Simon | KullaniciBilgileri (Temsilci) | satışçı |
 | Muhasebe, Fabrika, Lojistik, Gözlemci | KullaniciBilgileri | görüntüleyici |
+| Pazarlama / ajans (ör. MarcaDM) | KullaniciBilgileri (Gozlemci) + `CRM_MARKETING_USERS` | pazarlama |
 
 - **Admin:** tüm lead'leri görür (pano filtresi "Tüm sorumlular"), her lead'in aşamasını, sorumlusunu ve
   alanlarını değiştirir. Sunucu da bunu uygular (403).
 - **Satışçı:** kendi lead'leri + ortak havuz (bölge kuralına göre). Başkasının lead'ini görmez; havuzdakini üstlenir.
 - **Görüntüleyici:** her şeyi okur, hiçbir şeyi değiştiremez.
+- **Pazarlama:** lead'leri, panoyu ve kişileri salt okunur görür; Raporlar kapalı; Yönetim panelini görür ama
+  değiştiremez (`server/roles.mjs`, sunucu 403 ile uygular). Tablodaki rolü ne olursa olsun `CRM_MARKETING_USERS`
+  listesindeki kişi bu rolle girer.
 - `adminPassword` ilk açılışta rastgele üretilir ve dosyaya yazılır; dosyadan değiştirebilir ya da
   `CRM_ADMIN_PASSWORD` ortam değişkeniyle ezebilirsiniz.
 

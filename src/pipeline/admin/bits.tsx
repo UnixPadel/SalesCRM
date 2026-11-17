@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Icon, Modal, StatusTag } from "../../components/ui";
 import { useLang } from "../../i18n";
 
 /** Yönetim panelinin paylaşılan küçük parçaları: onay penceresi, sağlayıcı adı, gizli anahtar listesi, veri yükleyici. */
+
+/** Yönetim panelinde değişiklik yapılabilir mi: admin evet, pazarlama (salt okunur) hayır. AdminPage sağlar. */
+export const AdminWriteCtx = createContext(false);
+export const useAdminCanWrite = () => useContext(AdminWriteCtx);
+/** Yalnız değişiklik yapabilen kullanıcıya görünen içerik (kaydet, sil, yeniden dene, durdur…). */
+export function Write({ children }: { children: ReactNode }) {
+  return useAdminCanWrite() ? <>{children}</> : null;
+}
 
 export function useProviderName() {
   const { t } = useLang();

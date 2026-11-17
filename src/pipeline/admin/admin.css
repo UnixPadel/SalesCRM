@@ -256,3 +256,24 @@
 tr.is-archived td {
   color: var(--text-2);
 }
+
+/* Salt okunur yönetim paneli (pazarlama rolü): kilitli alanları saran görünmez kutu ve üstteki not. */
+.adm-fs {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+.adm-fs:disabled :is(input, select, textarea) {
+  cursor: not-allowed;
+}
+.adm-ro {
+  margin: 0 0 var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--text-3);
+  border-radius: var(--r-2);
+  background: var(--surface-1);
+  color: var(--text-2);
+  font-size: var(--t-sm);
+}

@@ -5,7 +5,7 @@ import type { EurRatesDto, ProviderSettingsDto } from "../../modules/integration
 import { useCrm } from "../../state/CrmContext";
 import { useErrorText } from "../hooks";
 import { adminApi } from "./adminApi";
-import { LoadError, SecretList, SectionHead, useLoad, useProviderName } from "./bits";
+import { LoadError, SecretList, SectionHead, useAdminCanWrite, useLoad, useProviderName, Write } from "./bits";
 import type { ProviderOption } from "./MappingsTab";
 
 /**
@@ -35,6 +35,7 @@ export function SettingsTab({
 }
 
 function ProviderSettings({ provider }: { provider: string }) {
+  const canWrite = useAdminCanWrite();
   const { t } = useLang();
   const { toast } = useCrm();
   const errText = useErrorText();
@@ -93,37 +94,41 @@ function ProviderSettings({ provider }: { provider: string }) {
           {data.settings.length === 0 ? (
             <p className="muted">{t("set.noSettings")}</p>
           ) : (
-            <form
-              className="adm-form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void save();
-              }}
-            >
-              {data.settings.map((s) => {
-                const h = hint(s.key);
-                return (
-                  <Field key={s.key} label={label(s.key)} {...(h ? { hint: h } : {})}>
-                    <input
-                      value={values[s.key] ?? ""}
-                      maxLength={500}
-                      autoComplete="off"
-                      onChange={(e) => setValues({ ...values, [s.key]: e.target.value })}
-                    />
-                  </Field>
-                );
-              })}
-              <div className="adm-actions">
-                <Button type="submit" variant="pri" disabled={!dirty} loading={saving}>
-                  {t("admin.save")}
-                </Button>
-                {problem && (
-                  <span className="field-err" role="alert">
-                    {problem}
-                  </span>
-                )}
-              </div>
-            </form>
+            <fieldset className="adm-fs" disabled={!canWrite}>
+              <form
+                className="adm-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void save();
+                }}
+              >
+                {data.settings.map((s) => {
+                  const h = hint(s.key);
+                  return (
+                    <Field key={s.key} label={label(s.key)} {...(h ? { hint: h } : {})}>
+                      <input
+                        value={values[s.key] ?? ""}
+                        maxLength={500}
+                        autoComplete="off"
+                        onChange={(e) => setValues({ ...values, [s.key]: e.target.value })}
+                      />
+                    </Field>
+                  );
+                })}
+                <Write>
+                  <div className="adm-actions">
+                    <Button type="submit" variant="pri" disabled={!dirty} loading={saving}>
+                      {t("admin.save")}
+                    </Button>
+                    {problem && (
+                      <span className="field-err" role="alert">
+                        {problem}
+                      </span>
+                    )}
+                  </div>
+                </Write>
+              </form>
+            </fieldset>
           )}
           <h3 className="adm-sub">{t("health.secrets")}</h3>
           <SecretList secrets={data.secrets} />
@@ -139,6 +144,7 @@ interface RateRow {
 }
 
 function EurRates() {
+  const canWrite = useAdminCanWrite();
   const { t } = useLang();
   const { toast } = useCrm();
   const errText = useErrorText();
@@ -191,83 +197,87 @@ function EurRates() {
           <Skeleton h={140} />
         )
       ) : (
-        <form
-          className="adm-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save();
-          }}
-        >
-          <table className="tbl adm-rates">
-            <thead>
-              <tr>
-                <th scope="col">{t("set.eur.currency")}</th>
-                <th scope="col">{t("set.eur.rate")}</th>
-                <th scope="col">
-                  <span className="sr-only">{t("people.col.actions")}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => {
-                const bad = problem !== null && !valid(r);
-                return (
-                  <tr key={i}>
-                    <td>
-                      <input
-                        className={"adm-input adm-cur" + (bad ? " is-bad" : "")}
-                        value={r.cur}
-                        maxLength={3}
-                        aria-label={t("set.eur.currency")}
-                        aria-invalid={bad || undefined}
-                        onChange={(e) => patch(i, { cur: e.target.value.toUpperCase() })}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className={"adm-input adm-rate" + (bad ? " is-bad" : "")}
-                        value={r.rate}
-                        inputMode="decimal"
-                        aria-label={`${r.cur || t("set.eur.currency")}: ${t("set.eur.rate")}`}
-                        aria-invalid={bad || undefined}
-                        onChange={(e) => patch(i, { rate: e.target.value })}
-                      />
-                    </td>
-                    <td>
-                      <IconButton
-                        icon="trash"
-                        size="sm"
-                        label={t("set.eur.remove", { cur: r.cur || "?" })}
-                        onClick={() => {
-                          setProblem(null);
-                          setRows(rows.filter((_, j) => j !== i));
-                        }}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <div className="adm-actions">
-            <Button type="submit" variant="pri" disabled={!dirty} loading={saving}>
-              {t("admin.save")}
-            </Button>
-            <Button icon="plus" onClick={() => setRows([...rows, { cur: "", rate: "" }])}>
-              {t("set.eur.add")}
-            </Button>
-            {problem && (
-              <span className="field-err" role="alert">
-                {problem}
-              </span>
-            )}
-          </div>
-          <p className="muted">
-            {data.source === "setting"
-              ? t("set.eur.source.setting", { when: data.updatedAt ? fmtDate(data.updatedAt, true) : "" })
-              : t(`set.eur.source.${data.source}`)}
-          </p>
-        </form>
+        <fieldset className="adm-fs" disabled={!canWrite}>
+          <form
+            className="adm-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void save();
+            }}
+          >
+            <table className="tbl adm-rates">
+              <thead>
+                <tr>
+                  <th scope="col">{t("set.eur.currency")}</th>
+                  <th scope="col">{t("set.eur.rate")}</th>
+                  <th scope="col">
+                    <span className="sr-only">{t("people.col.actions")}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => {
+                  const bad = problem !== null && !valid(r);
+                  return (
+                    <tr key={i}>
+                      <td>
+                        <input
+                          className={"adm-input adm-cur" + (bad ? " is-bad" : "")}
+                          value={r.cur}
+                          maxLength={3}
+                          aria-label={t("set.eur.currency")}
+                          aria-invalid={bad || undefined}
+                          onChange={(e) => patch(i, { cur: e.target.value.toUpperCase() })}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className={"adm-input adm-rate" + (bad ? " is-bad" : "")}
+                          value={r.rate}
+                          inputMode="decimal"
+                          aria-label={`${r.cur || t("set.eur.currency")}: ${t("set.eur.rate")}`}
+                          aria-invalid={bad || undefined}
+                          onChange={(e) => patch(i, { rate: e.target.value })}
+                        />
+                      </td>
+                      <td>
+                        <IconButton
+                          icon="trash"
+                          size="sm"
+                          label={t("set.eur.remove", { cur: r.cur || "?" })}
+                          onClick={() => {
+                            setProblem(null);
+                            setRows(rows.filter((_, j) => j !== i));
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <Write>
+              <div className="adm-actions">
+                <Button type="submit" variant="pri" disabled={!dirty} loading={saving}>
+                  {t("admin.save")}
+                </Button>
+                <Button icon="plus" onClick={() => setRows([...rows, { cur: "", rate: "" }])}>
+                  {t("set.eur.add")}
+                </Button>
+                {problem && (
+                  <span className="field-err" role="alert">
+                    {problem}
+                  </span>
+                )}
+              </div>
+            </Write>
+            <p className="muted">
+              {data.source === "setting"
+                ? t("set.eur.source.setting", { when: data.updatedAt ? fmtDate(data.updatedAt, true) : "" })
+                : t(`set.eur.source.${data.source}`)}
+            </p>
+          </form>
+        </fieldset>
       )}
     </section>
   );

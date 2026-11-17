@@ -12,7 +12,16 @@ import type {
 import { useCrm } from "../../state/CrmContext";
 import { useErrorText, useNow, useReference, useSince } from "../hooks";
 import { adminApi } from "./adminApi";
-import { ConfirmDialog, LoadError, SecretList, SectionHead, useLoad, useProviderName } from "./bits";
+import {
+  ConfirmDialog,
+  LoadError,
+  SecretList,
+  SectionHead,
+  useAdminCanWrite,
+  useLoad,
+  useProviderName,
+  Write,
+} from "./bits";
 
 /**
  * Sağlık sekmesi (Faz 7a, 7c): bağlantılar ve acil durdurma, gelen kutusu ve giden kuyruk sayıları, gönderilemeyen
@@ -42,6 +51,7 @@ const sumBy = (counts: readonly CountDto[], status: string) =>
 
 export function HealthTab() {
   const { t } = useLang();
+  const canWrite = useAdminCanWrite();
   const { toast } = useCrm();
   const errText = useErrorText();
   const since = useSince();
@@ -179,19 +189,21 @@ export function HealthTab() {
                           {t("health.stopped")}
                         </StatusTag>
                       )}
-                      {p.outbound.enabled ? (
-                        <Button size="sm" variant="ghost" onClick={() => setStopping(p)}>
-                          {t("health.stop")}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          loading={busy === `outbound:${p.provider}`}
-                          onClick={() => void setOutbound(p, true)}
-                        >
-                          {t("health.resume")}
-                        </Button>
-                      )}
+                      <Write>
+                        {p.outbound.enabled ? (
+                          <Button size="sm" variant="ghost" onClick={() => setStopping(p)}>
+                            {t("health.stop")}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            loading={busy === `outbound:${p.provider}`}
+                            onClick={() => void setOutbound(p, true)}
+                          >
+                            {t("health.resume")}
+                          </Button>
+                        )}
+                      </Write>
                     </div>
                   )}
                 </td>
@@ -264,7 +276,7 @@ export function HealthTab() {
       <WebPullPanel pull={health.webPull} now={now} />
 
       <SectionHead title={t("health.failedOutbox")}>
-        {failedOut.length > 1 && (
+        {failedOut.length > 1 && canWrite && (
           <Button
             size="sm"
             icon="refresh"
@@ -322,13 +334,15 @@ export function HealthTab() {
                           {t("health.openLead")}
                         </a>
                       )}
-                      <Button
-                        size="sm"
-                        loading={busy === `out:${r.id}`}
-                        onClick={() => void requeueOut([r.id], `out:${r.id}`)}
-                      >
-                        {t("health.requeue")}
-                      </Button>
+                      <Write>
+                        <Button
+                          size="sm"
+                          loading={busy === `out:${r.id}`}
+                          onClick={() => void requeueOut([r.id], `out:${r.id}`)}
+                        >
+                          {t("health.requeue")}
+                        </Button>
+                      </Write>
                     </div>
                   </td>
                 </tr>
@@ -339,7 +353,7 @@ export function HealthTab() {
       )}
 
       <SectionHead title={t("health.failedInbox")}>
-        {requeueableIn.length > 1 && (
+        {requeueableIn.length > 1 && canWrite && (
           <Button
             size="sm"
             icon="refresh"
@@ -387,13 +401,15 @@ export function HealthTab() {
                   <td>
                     <div className="row-actions">
                       {r.hasPayload ? (
-                        <Button
-                          size="sm"
-                          loading={busy === `in:${r.id}`}
-                          onClick={() => void requeueIn([r.id], `in:${r.id}`)}
-                        >
-                          {t("health.requeue")}
-                        </Button>
+                        <Write>
+                          <Button
+                            size="sm"
+                            loading={busy === `in:${r.id}`}
+                            onClick={() => void requeueIn([r.id], `in:${r.id}`)}
+                          >
+                            {t("health.requeue")}
+                          </Button>
+                        </Write>
                       ) : (
                         <span className="muted">{t("health.noPayload")}</span>
                       )}

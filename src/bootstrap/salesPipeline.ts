@@ -57,14 +57,15 @@ export interface SalesPipelineApp {
 /**
  * Oturum → Actor. `req.session` mevcut sunucunun auth middleware'i tarafından doldurulur.
  * Roller (README): admin her şeyi görür ve yapar; satışçı kendi + bölgesi; görüntüleyici
- * (muhasebe, fabrika, lojistik, gözlemci) her şeyi görür, hiçbir şeyi değiştiremez.
+ * (muhasebe, fabrika, lojistik, gözlemci) her şeyi görür, hiçbir şeyi değiştiremez; pazarlama aynı, raporlar hariç.
  */
 export function actorFromSession(s: SessionLike | undefined) {
   if (!s) return undefined;
   const userId = s.userId || s.email;
   if (!userId) return undefined;
-  const viewer = s.role === "viewer";
-  return { userId, isAdmin: s.role === "admin" || viewer, readOnly: viewer };
+  // Görüntüleyici ve pazarlama (server/roles.mjs): her lead'i görür (isAdmin görünürlüğü), hiçbir şeyi değiştiremez.
+  const readOnly = s.role === "viewer" || s.role === "marketing";
+  return { userId, isAdmin: s.role === "admin" || readOnly, readOnly };
 }
 
 export interface BootOptions {

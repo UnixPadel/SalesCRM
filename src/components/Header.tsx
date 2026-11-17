@@ -24,7 +24,7 @@ interface Opt {
 }
 
 export function Header({ route, onNewLead }: { route: Route; onNewLead: () => void }) {
-  const { user, isAdmin, isViewer, theme, setTheme, logout } = useCrm();
+  const { user, isAdmin, isViewer, isMarketing, theme, setTheme, logout } = useCrm();
   const { t, lang, setLang } = useLang();
 
   // Faz 6a: "Bugün" rozeti yeni aktivite ucundan (gecikmiş + bugün).
@@ -43,9 +43,10 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
       bad: true,
     },
     { r: "contacts", icon: "user", label: t("nav.contacts") },
-    { r: "reports", icon: "chart", label: t("nav.reports") },
-    // Yönetim paneli (Faz 7): yalnız yöneticiye görünür.
-    ...(isAdmin ? [{ r: "admin" as const, icon: "lock", label: t("nav.admin") }] : []),
+    // Raporlar pazarlama rolüne kapalı (sunucu da 403 döner).
+    ...(isMarketing ? [] : [{ r: "reports" as const, icon: "chart", label: t("nav.reports") }]),
+    // Yönetim paneli (Faz 7): yöneticiye; pazarlama rolüne salt okunur.
+    ...(isAdmin || isMarketing ? [{ r: "admin" as const, icon: "lock", label: t("nav.admin") }] : []),
   ];
 
   return (
@@ -89,6 +90,7 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
           email={user?.email ?? ""}
           isAdmin={isAdmin}
           isViewer={isViewer}
+          isMarketing={isMarketing}
           theme={theme}
           onTheme={setTheme}
           lang={lang}
@@ -105,6 +107,7 @@ function UserMenu({
   email,
   isAdmin,
   isViewer,
+  isMarketing,
   theme,
   onTheme,
   lang,
@@ -115,6 +118,7 @@ function UserMenu({
   email: string;
   isAdmin: boolean;
   isViewer: boolean;
+  isMarketing: boolean;
   theme: Theme;
   onTheme: (t: Theme) => void;
   lang: Lang;
@@ -152,7 +156,11 @@ function UserMenu({
         <div className="who-line">
           <b>
             {name} {isAdmin && <span className="tag">Admin</span>}
-            {isViewer && <span className="tag tag-neutral">Görüntüleyici</span>}
+            {isMarketing ? (
+              <span className="tag tag-neutral">Pazarlama · salt okunur</span>
+            ) : (
+              isViewer && <span className="tag tag-neutral">Görüntüleyici</span>
+            )}
           </b>
           <span>{email}</span>
         </div>

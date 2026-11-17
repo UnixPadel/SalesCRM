@@ -15,6 +15,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { authDbEnabled, authDbLabel, checkLogin, checkTable, listDirectory, listTeam } from "./authDb.mjs";
 import { createLoginLimiter } from "./loginLimiter.mjs";
+import { adminAccess, canReadDirectory, marketingUsers, reportsAccess, sessionRole } from "./roles.mjs";
 import { emailsOf, USERS, userFor } from "./users.mjs";
 import { bootSalesPipeline } from "../src/bootstrap/salesPipeline.ts";
 import { bootLeadIntake } from "../src/bootstrap/leadIntake.ts";
@@ -412,6 +413,9 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(502).json({ error: "Posta sunucusuna bağlanılamadı. Yöneticinize haber verin." });
     }
   }
+  // Pazarlama / ajans kullanıcısı (CRM_MARKETING_USERS): tablodaki rol ne olursa olsun yetki daralır (server/roles.mjs).
+  // Giriş adı, tablodaki e-posta ya da KullaniciID ile eşleşir; yerel Admin hesabı etkilenmez.
+  if (!who.local) who.role = sessionRole(who.role, { id: who.id, login: limitKey, email }, marketingUsers());
   loginLimiter.succeed(limitKey);
   const sid = randomBytes(24).toString("base64url");
   const session = {
@@ -552,8 +556,7 @@ let teamCache = { at: 0, list: null };
 app.get("/api/users", auth, async (req, res) => {
   // Faz 7g: ?all=1 pasifler dahil bütün dizin (ad gösterimi "Sena (pasif)"); yalnız yönetici ve görüntüleyici.
   if (req.query.all === "1") {
-    const role = req.session?.role;
-    if (role !== "admin" && role !== "viewer")
+    if (!canReadDirectory(req.session?.role))
       return res.status(403).json({ error: "Yalnız yönetici.", code: "admin_only" });
     const rows = await team.rows();
     if (!rows) {
@@ -604,8 +607,7 @@ app.get("/api/users", auth, async (req, res) => {
 
 /* ---- form tablosu eşitlemesi: durum (yönetici ve görüntüleyici) ve elle tetikleme (yönetici). Adres hiç dönmez. ---- */
 app.get("/api/sheet-sync", auth, (req, res) => {
-  const role = req.session?.role;
-  if (role !== "admin" && role !== "viewer")
+  if (!canReadDirectory(req.session?.role))
     return res.status(403).json({ error: "Yalnız yönetici.", code: "admin_only" });
   res.json(sheetSync ? sheetSync.status() : { enabled: false });
 });
@@ -616,11 +618,11 @@ app.post("/api/sheet-sync/run", auth, async (req, res) => {
   res.json(await sheetSync.runNow());
 });
 
-/* ---- yönetim paneli: yalnız `admin` rolü (görüntüleyici ve satışçı 403 `admin_only`) ---- */
-const adminOnly = (req, res, next) =>
-  req.session?.role === "admin" ? next() : res.status(403).json({ error: "Yalnız yönetici.", code: "admin_only" });
-app.use("/api/admin", auth, adminOnly, adminRouter);
+/* ---- yönetim paneli: okuma admin + pazarlama, değişiklik yalnız admin (server/roles.mjs) ---- */
+app.use("/api/admin", auth, adminAccess, adminRouter);
 
+/* Raporlar pazarlama rolüne kapalı; lead verisinin geri kalanı salt okunur (actorFromSession.readOnly). */
+app.use("/api/pipeline/reports", auth, reportsAccess);
 app.use("/api/pipeline", auth, salesPipeline.router);
 
 app.use("/api", (_req, res) => res.status(404).json({ error: "Bilinmeyen uç nokta." }));

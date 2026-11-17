@@ -333,7 +333,11 @@ const DICT = {
   "board.courts": ["{n} kort", "{n} courts"],
   "board.inStage": ["{n} gündür", "{n} days"],
   "err.unauthorized": ["Oturum açılmamış.", "Not signed in."],
-  "err.read_only": ["Görüntüleyici hesabı değişiklik yapamaz.", "Viewer accounts cannot make changes."],
+  "err.read_only": [
+    "Bu hesap salt okunurdur, değişiklik yapamaz.",
+    "This account is read-only and cannot make changes.",
+  ],
+  "err.reports_forbidden": ["Raporlar bu hesaba kapalı.", "Reports are not available for this account."],
   "err.not_found": ["Kayıt bulunamadı.", "Record not found."],
   "err.lead.forbidden": ["Bu lead başka bir satışçıya ait.", "This lead belongs to another rep."],
   "err.admin_only": ["Bu bilgiyi yalnız yönetici değiştirebilir.", "Only the admin can change this."],

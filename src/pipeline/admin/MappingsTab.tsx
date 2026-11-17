@@ -6,7 +6,7 @@ import { useCrm } from "../../state/CrmContext";
 import { PipelineError } from "../api";
 import { useErrorText, useReference } from "../hooks";
 import { adminApi } from "./adminApi";
-import { ConfirmDialog, LoadError, SectionHead, useLoad, useProviderName } from "./bits";
+import { ConfirmDialog, LoadError, SectionHead, useAdminCanWrite, useLoad, useProviderName, Write } from "./bits";
 
 /**
  * Eşlemeler sekmesi (Faz 7b): seçilen sağlayıcı için aşama → platform olayı ve form alanı → lead alanı. Kaydedilen
@@ -54,6 +54,7 @@ export function MappingsTab({ providers }: { providers: readonly ProviderOption[
 }
 
 function StageMappings({ provider }: { provider: string }) {
+  const canWrite = useAdminCanWrite();
   const { t } = useLang();
   const { toast } = useCrm();
   const errText = useErrorText();
@@ -95,96 +96,101 @@ function StageMappings({ provider }: { provider: string }) {
   return (
     <section aria-labelledby="adm-stage-h" className="adm-stack">
       <SectionHead title={t("map.stage.title")} help={t("map.stage.help")} />
-      <div className="adm-table-wrap">
-        <table className="tbl" aria-labelledby="adm-stage-h">
-          <thead>
-            <tr>
-              <th scope="col" id="adm-stage-h">
-                {t("health.col.stage")}
-              </th>
-              <th scope="col">{nameLabel}</th>
-              <th scope="col">{t("map.stage.enabled")}</th>
-              <th scope="col">{t("map.stage.target")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => {
-              const bad = problem?.stageCode === r.stageCode;
-              return (
-                <tr key={r.stageCode}>
-                  <th scope="row" className="adm-rowhead">
-                    {stageName(r.stageCode)}
-                  </th>
-                  <td>
-                    <input
-                      className={"adm-input" + (bad ? " is-bad" : "")}
-                      value={r.platformEventName}
-                      maxLength={200}
-                      aria-label={`${stageName(r.stageCode)}: ${nameLabel}`}
-                      aria-invalid={bad || undefined}
-                      onChange={(e) => patch(r.stageCode, { platformEventName: e.target.value })}
-                    />
-                  </td>
-                  <td>
-                    <label className="cd-check">
+      <fieldset className="adm-fs" disabled={!canWrite}>
+        <div className="adm-table-wrap">
+          <table className="tbl" aria-labelledby="adm-stage-h">
+            <thead>
+              <tr>
+                <th scope="col" id="adm-stage-h">
+                  {t("health.col.stage")}
+                </th>
+                <th scope="col">{nameLabel}</th>
+                <th scope="col">{t("map.stage.enabled")}</th>
+                <th scope="col">{t("map.stage.target")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const bad = problem?.stageCode === r.stageCode;
+                return (
+                  <tr key={r.stageCode}>
+                    <th scope="row" className="adm-rowhead">
+                      {stageName(r.stageCode)}
+                    </th>
+                    <td>
                       <input
-                        type="checkbox"
-                        checked={r.enabled}
-                        onChange={(e) => patch(r.stageCode, { enabled: e.target.checked })}
+                        className={"adm-input" + (bad ? " is-bad" : "")}
+                        value={r.platformEventName}
+                        maxLength={200}
+                        aria-label={`${stageName(r.stageCode)}: ${nameLabel}`}
+                        aria-invalid={bad || undefined}
+                        onChange={(e) => patch(r.stageCode, { platformEventName: e.target.value })}
                       />
-                      <span className="sr-only">
-                        {stageName(r.stageCode)}: {t("map.stage.enabled")}
-                      </span>
-                    </label>
-                  </td>
-                  <td>
-                    <label className="cd-check">
-                      <input
-                        type="radio"
-                        name={`target-${provider}`}
-                        checked={r.isOptimizationTarget}
-                        onChange={() => {
-                          setProblem(null);
-                          setRows(rows.map((x) => ({ ...x, isOptimizationTarget: x.stageCode === r.stageCode })));
-                        }}
-                      />
-                      <span className="sr-only">
-                        {stageName(r.stageCode)}: {t("map.stage.target")}
-                      </span>
-                    </label>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <div className="adm-actions">
-        <Button variant="pri" disabled={!dirty} loading={saving} onClick={() => void save()}>
-          {t("admin.save")}
-        </Button>
-        {rows.some((r) => r.isOptimizationTarget) && (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setProblem(null);
-              setRows(rows.map((x) => ({ ...x, isOptimizationTarget: false })));
-            }}
-          >
-            {t("map.stage.noTarget")}
+                    </td>
+                    <td>
+                      <label className="cd-check">
+                        <input
+                          type="checkbox"
+                          checked={r.enabled}
+                          onChange={(e) => patch(r.stageCode, { enabled: e.target.checked })}
+                        />
+                        <span className="sr-only">
+                          {stageName(r.stageCode)}: {t("map.stage.enabled")}
+                        </span>
+                      </label>
+                    </td>
+                    <td>
+                      <label className="cd-check">
+                        <input
+                          type="radio"
+                          name={`target-${provider}`}
+                          checked={r.isOptimizationTarget}
+                          onChange={() => {
+                            setProblem(null);
+                            setRows(rows.map((x) => ({ ...x, isOptimizationTarget: x.stageCode === r.stageCode })));
+                          }}
+                        />
+                        <span className="sr-only">
+                          {stageName(r.stageCode)}: {t("map.stage.target")}
+                        </span>
+                      </label>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </fieldset>
+      <Write>
+        <div className="adm-actions">
+          <Button variant="pri" disabled={!dirty} loading={saving} onClick={() => void save()}>
+            {t("admin.save")}
           </Button>
-        )}
-        {problem && (
-          <span className="field-err" role="alert">
-            {problem.text}
-          </span>
-        )}
-      </div>
+          {rows.some((r) => r.isOptimizationTarget) && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setProblem(null);
+                setRows(rows.map((x) => ({ ...x, isOptimizationTarget: false })));
+              }}
+            >
+              {t("map.stage.noTarget")}
+            </Button>
+          )}
+          {problem && (
+            <span className="field-err" role="alert">
+              {problem.text}
+            </span>
+          )}
+        </div>
+      </Write>
     </section>
   );
 }
 
 function FieldMappings({ provider }: { provider: string }) {
+  const canWrite = useAdminCanWrite();
   const { t } = useLang();
   const { toast } = useCrm();
   const errText = useErrorText();
@@ -227,9 +233,11 @@ function FieldMappings({ provider }: { provider: string }) {
   return (
     <section className="adm-stack">
       <SectionHead title={t("map.field.title")} help={t("map.field.help")}>
-        <Button size="sm" icon="plus" onClick={() => setAdding(true)} disabled={!data}>
-          {t("map.field.add")}
-        </Button>
+        <Write>
+          <Button size="sm" icon="plus" onClick={() => setAdding(true)} disabled={!data}>
+            {t("map.field.add")}
+          </Button>
+        </Write>
       </SectionHead>
       {!data ? (
         error ? (
@@ -240,68 +248,72 @@ function FieldMappings({ provider }: { provider: string }) {
       ) : data.rows.length === 0 ? (
         <Empty title={t("map.field.empty")} />
       ) : (
-        <div className="adm-table-wrap">
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th scope="col">{t("map.field.form")}</th>
-                <th scope="col">{t("map.field.platformField")}</th>
-                <th scope="col">{t("map.field.targetField")}</th>
-                <th scope="col">{t("map.field.active")}</th>
-                <th scope="col">
-                  <span className="sr-only">{t("people.col.actions")}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((r) => (
-                <tr key={r.id} aria-busy={busy === r.id || undefined}>
-                  <td>
-                    {r.formId ? <code>{r.formId}</code> : <span className="muted">{t("map.field.allForms")}</span>}
-                  </td>
-                  <td>
-                    <code>{r.platformField}</code>
-                  </td>
-                  <td>
-                    <select
-                      className="bare"
-                      value={r.target}
-                      disabled={busy === r.id}
-                      aria-label={`${r.platformField}: ${t("map.field.targetField")}`}
-                      onChange={(e) => void saveRow(r, { target: e.target.value })}
-                    >
-                      {data.targets.map((k) => (
-                        <option key={k} value={k}>
-                          {targetText(k)}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <label className="cd-check">
-                      <input
-                        type="checkbox"
-                        checked={r.isActive}
-                        disabled={busy === r.id}
-                        onChange={(e) => void saveRow(r, { isActive: e.target.checked })}
-                      />
-                      <span className="sr-only">
-                        {r.platformField}: {t("map.field.active")}
-                      </span>
-                    </label>
-                  </td>
-                  <td>
-                    <div className="row-actions">
-                      <Button size="sm" variant="ghost" icon="trash" onClick={() => setRemoving(r)}>
-                        {t("map.field.remove")}
-                      </Button>
-                    </div>
-                  </td>
+        <fieldset className="adm-fs" disabled={!canWrite}>
+          <div className="adm-table-wrap">
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th scope="col">{t("map.field.form")}</th>
+                  <th scope="col">{t("map.field.platformField")}</th>
+                  <th scope="col">{t("map.field.targetField")}</th>
+                  <th scope="col">{t("map.field.active")}</th>
+                  <th scope="col">
+                    <span className="sr-only">{t("people.col.actions")}</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {data.rows.map((r) => (
+                  <tr key={r.id} aria-busy={busy === r.id || undefined}>
+                    <td>
+                      {r.formId ? <code>{r.formId}</code> : <span className="muted">{t("map.field.allForms")}</span>}
+                    </td>
+                    <td>
+                      <code>{r.platformField}</code>
+                    </td>
+                    <td>
+                      <select
+                        className="bare"
+                        value={r.target}
+                        disabled={busy === r.id}
+                        aria-label={`${r.platformField}: ${t("map.field.targetField")}`}
+                        onChange={(e) => void saveRow(r, { target: e.target.value })}
+                      >
+                        {data.targets.map((k) => (
+                          <option key={k} value={k}>
+                            {targetText(k)}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <label className="cd-check">
+                        <input
+                          type="checkbox"
+                          checked={r.isActive}
+                          disabled={busy === r.id}
+                          onChange={(e) => void saveRow(r, { isActive: e.target.checked })}
+                        />
+                        <span className="sr-only">
+                          {r.platformField}: {t("map.field.active")}
+                        </span>
+                      </label>
+                    </td>
+                    <td>
+                      <div className="row-actions">
+                        <Write>
+                          <Button size="sm" variant="ghost" icon="trash" onClick={() => setRemoving(r)}>
+                            {t("map.field.remove")}
+                          </Button>
+                        </Write>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </fieldset>
       )}
 
       {adding && data && (
