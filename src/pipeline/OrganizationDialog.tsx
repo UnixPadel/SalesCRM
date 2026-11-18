@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Button, Field, Modal } from "../components/ui";
-import { COUNTRY_NAME } from "../domain/constants";
+import { countryOptions } from "../domain/constants";
 import { useLang } from "../i18n";
 import type { OrganizationBody, OrganizationDto, OrganizationTypeDto } from "../modules/sales-pipeline/api/dto";
 import { useCrm } from "../state/CrmContext";
@@ -14,7 +14,6 @@ export const ORGANIZATION_TYPES: readonly OrganizationTypeDto[] = [
   "contractor",
   "other",
 ];
-const COUNTRIES = Object.entries(COUNTRY_NAME).sort((a, b) => a[1].localeCompare(b[1], "tr"));
 
 /** Kuruluş oluşturma / düzenleme penceresi (Faz 6d). Doğrulama sunucuda; ad hatası alana, kalanı balona. */
 export function OrganizationDialog({
@@ -27,7 +26,7 @@ export function OrganizationDialog({
   onClose: () => void;
   onSaved: (o: OrganizationDto) => void;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { toast } = useCrm();
   const errText = useErrorText();
   const [f, setF] = useState({
@@ -89,7 +88,7 @@ export function OrganizationDialog({
           <Field label={t("new.country")}>
             <select value={f.country} onChange={set("country")}>
               <option value="">—</option>
-              {COUNTRIES.map(([code, name]) => (
+              {countryOptions(lang).map(([code, name]) => (
                 <option key={code} value={code}>
                   {name} ({code})
                 </option>

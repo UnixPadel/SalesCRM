@@ -1,3 +1,4 @@
+import { setCountryLang } from "../domain/constants";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { ADMIN_DICT } from "./admin";
 import { CONTACT_DICT } from "./contact";
@@ -471,6 +472,8 @@ export function LangProvider({ children }: { children: ReactNode }) {
     }
     document.documentElement.lang = l;
   }, []);
+  // Ülke adları da dili izler (domain/constants); çocuklar çizilmeden önce bildirilir.
+  setCountryLang(lang);
   const t = useCallback<LangCtx["t"]>((key, vars) => translate(lang, key, vars), [lang]);
   const value = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

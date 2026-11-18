@@ -67,7 +67,39 @@ export const COUNTRY_NAME: Record<string, string> = {
   AZ: "Azerbaycan",
   KZ: "Kazakistan",
 };
-export const countryName = (c: string) => (c ? COUNTRY_NAME[c] || c : "Belirsiz");
+/**
+ * Ülke adları arayüz dilini izler. Türkçede tablodaki adlar önceliklidir; tabloda olmayan her ISO kodu (OM, NZ, AM,
+ * IQ…) ve İngilizcedeki bütün adlar tarayıcının ülke adlarından gelir. Dili `LangProvider` bildirir.
+ */
+export type CountryLang = "tr" | "en";
+let countryLang: CountryLang = "tr";
+export const setCountryLang = (l: CountryLang) => {
+  countryLang = l;
+};
+const regionNames = (l: CountryLang) => {
+  try {
+    return new Intl.DisplayNames([l], { type: "region", fallback: "none" });
+  } catch {
+    return null;
+  }
+};
+const REGION_NAMES: Record<CountryLang, Intl.DisplayNames | null> = { tr: regionNames("tr"), en: regionNames("en") };
+export const countryName = (c: string, lang: CountryLang = countryLang): string => {
+  if (!c) return lang === "en" ? "Unknown" : "Belirsiz";
+  const code = c.toUpperCase();
+  if (lang === "tr" && COUNTRY_NAME[code]) return COUNTRY_NAME[code];
+  if (!/^[A-Z]{2}$/.test(code)) return c;
+  try {
+    return REGION_NAMES[lang]?.of(code) || COUNTRY_NAME[code] || c;
+  } catch {
+    return COUNTRY_NAME[code] || c;
+  }
+};
+/** Seçim listeleri için tablodaki ülkeler: [kod, ad], seçili dilde ada göre sıralı. */
+export const countryOptions = (lang: CountryLang = countryLang): [string, string][] =>
+  Object.keys(COUNTRY_NAME)
+    .map((code): [string, string] => [code, countryName(code, lang)])
+    .sort((x, y) => x[1].localeCompare(y[1], lang));
 /** Regional-indicator flag for an ISO country code (empty for unknown). */
 export const flagOf = (c: string) =>
   /^[A-Z]{2}$/.test(c) ? String.fromCodePoint(...[...c].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65)) : "";

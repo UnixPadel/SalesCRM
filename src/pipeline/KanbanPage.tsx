@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Empty, Icon, Skeleton, StatusTag, eur, money, relDays } from "../components/ui";
-import { COUNTRY_NAME } from "../domain/constants";
+import { countryOptions } from "../domain/constants";
 import type { Currency } from "../domain/types";
 import { useLang } from "../i18n";
 import type { ColumnStatsDto, LeadListDto, StageCodeDto } from "../modules/sales-pipeline/api/dto";
@@ -25,8 +25,6 @@ import {
 } from "./boardFilter";
 import { useBoard, useErrorText, useNow, useReference, useTeamNames } from "./hooks";
 import { useStageMove } from "./useStageMove";
-
-const COUNTRIES = Object.entries(COUNTRY_NAME).sort((a, b) => a[1].localeCompare(b[1], "tr"));
 
 /**
  * Kanban: sütunlar aşamalardır. Sürükle-bırak aynı komutu çağırır ve aynı pencereleri açar;
@@ -154,7 +152,7 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
             onChange={(e) => setFilter({ country: e.target.value })}
           >
             <option value="">{t("board.filter.allCountries")}</option>
-            {COUNTRIES.map(([code, name]) => (
+            {countryOptions(lang).map(([code, name]) => (
               <option key={code} value={code}>
                 {name} ({code})
               </option>

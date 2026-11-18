@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Field, Modal } from "../components/ui";
-import { COUNTRY_NAME } from "../domain/constants";
+import { countryOptions } from "../domain/constants";
 import { useLang } from "../i18n";
 import { navigate } from "../router";
 import { useCrm } from "../state/CrmContext";
@@ -16,11 +16,9 @@ import type {
 import { ProductPrefsForm } from "./contact/LeadSections";
 import { useErrorText, useReference, useTeamNames } from "./hooks";
 
-const COUNTRIES = Object.entries(COUNTRY_NAME).sort((a, b) => a[1].localeCompare(b[1], "tr"));
-
 /** Manuel lead ekleme formu. Doğrulama sunucuda; alan hataları koddan alana eşlenir. */
 export function NewLeadDialog({ onClose }: { onClose: () => void }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { toast, isAdmin } = useCrm();
   const { team } = useTeamNames();
   const errText = useErrorText();
@@ -136,7 +134,7 @@ export function NewLeadDialog({ onClose }: { onClose: () => void }) {
           <Field label={t("new.country")} error={fieldErr("country")}>
             <select value={f.country} onChange={set("country")}>
               <option value="">—</option>
-              {COUNTRIES.map(([code, name]) => (
+              {countryOptions(lang).map(([code, name]) => (
                 <option key={code} value={code}>
                   {name} ({code})
                 </option>
