@@ -1,5 +1,5 @@
 import { useCallback, useState, type ReactNode } from "react";
-import { useLang } from "../../i18n";
+import { localeOf, useLang } from "../../i18n";
 import type { ActivityOutcomeDto, ActivityTypeDto } from "../../modules/sales-pipeline/api/dto";
 import type { LogContactResultDto } from "../../modules/sales-pipeline/api/dto.contact";
 import { useCrm } from "../../state/CrmContext";
@@ -43,7 +43,7 @@ export function useLogContact(onDone: () => void): {
       if (r.next) {
         parts.push(
           t("contact.savedNext", {
-            when: new Date(r.next.dueAt).toLocaleString(lang === "tr" ? "tr-TR" : "en-GB", {
+            when: new Date(r.next.dueAt).toLocaleString(localeOf(lang), {
               weekday: "short",
               day: "numeric",
               month: "short",

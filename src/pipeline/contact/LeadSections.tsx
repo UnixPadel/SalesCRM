@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Button, Icon, StatusTag, type Tone } from "../../components/ui";
-import { useLang } from "../../i18n";
+import { localeOf, useLang } from "../../i18n";
 import type { LeadDto, LeadListDto, ProductPrefsDto, UpdateLeadBody } from "../../modules/sales-pipeline/api/dto";
 import { useCrm } from "../../state/CrmContext";
 import { pipelineApi } from "../api";
@@ -56,7 +56,7 @@ export function ContactSummaryPanel({ lead, isAdmin }: { lead: LeadListDto; isAd
   const channel = (key: "email" | "whatsapp") => {
     const f = c.channels[key];
     if (!f) return <span className="muted">{t("summary.notSent")}</span>;
-    const last = new Date(f.lastAt).toLocaleDateString(lang === "tr" ? "tr-TR" : "en-GB", {
+    const last = new Date(f.lastAt).toLocaleDateString(localeOf(lang), {
       day: "2-digit",
       month: "2-digit",
     });
@@ -267,9 +267,7 @@ export function ProductPrefsForm({
           </span>
         )}
       </div>
-      {area !== null && (
-        <p className="field-h">{t("product.area", { area: area.toLocaleString(lang === "tr" ? "tr-TR" : "en-GB") })}</p>
-      )}
+      {area !== null && <p className="field-h">{t("product.area", { area: area.toLocaleString(localeOf(lang)) })}</p>}
     </div>
   );
 }

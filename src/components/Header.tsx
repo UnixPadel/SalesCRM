@@ -1,17 +1,18 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { countryName } from "../domain/constants";
-import { useLang, type Lang } from "../i18n";
+import { useLang } from "../i18n";
 import { navigate, type Route } from "../router";
 import { NotificationsBell } from "../pipeline/NotificationsBell";
 import { pipelineApi } from "../pipeline/api";
 import { usePoolCount, useReference, useTodayCount } from "../pipeline/hooks";
 import { useCrm, type Theme } from "../state/CrmContext";
+import { LangMenu } from "./LangMenu";
 import { Avatar, Button, Icon } from "./ui";
 
-const THEMES: { key: Theme; icon: string; label: string }[] = [
-  { key: "auto", icon: "auto", label: "Tema: sistem" },
-  { key: "light", icon: "sun", label: "Tema: açık" },
-  { key: "dark", icon: "moon", label: "Tema: koyu" },
+const THEMES: { key: Theme; icon: string }[] = [
+  { key: "auto", icon: "auto" },
+  { key: "light", icon: "sun" },
+  { key: "dark", icon: "moon" },
 ];
 
 interface Opt {
@@ -25,7 +26,7 @@ interface Opt {
 
 export function Header({ route, onNewLead }: { route: Route; onNewLead: () => void }) {
   const { user, isAdmin, isViewer, isMarketing, theme, setTheme, logout } = useCrm();
-  const { t, lang, setLang } = useLang();
+  const { t } = useLang();
 
   // Faz 6a: "Bugün" rozeti yeni aktivite ucundan (gecikmiş + bugün).
   const dueCount = useTodayCount();
@@ -47,7 +48,7 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
       icon: "calendar",
       label: t("nav.today"),
       badge: dueCount,
-      badgeLabel: `${dueCount} gecikmiş veya bugünkü aktivite`,
+      badgeLabel: t("nav.today.badge", { n: dueCount }),
       bad: true,
     },
     { r: "contacts", icon: "user", label: t("nav.contacts") },
@@ -59,11 +60,11 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
 
   return (
     <header className="hdr">
-      <a className="wordmark" href="#/list" aria-label="Unixpadel Satış Panosu, ana sayfa">
+      <a className="wordmark" href="#/list" aria-label={t("app.home")}>
         <b>Unixpadel</b>
-        <span>Satış Panosu</span>
+        <span>{t("app.name")}</span>
       </a>
-      <nav className="nav" aria-label="Ana menü">
+      <nav className="nav" aria-label={t("nav.main")}>
         {NAV.map((n) => (
           <a
             key={n.r}
@@ -101,8 +102,6 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
           isMarketing={isMarketing}
           theme={theme}
           onTheme={setTheme}
-          lang={lang}
-          onLang={setLang}
           onLogout={logout}
         />
       </div>
@@ -118,8 +117,6 @@ function UserMenu({
   isMarketing,
   theme,
   onTheme,
-  lang,
-  onLang,
   onLogout,
 }: {
   name: string;
@@ -129,8 +126,6 @@ function UserMenu({
   isMarketing: boolean;
   theme: Theme;
   onTheme: (t: Theme) => void;
-  lang: Lang;
-  onLang: (l: Lang) => void;
   onLogout: () => void;
 }) {
   const { t } = useLang();
@@ -155,7 +150,7 @@ function UserMenu({
 
   return (
     <details className="usermenu" ref={ref}>
-      <summary aria-label={`${name} hesabı, menüyü aç`}>
+      <summary aria-label={t("user.menu", { name })}>
         <Avatar name={name} size={32} label={false} />
         <span>{name}</span>
         <Icon name="chevron" size={14} />
@@ -163,27 +158,22 @@ function UserMenu({
       <div className="pop">
         <div className="who-line">
           <b>
-            {name} {isAdmin && <span className="tag">Admin</span>}
+            {name} {isAdmin && <span className="tag">{t("role.admin")}</span>}
             {isMarketing ? (
-              <span className="tag tag-neutral">Pazarlama · salt okunur</span>
+              <span className="tag tag-neutral">{t("role.marketing")}</span>
             ) : (
-              isViewer && <span className="tag tag-neutral">Görüntüleyici</span>
+              isViewer && <span className="tag tag-neutral">{t("role.viewer")}</span>
             )}
           </b>
           <span>{email}</span>
         </div>
-        <button className="menu-item" onClick={() => onTheme(next.key)} title={`Şimdi: ${cur.label}`}>
-          <Icon name={cur.icon} /> {cur.label} <span className="muted">→ {next.label.replace("Tema: ", "")}</span>
+        <button className="menu-item" onClick={() => onTheme(next.key)}>
+          <Icon name={cur.icon} /> {t("theme.label", { name: t(`theme.${cur.key}`) })}{" "}
+          <span className="muted">{t("theme.next", { name: t(`theme.${next.key}`) })}</span>
         </button>
-        <button
-          className="menu-item"
-          onClick={() => onLang(lang === "tr" ? "en" : "tr")}
-          lang={lang === "tr" ? "en" : "tr"}
-        >
-          <Icon name="globe" /> {t("lang.switch")}
-        </button>
+        <LangMenu />
         <button className="menu-item danger" onClick={onLogout}>
-          <Icon name="logout" /> Çıkış yap
+          <Icon name="logout" /> {t("auth.logout")}
         </button>
       </div>
     </details>
@@ -276,12 +266,12 @@ function GlobalSearch() {
           ref={input}
           type="search"
           role="combobox"
-          aria-label="Müşteri, kişi veya organizasyon ara"
+          aria-label={t("search.aria")}
           aria-expanded={showList}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={showList && opts[active] ? `gs-${opts[active].id}` : undefined}
-          placeholder="Müşteri ara…"
+          placeholder={t("common.search")}
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
@@ -310,8 +300,8 @@ function GlobalSearch() {
         </kbd>
       </div>
       {showList && (
-        <ul className="gs-list" id={listId} role="listbox" aria-label="Arama sonuçları">
-          {!opts.length && <li className="gs-empty">“{q}” için sonuç yok</li>}
+        <ul className="gs-list" id={listId} role="listbox" aria-label={t("search.results")}>
+          {!opts.length && <li className="gs-empty">{t("search.none", { q })}</li>}
           {opts.map((o, i) => (
             <li key={o.id} role="presentation">
               {(i === 0 || opts[i - 1].group !== o.group) && (

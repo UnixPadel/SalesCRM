@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Empty, Icon, Skeleton, StatusTag, eur, money, relDays } from "../components/ui";
 import { countryOptions } from "../domain/constants";
 import type { Currency } from "../domain/types";
-import { useLang } from "../i18n";
+import { refName, useLang } from "../i18n";
 import type { ColumnStatsDto, LeadListDto, StageCodeDto } from "../modules/sales-pipeline/api/dto";
 import { navigate, setHashParams } from "../router";
 import { useCrm } from "../state/CrmContext";
@@ -253,7 +253,7 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
                 <div className="col-head">
                   <span className="col-no">{stageIdx + 1}</span>
                   <span>
-                    <b className="col-name">{lang === "tr" ? s.nameTr : s.nameEn}</b>
+                    <b className="col-name">{refName(lang, "stage", s)}</b>
                   </span>
                   <span className="col-count">{cards.length}</span>
                   {st && cards.length > 0 && (

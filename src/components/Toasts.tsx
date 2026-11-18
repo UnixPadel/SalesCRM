@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLang } from "../i18n";
 import { useCrm } from "../state/CrmContext";
 import { Icon } from "./ui";
 
@@ -14,6 +15,7 @@ function topHost(): HTMLElement {
 
 export function Toasts() {
   const { toasts, dismissToast } = useCrm();
+  const { t: tr } = useLang();
   const [host, setHost] = useState<HTMLElement>(() => document.body);
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export function Toasts() {
               {t.action.label}
             </button>
           )}
-          <button className="toast-x" aria-label="Bildirimi kapat" onClick={() => dismissToast(t.id)}>
+          <button className="toast-x" aria-label={tr("toast.dismiss")} onClick={() => dismissToast(t.id)}>
             <Icon name="x" size={14} />
           </button>
         </div>

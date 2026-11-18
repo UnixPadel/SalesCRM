@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Field, Modal } from "../components/ui";
-import { useLang } from "../i18n";
+import { refName, useLang } from "../i18n";
 import type { ChangeStageBody, ReferenceDto } from "../modules/sales-pipeline/api/dto";
 
 /** Aşamaya özel pencereler (Genel plan, satışçı arayüzü 3): ek bilgi yalnız gereken aşamada istenir. */
@@ -237,7 +237,7 @@ export function LostDialog({
         {reasons.map((r) => (
           <label key={r.code} className={"reason" + (code === r.code ? " on" : "")}>
             <input type="radio" name="lost-reason" checked={code === r.code} onChange={() => setCode(r.code)} />
-            {lang === "tr" ? r.nameTr : r.nameEn}
+            {refName(lang, "reason", r)}
           </label>
         ))}
       </fieldset>

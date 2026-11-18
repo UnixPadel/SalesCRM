@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Empty, Icon, Skeleton, StatusTag } from "../../components/ui";
-import { useLang } from "../../i18n";
+import { localeOf, useLang } from "../../i18n";
 import type { OwnerRowDto, TrackingCountsDto, TrackingReportDto } from "../../modules/sales-pipeline/api/dto";
 import { useCrm } from "../../state/CrmContext";
 import { contactApi } from "../contact/contactApi";
@@ -89,11 +89,11 @@ export function SummaryReport() {
     r === null ? (
       <span aria-label={t("reports.summary.na")}>–</span>
     ) : (
-      new Intl.NumberFormat(lang === "tr" ? "tr-TR" : "en-GB", { style: "percent", maximumFractionDigits: 1 }).format(r)
+      new Intl.NumberFormat(localeOf(lang), { style: "percent", maximumFractionDigits: 1 }).format(r)
     );
   const dd = (iso: string | null) =>
     iso
-      ? new Date(iso).toLocaleDateString(lang === "tr" ? "tr-TR" : "en-GB", {
+      ? new Date(iso).toLocaleDateString(localeOf(lang), {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
@@ -104,7 +104,7 @@ export function SummaryReport() {
   const n = (value: number, sel: CellSelector, label: string): ReactNode =>
     value > 0 ? (
       <a className="drill" href={drillDownHref(filters, sel, label)}>
-        {value.toLocaleString(lang === "tr" ? "tr-TR" : "en-GB")}
+        {value.toLocaleString(localeOf(lang))}
       </a>
     ) : (
       <span className="zero">0</span>
@@ -514,7 +514,7 @@ export function SummaryReport() {
                         </td>
                         <td className="num">
                           {p.code === "roof"
-                            ? `${(p.totalAreaM2 ?? 0).toLocaleString(lang === "tr" ? "tr-TR" : "en-GB")} m²`
+                            ? `${(p.totalAreaM2 ?? 0).toLocaleString(localeOf(lang))} m²`
                             : (p.totalQty ?? 0)}
                         </td>
                       </tr>

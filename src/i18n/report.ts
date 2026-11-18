@@ -1,8 +1,8 @@
-/** Özet rapor metinleri (Faz 7g, iş emri §5.5; Excel ÖZET RAPOR başlıkları); `index.tsx` sözlüğe yayar. */
+/** Özet rapor metinleri (Faz 7g, iş emri §5.5; Excel ÖZET RAPOR başlıkları); `dict.ts` sözlüğe yayar. */
 export const REPORT_DICT = {
   "reports.tab.stage": ["Aşama raporu", "Stage report"],
   "reports.tab.summary": ["Özet rapor", "Summary report"],
-  "reports.summary.na": ["hesaplanamaz", "not computable"],
+  "reports.summary.na": ["hesaplanamaz", "n/a"],
   "reports.summary.loadError": ["Rapor yüklenemedi.", "The report could not be loaded."],
   "reports.summary.scope": ["Kapsam", "Scope"],
   "reports.summary.scopeAll": ["Tüm lead'ler ({n})", "All leads ({n})"],
@@ -14,7 +14,7 @@ export const REPORT_DICT = {
   "reports.summary.to": ["Bitiş", "To"],
   "reports.summary.scopeLine": [
     "Kapsam: {n} lead · İlk lead {first} · Son lead {last} · Rapor tarihi {today}",
-    "Scope: {n} leads · First lead {first} · Last lead {last} · Report date {today}",
+    "Scope: {n, plural, one {# lead} other {# leads}} · First lead {first} · Last lead {last} · Report date {today}",
   ],
   "reports.summary.sameAsExcel": ["Excel ÖZET RAPOR ile aynı kapsam", "Same scope as the Excel summary"],
   "reports.summary.repScope": ["Sizin lead'leriniz ve ortak havuz.", "Your leads and the shared pool."],
@@ -32,7 +32,7 @@ export const REPORT_DICT = {
     "Follow-up by install timeline (are hot leads waiting?)",
   ],
   "reports.summary.total": ["Toplam lead", "Total leads"],
-  "reports.summary.mailSent": ["Mail atılan", "Mailed"],
+  "reports.summary.mailSent": ["Mail atılan", "Emailed"],
   "reports.summary.whatsappSent": ["WhatsApp'tan aranan", "Reached on WhatsApp"],
   "reports.summary.neverReached": ["Hiç ulaşılmamış", "Never reached"],
   "reports.summary.replied": ["Dönüş alınan (tüm kanallar)", "Replied (all channels)"],
@@ -40,11 +40,11 @@ export const REPORT_DICT = {
   "reports.summary.buyers": ["Alıcı müşteri", "Buyers"],
   "reports.summary.ofTotal": ["toplamın", "of total"],
   "reports.summary.legacyNote": [
-    "{n} lead'in temas geçmişi bilinmiyor (eski kayıt); 'Hiç ulaşılmamış'a sayılmadı.",
-    "{n} leads have unknown contact history (legacy); not counted as 'Never reached'.",
+    "{n} lead'in temas geçmişi bilinmiyor (eski kayıt); 'Hiç ulaşılmamış' sayısına katılmadı.",
+    "{n, plural, one {# lead has} other {# leads have}} unknown contact history (legacy); not counted as 'Never reached'.",
   ],
   "reports.summary.col.lead": ["Lead", "Leads"],
-  "reports.summary.col.mail": ["Mail atıldı", "Mailed"],
+  "reports.summary.col.mail": ["Mail atıldı", "Emailed"],
   "reports.summary.col.wa": ["WhatsApp", "WhatsApp"],
   "reports.summary.col.never": ["Hiç ulaşılmadı", "Never reached"],
   "reports.summary.col.replied": ["Dönüş alındı", "Replied"],
@@ -54,7 +54,7 @@ export const REPORT_DICT = {
   "reports.summary.col.replyRate": ["Dönüş oranı (ulaşılanlar)", "Reply rate (reached)"],
   "reports.summary.col.proposalRate": ["Teklif oranı", "Proposal rate"],
   "reports.summary.col.product": ["Ürün", "Product"],
-  "reports.summary.col.preferred": ["Tercih eden müşteri", "Customers preferring"],
+  "reports.summary.col.preferred": ["Tercih eden müşteri", "Customers who prefer it"],
   "reports.summary.col.inProposals": ["Teklif verilenler içinde", "Among proposals"],
   "reports.summary.col.shareProposals": ["Teklif verilenlerin %'si", "% of proposals"],
   "reports.summary.col.inBuyers": ["Alıcı müşteriler içinde", "Among buyers"],
@@ -63,12 +63,12 @@ export const REPORT_DICT = {
   "reports.summary.totalRow": ["TOPLAM", "TOTAL"],
   "reports.summary.noExcelOwner": ["Excel'de sorumlu yok", "No owner in Excel"],
   "reports.summary.s2note": [
-    "Hiç ulaşılmadı = ne mail atılmış ne WhatsApp'tan ya da başka kanaldan ulaşılmış lead. Dönüş oranı = dönüş alınan / ulaşılan lead.",
-    "Never reached = no mail, WhatsApp or other contact. Reply rate = replied / reached leads.",
+    "Hiç ulaşılmadı = ne mail atılmış ne de WhatsApp'tan ya da başka bir kanaldan ulaşılmış lead. Dönüş oranı = dönüş alınan / ulaşılan lead.",
+    "Never reached = no email, WhatsApp or other contact. Reply rate = replied / reached leads.",
   ],
   "reports.summary.poolNote": [
     "Ortak havuz: Excel'deki ATANMADI ve kullanıcı tablosunda eşlenemeyen sorumlular.",
-    "Shared pool: Excel's ATANMADI and owners not matched in the user table.",
+    "Shared pool: rows marked ATANMADI (unassigned) in Excel and owners not matched in the user table.",
   ],
   "reports.summary.closing": [
     "Kapatma potansiyeli: formda 'Tam kapalı / çatılı kort' seçen lead:",
@@ -76,6 +76,6 @@ export const REPORT_DICT = {
   ],
   "reports.summary.hotWarn": [
     "3 ay içinde kurulum planlayan {n} lead'e hiç ulaşılmadı",
-    "{n} leads planning within 3 months were never reached",
+    "{n, plural, one {# lead} other {# leads}} planning installation within 3 months {n, plural, one {has} other {have}} never been reached",
   ],
 } as const satisfies Record<string, readonly [string, string]>;

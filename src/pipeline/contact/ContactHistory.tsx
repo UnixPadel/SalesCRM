@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Empty, Icon, Skeleton } from "../../components/ui";
-import { useLang } from "../../i18n";
+import { localeOf, useLang } from "../../i18n";
 import type { ContactHistoryItemDto } from "../../modules/sales-pipeline/api/dto.contact";
 import { navigate } from "../../router";
 import { useCrm } from "../../state/CrmContext";
@@ -81,7 +81,7 @@ export function ContactHistory() {
     }
   };
   const when = (iso: string, est: boolean) =>
-    `${est ? "≈ " : ""}${new Date(iso).toLocaleString(lang === "tr" ? "tr-TR" : "en-GB", {
+    `${est ? "≈ " : ""}${new Date(iso).toLocaleString(localeOf(lang), {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -190,7 +190,7 @@ export function ContactHistory() {
                   <small className="muted">
                     {t("contact.by", { who: nameOf(x.activity.doneByUserId ?? x.activity.createdByUserId) })}
                     {x.next &&
-                      ` · ${t("history.next")}: ${t(`activity.type.${x.next.type}`)} ${new Date(x.next.dueAt).toLocaleString(lang === "tr" ? "tr-TR" : "en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`}
+                      ` · ${t("history.next")}: ${t(`activity.type.${x.next.type}`)} ${new Date(x.next.dueAt).toLocaleString(localeOf(lang), { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`}
                   </small>
                 </div>
               </li>

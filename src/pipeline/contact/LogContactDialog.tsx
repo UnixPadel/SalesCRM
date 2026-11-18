@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { Button, Icon, Modal, Skeleton, fmtDate } from "../../components/ui";
-import { useLang } from "../../i18n";
+import { localeOf, useLang } from "../../i18n";
 import type { ActivityOutcomeDto, ActivityTypeDto, StageCodeDto } from "../../modules/sales-pipeline/api/dto";
 import type { ContactFormDto, LogContactResultDto } from "../../modules/sales-pipeline/api/dto.contact";
 import { ACTIVITY_ICON } from "../activityBits";
@@ -120,7 +120,7 @@ export function LogContactDialog({
           ? t("contact.closedNoNext")
           : s.planNext && s.nextDueAt
             ? t("contact.nextSummary", {
-                what: `${typeLabel(s.nextType)}, ${new Date(s.nextDueAt).toLocaleString(lang === "tr" ? "tr-TR" : "en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`,
+                what: `${typeLabel(s.nextType)}, ${new Date(s.nextDueAt).toLocaleString(localeOf(lang), { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`,
               })
             : t("contact.noNext");
     const createdMs = new Date(form.lead.createdAt).getTime();

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../data/api";
 import type { TeamMember } from "../domain/types";
-import { useLang } from "../i18n";
+import { refName, useLang } from "../i18n";
 import type {
   BoardDto,
   LeadDetailDto,
@@ -50,7 +50,7 @@ export function useReference() {
   const stageName = useCallback(
     (code: StageCodeDto | string) => {
       const s = ref?.stages.find((x) => x.code === code);
-      return s ? (lang === "tr" ? s.nameTr : s.nameEn) : String(code);
+      return s ? refName(lang, "stage", s) : String(code);
     },
     [ref, lang],
   );
@@ -58,7 +58,7 @@ export function useReference() {
     (code: string | null) => {
       if (!code) return "";
       const r = ref?.lostReasons.find((x) => x.code === code);
-      return r ? (lang === "tr" ? r.nameTr : r.nameEn) : code;
+      return r ? refName(lang, "reason", r) : code;
     },
     [ref, lang],
   );

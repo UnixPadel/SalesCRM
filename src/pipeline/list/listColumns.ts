@@ -3,6 +3,7 @@
  * daha çok "değer anahtarı" üretir (başlık menüsündeki sayılı liste ve URL süzgeci aynı anahtarı kullanır), bir
  * sıralama anahtarı ve CSV metni. Saf: React yok; çeviri `t` ve takvim günü `day` dışarıdan gelir.
  */
+import { localeOf } from "../../i18n/lang";
 import type { LeadListDto } from "../../modules/sales-pipeline/api/dto";
 import { courtLine, phoneText, productLine, roofArea, type T } from "../contact/trackingView";
 
@@ -79,7 +80,7 @@ const monthLabel = (v: string, c: Ctx) =>
     ? c.t("summary.never")
     : v === LEGACY
       ? c.t("summary.legacyShort")
-      : new Date(`${v}-15T12:00:00Z`).toLocaleDateString(c.lang === "tr" ? "tr-TR" : "en-GB", {
+      : new Date(`${v}-15T12:00:00Z`).toLocaleDateString(localeOf(c.lang), {
           month: "long",
           year: "numeric",
         });

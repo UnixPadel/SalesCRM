@@ -4017,3 +4017,122 @@ select.bare {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------------- language menu ----------------
+   Düğme seçili dili gösterir; liste satır başı tarafında açılır (soldan sağa dillerde solda, Arapçada sağda). */
+.langmenu {
+  position: relative;
+}
+.langmenu-btn .langmenu-label {
+  flex: 1;
+}
+.langmenu-btn > .ic:last-child {
+  color: var(--text-3);
+  transform: rotate(90deg);
+}
+[dir="rtl"] .langmenu-btn > .ic:last-child {
+  transform: rotate(-90deg);
+}
+.langmenu.open > .langmenu-btn {
+  background: var(--surface-3);
+}
+.langmenu-pop {
+  position: absolute;
+  inset-block-start: calc(-1 * var(--s-2));
+  inset-inline-end: 100%;
+  z-index: 40;
+  /* Düğmeyle liste arasındaki boşluk: fare geçerken liste kapanmasın. */
+  padding-inline-end: var(--s-3);
+}
+.langmenu-list {
+  list-style: none;
+  margin: 0;
+  min-inline-size: 168px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-2);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  box-shadow: var(--shadow-3);
+}
+.langmenu-list .menu-item[aria-checked="true"] {
+  font-weight: 700;
+}
+.langmenu-check {
+  flex: 0 0 auto;
+  inline-size: 16px;
+  display: inline-flex;
+  color: var(--brand-ink);
+}
+/* Giriş sayfası: köşede tek başına düğme. */
+.login {
+  position: relative;
+}
+.langmenu-standalone {
+  position: absolute;
+  inset-block-start: var(--s-4);
+  inset-inline-end: var(--s-4);
+}
+.langmenu-standalone .langmenu-btn {
+  inline-size: auto;
+  padding-inline: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--surface-1);
+}
+.langmenu-standalone .langmenu-btn .langmenu-label {
+  flex: none;
+}
+/* Dar ekranda yana açılacak yer yok: liste düğmenin altında açılır. */
+@media (max-width: 560px) {
+  .langmenu-menu .langmenu-pop {
+    position: static;
+    padding: 0;
+    margin-block-start: var(--s-1);
+  }
+  .langmenu-menu .langmenu-list {
+    box-shadow: none;
+  }
+  .langmenu-standalone .langmenu-pop {
+    inset-block-start: calc(100% + var(--s-1));
+    inset-inline-end: 0;
+    padding: 0;
+  }
+}
+
+/* ---------------- Arabic (right-to-left) ----------------
+   Yerleşim mantıksal özelliklerle yazıldığı için yön kendiliğinden döner; burada yalnız istisnalar var. */
+:root[lang="ar"] {
+  --f-body: "Atkinson Hyperlegible", "Noto Sans Arabic", "Segoe UI", system-ui, sans-serif;
+}
+/* Arap harfleri bitişik yazılır: harf aralığı bağlantıları koparır. */
+:root[lang="ar"] * {
+  letter-spacing: 0 !important;
+}
+/* Telefon, e-posta, kod ve klavye kısayolu her dilde soldan sağa okunur. */
+[dir="rtl"]
+  :is(
+    a[href^="tel:"],
+    a[href^="mailto:"],
+    input[type="tel"],
+    input[type="email"],
+    input[type="url"],
+    .mono,
+    .kbd,
+    code
+  ) {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+[dir="rtl"] :is(input[type="tel"], input[type="email"], input[type="url"]) {
+  text-align: end;
+}
+/* Sayı hücreleri ve karışık içerikli kısa metinler yönünü içeriğinden alır ("+90 532 …" ters dizilmesin). */
+[dir="rtl"] :is(.num, .gs-t, .gs-m, .who-line span) {
+  unicode-bidi: plaintext;
+}
+[dir="rtl"] :is(td, th).num {
+  text-align: left;
+}

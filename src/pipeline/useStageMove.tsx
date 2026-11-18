@@ -1,5 +1,5 @@
 import { useCallback, useState, type ReactNode } from "react";
-import { useLang } from "../i18n";
+import { refName, useLang } from "../i18n";
 import type { ChangeStageBody, LeadDto, ReferenceDto, StageCodeDto } from "../modules/sales-pipeline/api/dto";
 import { useCrm } from "../state/CrmContext";
 import { pipelineApi } from "./api";
@@ -21,7 +21,7 @@ export function useStageMove(
   onChanged: (lead: LeadDto) => void,
   opts: StageMoveOptions = {},
 ) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { toast } = useCrm();
   const errText = useErrorText();
   const [pending, setPending] = useState<{ lead: LeadDto; target: StageCodeDto } | null>(null);
@@ -33,7 +33,7 @@ export function useStageMove(
       try {
         const r = await pipelineApi.changeStage(lead.id, body);
         const name = ref?.stages.find((s) => s.code === body.target);
-        toast(t("stage.changed", { stage: name ? name.nameTr : body.target }), {
+        toast(t("stage.changed", { stage: name ? refName(lang, "stage", name) : body.target }), {
           action: {
             label: t("stage.undo"),
             run: () =>
@@ -56,7 +56,7 @@ export function useStageMove(
         setSaving(false);
       }
     },
-    [ref, t, toast, errText, onChanged],
+    [ref, t, lang, toast, errText, onChanged],
   );
 
   const move = useCallback(

@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Button, Empty, Icon, Skeleton, StatusTag } from "../../components/ui";
 import { countryName } from "../../domain/constants";
-import { useLang } from "../../i18n";
+import { localeOf, useLang } from "../../i18n";
 import type { LeadListDto } from "../../modules/sales-pipeline/api/dto";
 import { navigate, setHashParams } from "../../router";
 import { useCrm } from "../../state/CrmContext";
@@ -254,7 +254,7 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
         </span>
       );
     const short = (iso: string) =>
-      new Date(iso).toLocaleDateString(lang === "tr" ? "tr-TR" : "en-GB", { day: "2-digit", month: "2-digit" });
+      new Date(iso).toLocaleDateString(localeOf(lang), { day: "2-digit", month: "2-digit" });
     // Ulaşım hücresi: işlem yapılabilen satırda hücrenin tamamı tıklanır; diyalog o kanal seçili, seçenekler açık açılır.
     const reachCell = (type: ActivityTypeDto, state: string, content: JSX.Element) =>
       canActOn(l) ? (
@@ -418,7 +418,7 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
         return a === null ? (
           <span className="inline-warn">✔ {t("product.roofNoSize")}</span>
         ) : (
-          `${l.products.roof.widthM} × ${l.products.roof.lengthM} m · ${a.toLocaleString(lang === "tr" ? "tr-TR" : "en-GB")} m²`
+          `${l.products.roof.widthM} × ${l.products.roof.lengthM} m · ${a.toLocaleString(localeOf(lang))} m²`
         );
       }
       case "last":
@@ -438,7 +438,7 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
       case "next":
         if (l.currentStage === "WON" || l.currentStage === "LOST") return "—";
         return l.nextActivity ? (
-          `${t(`activity.type.${l.nextActivity.type}`)} · ${new Date(l.nextActivity.dueAt).toLocaleString(lang === "tr" ? "tr-TR" : "en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
+          `${t(`activity.type.${l.nextActivity.type}`)} · ${new Date(l.nextActivity.dueAt).toLocaleString(localeOf(lang), { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
         ) : (
           <StatusTag tone="bad" icon="clock">
             {t("activity.rotting")}

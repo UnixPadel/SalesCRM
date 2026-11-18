@@ -26,7 +26,8 @@ interface CrmCtx {
   /** Oturumdaki kişi; çıkışta null. `authChecked` ilk /me yanıtına kadar false. */
   user: User | null;
   authChecked: boolean;
-  login: (email: string, password: string) => Promise<string | null>;
+  /** Başarıda null; hatada HTTP durumu (0 = ağ, -1 = bilinmeyen) ve sunucunun Türkçe mesajı. */
+  login: (email: string, password: string) => Promise<{ status: number; message: string } | null>;
   logout: () => Promise<void>;
   /** Admin her şeyi görür ve yapar. */
   isAdmin: boolean;
@@ -101,7 +102,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       setUser(r.user);
       return null;
     } catch (e) {
-      return e instanceof ApiError ? e.message : "Giriş başarısız.";
+      return e instanceof ApiError ? { status: e.status, message: e.message } : { status: -1, message: "" };
     }
   }, []);
 

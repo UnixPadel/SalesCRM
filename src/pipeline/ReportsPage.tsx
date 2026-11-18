@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Empty, Skeleton, eur } from "../components/ui";
 import { countryName } from "../domain/constants";
-import { useLang } from "../i18n";
+import { localeOf, useLang } from "../i18n";
 import type { ReportDto } from "../modules/sales-pipeline/api/dto";
 import { pipelineApi } from "./api";
 import { useErrorText, useReference } from "./hooks";
@@ -130,7 +130,7 @@ function StageReport() {
   const pct = (r: number | null) => (r === null ? "—" : `%${Math.round(r * 100)}`);
   const monthLabel = (ym: string) => {
     const [y, m] = ym.split("-").map(Number) as [number, number];
-    return new Date(y, m - 1, 1).toLocaleDateString(lang === "tr" ? "tr-TR" : "en-GB", {
+    return new Date(y, m - 1, 1).toLocaleDateString(localeOf(lang), {
       month: "short",
       year: "2-digit",
     });

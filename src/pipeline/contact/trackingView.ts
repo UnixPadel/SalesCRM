@@ -2,12 +2,13 @@
  * Satış takip bilgisinin ortak metinleri (Faz 7g): ürün özeti, kort satırı, son temas, kanal ve uyarı metinleri.
  * Lead sayfası, liste, pano kartı ve CSV aynı fonksiyonları kullanır. Saf: `t` çevirmeni dışarıdan gelir.
  */
+import { translate } from "../../i18n/dict";
+import { isLang, localeOf } from "../../i18n/lang";
 import type { DataWarningDto, LeadListDto, ProductPrefsDto } from "../../modules/sales-pipeline/api/dto";
 
 export type T = (key: string, vars?: Record<string, string | number>) => string;
 
-const num = (n: number, lang: string) =>
-  n.toLocaleString(lang === "tr" ? "tr-TR" : "en-GB", { maximumFractionDigits: 2 });
+const num = (n: number, lang: string) => n.toLocaleString(localeOf(lang), { maximumFractionDigits: 2 });
 
 export function roofArea(p: ProductPrefsDto): number | null {
   return p.roof.widthM !== null && p.roof.lengthM !== null
@@ -42,7 +43,7 @@ export function courtLine(lead: Pick<LeadListDto, "courtTotal" | "courtCount" | 
 
 /** "05.11.2026 · 3 g önce" / "≈ 22.10.2026 (tahmini)". */
 export function dateText(iso: string, estimated: boolean, t: T, lang = "tr"): string {
-  const d = new Date(iso).toLocaleDateString(lang === "tr" ? "tr-TR" : "en-GB", {
+  const d = new Date(iso).toLocaleDateString(localeOf(lang), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -53,8 +54,8 @@ export function dateText(iso: string, estimated: boolean, t: T, lang = "tr"): st
 /** Göreli gün: "bugün", "3 g önce". */
 export function daysAgo(iso: string, now: number, lang = "tr"): string {
   const d = Math.floor((now - new Date(iso).getTime()) / 86_400_000);
-  if (lang !== "tr") return d <= 0 ? "today" : `${d} d ago`;
-  return d <= 0 ? "bugün" : `${d} g önce`;
+  const l = isLang(lang) ? lang : "en";
+  return d <= 0 ? translate(l, "rel.today") : translate(l, "rel.daysAgoShort", { n: d });
 }
 
 /** Uyarı metni (parametreler çevrilir: ithalat sorunları, durum ve aşama). */

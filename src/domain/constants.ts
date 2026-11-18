@@ -69,13 +69,14 @@ export const COUNTRY_NAME: Record<string, string> = {
 };
 /**
  * Ülke adları arayüz dilini izler. Türkçede tablodaki adlar önceliklidir; tabloda olmayan her ISO kodu (OM, NZ, AM,
- * IQ…) ve İngilizcedeki bütün adlar tarayıcının ülke adlarından gelir. Dili `LangProvider` bildirir.
+ * IQ…) ile İngilizce ve Arapçadaki bütün adlar tarayıcının ülke adlarından gelir. Dili `LangProvider` bildirir.
  */
-export type CountryLang = "tr" | "en";
+export type CountryLang = "tr" | "en" | "ar";
 let countryLang: CountryLang = "tr";
 export const setCountryLang = (l: CountryLang) => {
   countryLang = l;
 };
+const UNKNOWN_COUNTRY: Record<CountryLang, string> = { tr: "Belirsiz", en: "Unknown", ar: "غير محدد" };
 const regionNames = (l: CountryLang) => {
   try {
     return new Intl.DisplayNames([l], { type: "region", fallback: "none" });
@@ -83,9 +84,13 @@ const regionNames = (l: CountryLang) => {
     return null;
   }
 };
-const REGION_NAMES: Record<CountryLang, Intl.DisplayNames | null> = { tr: regionNames("tr"), en: regionNames("en") };
+const REGION_NAMES: Record<CountryLang, Intl.DisplayNames | null> = {
+  tr: regionNames("tr"),
+  en: regionNames("en"),
+  ar: regionNames("ar"),
+};
 export const countryName = (c: string, lang: CountryLang = countryLang): string => {
-  if (!c) return lang === "en" ? "Unknown" : "Belirsiz";
+  if (!c) return UNKNOWN_COUNTRY[lang];
   const code = c.toUpperCase();
   if (lang === "tr" && COUNTRY_NAME[code]) return COUNTRY_NAME[code];
   if (!/^[A-Z]{2}$/.test(code)) return c;

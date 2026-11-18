@@ -33,7 +33,7 @@ export default function App() {
 
   if (!authChecked) {
     return (
-      <div className="login" aria-busy="true" aria-label="Oturum kontrol ediliyor">
+      <div className="login" aria-busy="true" aria-label={t("login.checking")}>
         <div className="login-card">
           <Skeleton h={28} w={180} />
           <Skeleton h={44} />

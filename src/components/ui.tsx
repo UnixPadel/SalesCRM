@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import type { Currency } from "../domain/types";
+import { useLang } from "../i18n";
+import { activeLang, activeLocale } from "../i18n/lang";
 
 /* ---------------- formatting ---------------- */
 
@@ -7,10 +9,16 @@ const SYMBOL: Record<Currency, string> = { EUR: "€", USD: "$", GBP: "£", TRY:
 export function money(v: number, cur: Currency = "EUR", compact = false) {
   if (compact && Math.abs(v) >= 1000) {
     const [n, unit] = Math.abs(v) >= 1e6 ? [v / 1e6, "M"] : [v / 1e3, "K"];
-    const s = n >= 100 ? String(Math.round(n)) : n.toFixed(1).replace(/\.0$/, "").replace(".", ",");
+    const s =
+      n >= 100
+        ? String(Math.round(n))
+        : n
+            .toFixed(1)
+            .replace(/\.0$/, "")
+            .replace(".", activeLang() === "tr" ? "," : ".");
     return `${SYMBOL[cur]}${s}${unit}`;
   }
-  return `${SYMBOL[cur]}${Math.round(v).toLocaleString("tr-TR")}`;
+  return `${SYMBOL[cur]}${Math.round(v).toLocaleString(activeLocale())}`;
 }
 export const eur = (v: number, compact = false) => money(v, "EUR", compact);
 
@@ -18,24 +26,21 @@ const parse = (iso: string) => new Date(iso.length === 10 ? iso + "T00:00:00" : 
 export function fmtDate(iso: string | null | undefined, withTime = false) {
   if (!iso) return "—";
   const d = parse(iso);
-  const date = d.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
+  const date = d.toLocaleDateString(activeLocale(), { day: "numeric", month: "short", year: "numeric" });
   if (!withTime || iso.length === 10) return date;
   return `${date}, ${fmtTime(iso)}`;
 }
 export function fmtTime(iso: string) {
-  return parse(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  return parse(iso).toLocaleTimeString(activeLocale(), { hour: "2-digit", minute: "2-digit" });
 }
-/** Calendar-day distance in local time ("bugün", "yarın", "3 gün önce"). */
+/** Calendar-day distance in local time, in the interface language ("bugün", "tomorrow", "3 gün önce"). */
 export function relDays(iso: string) {
   const d = parse(iso);
   const a = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const n = new Date();
   const b = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
   const diff = Math.round((a - b) / 86_400_000);
-  if (diff === 0) return "bugün";
-  if (diff === 1) return "yarın";
-  if (diff === -1) return "dün";
-  return diff > 0 ? `${diff} gün sonra` : `${-diff} gün önce`;
+  return new Intl.RelativeTimeFormat(activeLocale(), { numeric: "auto" }).format(diff, "day");
 }
 
 /* ---------------- icons ---------------- */
@@ -239,6 +244,7 @@ export function Modal({
   footer?: ReactNode;
   width?: number;
 }) {
+  const { t } = useLang();
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const closeRef = useRef(onClose);
@@ -272,7 +278,7 @@ export function Modal({
       <div className="modal-inner">
         <header className="modal-head">
           <h2 id={titleId}>{title}</h2>
-          <IconButton icon="x" label="Kapat" onClick={onClose} />
+          <IconButton icon="x" label={t("common.close")} onClick={onClose} />
         </header>
         <div className="modal-body">{children}</div>
         {footer && <footer className="modal-foot">{footer}</footer>}
