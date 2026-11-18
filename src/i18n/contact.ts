@@ -242,6 +242,7 @@ export const CONTACT_DICT = {
   "contact.saving": ["Kaydediliyor…", "Saving…"],
   "contact.needOutcome": ["Sonucu seçin", "Choose an outcome"],
   "contact.needAmount": ["Kazanıldı için tutar girin", "Enter an amount for Won"],
+  "contact.badAmount": ["Tutarı 12500,50 biçiminde girin", "Enter the amount like 12500.50"],
   "contact.needReason": ["Kayıp nedenini seçin", "Choose a loss reason"],
   "contact.futureTime": ["Gelecekteki bir zaman seçilemez.", "You can't choose a time in the future."],
   "contact.beforeLead": [

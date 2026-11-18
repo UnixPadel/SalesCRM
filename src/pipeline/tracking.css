@@ -659,13 +659,13 @@
   border-color: var(--brand-hover);
   color: var(--brand-text);
 }
-/* Ulaşım hücreleri (Mail, WhatsApp, Diğer kanal): hücrenin tamamı tıklanır, o kanal seçili "İletişim kaydet" açılır.
-   Düğme içerik kadar yer tutar; ::after hücreyi kaplar. Artı işareti yalnız üzerine gelince ya da odakta görünür. */
-.ll td:has(> .ll-reach) {
+/* Düzenlenebilir hücre: hücrenin tamamı tıklanır. Düğme içerik kadar yer tutar; ::after hücreyi kaplar. İpucu işareti
+   (kalem) ::before ile gelir, satır başına ikon eklenmez; üzerine gelince ya da odakta görünür. */
+.ll td:has(> .ll-cell) {
   position: relative;
   cursor: pointer;
 }
-.ll-reach {
+.ll-cell {
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
@@ -674,39 +674,93 @@
   background: none;
   font: inherit;
   color: inherit;
+  text-align: start;
   cursor: pointer;
 }
-.ll-reach::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-}
-.ll-reach:focus-visible {
-  outline: none;
-}
-.ll-reach:focus-visible::after {
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-}
-.ll-reach-add {
+.ll-cell::before {
+  content: "\270E";
+  order: 1;
+  inline-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
   color: var(--brand-ink);
   opacity: 0;
   transition: opacity var(--dur) var(--ease-out);
 }
-.ll-reach:focus-visible .ll-reach-add {
+.ll-cell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.ll-cell:focus-visible {
+  outline: none;
+}
+.ll-cell:focus-visible::after {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.ll-cell:focus-visible::before {
   opacity: 1;
 }
+.ll-cell[aria-busy="true"] {
+  opacity: 0.55;
+  cursor: progress;
+}
+/* Seçim kutusu hücrenin üstüne biner (akış dışı): tablo sütunları yeniden hesaplanmaz. */
+.ll-pick {
+  position: absolute;
+  z-index: 1;
+  inset-block: 2px;
+  inset-inline-start: 2px;
+  inline-size: max(calc(100% - 4px), 160px);
+  min-block-size: 0;
+  block-size: calc(100% - 4px);
+}
+/* Telefon no: metin seçilebilir kalsın diye yalnız kalem tıklanır. */
+.ll-with-pen {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+.ll-pen {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 24px;
+  block-size: 24px;
+  border: 0;
+  border-radius: var(--r-1);
+  padding: 0;
+  background: none;
+  color: var(--brand-ink);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease-out);
+}
+.ll-pen:focus-visible,
+.ll td:hover .ll-pen {
+  opacity: 1;
+}
+@media (hover: none) {
+  .ll-pen {
+    opacity: 1;
+  }
+}
 @media (hover: hover) {
-  .ll td:has(> .ll-reach:hover) {
+  .ll td:has(> .ll-cell:hover) {
     background: var(--brand-weak);
   }
-  .ll-reach:hover .ll-reach-add {
+  .ll-cell:hover::before {
     opacity: 1;
+  }
+  .ll-pen:hover {
+    background: var(--brand-weak);
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .ll-log,
-  .ll-reach-add {
+  .ll-cell::before,
+  .ll-pen {
     transition: none;
   }
 }
@@ -836,9 +890,6 @@
   max-inline-size: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.ll-status {
-  min-block-size: var(--hit-md);
 }
 .g-btn {
   display: inline-flex;

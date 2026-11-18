@@ -81,6 +81,8 @@ export interface ContactForm {
   lead: Lead;
   openActivities: Activity[];
   completableId: string | null;
+  /** Kanal önceden seçiliyken (liste hücresi, bağlantı) tamamlanacak plan; kanal başına ayrı seçilir. */
+  completableByType: Partial<Record<ActivityType, string | null>>;
   channels: ActivityType[];
   defaultType: ActivityType;
   defaults: Partial<Record<ActivityType, Record<ActivityOutcome, ContactFormDefaults>>>;
@@ -478,6 +480,14 @@ export class ContactFormQuery {
         if ((a.type === "proposal_sent" || a.type === "site_visit") && !channels.includes(a.type))
           channels.push(a.type);
       }
+      // Beş kanalda vadesi gelen plan (önce aynı tür); "Teklif gönderimi"/"Saha ziyareti" yalnız kendi planıyla kanal olur.
+      const completableByType: ContactForm["completableByType"] = {};
+      for (const type of channels) {
+        const plan = (CONTACT_CHANNELS as readonly string[]).includes(type)
+          ? pickCompletable(open, type, now, tz)
+          : open.find((a) => a.type === type);
+        completableByType[type] = plan?.id ?? null;
+      }
       const defaults: ContactForm["defaults"] = {};
       for (const type of channels) {
         const perOutcome = {} as Record<ActivityOutcome, ContactFormDefaults>;
@@ -507,6 +517,7 @@ export class ContactFormQuery {
         lead,
         openActivities: open,
         completableId: completable?.id ?? null,
+        completableByType,
         channels,
         defaultType,
         defaults,

@@ -1,22 +1,23 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Button, Empty, Icon, Skeleton, StatusTag } from "../../components/ui";
-import { countryName } from "../../domain/constants";
+import { countryName, countryOptions } from "../../domain/constants";
 import { dirOf, localeOf, refName, translate, useLang, type Lang } from "../../i18n";
-import type { LeadListDto } from "../../modules/sales-pipeline/api/dto";
+import type { LeadDto, LeadListDto, StageCodeDto, UpdateLeadBody } from "../../modules/sales-pipeline/api/dto";
 import { navigate, setHashParams } from "../../router";
 import { useCrm } from "../../state/CrmContext";
 import { pipelineApi } from "../api";
 import { StageTag } from "../bits";
 import { contactApi } from "../contact/contactApi";
 import { ContactLinks } from "../contact/ContactQuickBar";
-import { CustomerStatusTag } from "../contact/LeadSections";
-import type { ActivityTypeDto } from "../../modules/sales-pipeline/api/dto";
+import { ANSWER_LIST, CustomerStatusTag } from "../contact/LeadSections";
 import { dateText, daysAgo, openWarnings, phoneText, roofArea, sourceText, warningText } from "../contact/trackingView";
-import { useLogContact } from "../contact/useLogContact";
 import { ageTone, useErrorText, useNow, useReference, useTeamNames } from "../hooks";
+import { CellEditors, type CellEditorsApi } from "./CellEditors";
 import { ColumnFilterPopover } from "./ColumnFilterPopover";
 import { ExcelImportDialog } from "./ExcelImportDialog";
+import { PickCell, type PickOption } from "./PickCell";
 import { SheetSyncBadge } from "./SheetSyncBadge";
+import { ANSWER_COLUMNS, cellAction, cellPerms, forwardStages, frozenRows, type CellAction } from "./cellEdit";
 import { downloadBlob } from "./csv";
 import { XLSX_MIME, buildWorkbook } from "./excelFile";
 import { EXCEL_COLUMNS, excelHeader, excelRow, excelTexts, isEditable } from "./excelSync";
@@ -63,11 +64,22 @@ const write = (k: string, v: unknown) => {
   }
 };
 
+/** Seçili değer listede yoksa (eski kullanıcı, tanınmayan ülke) kutu boş görünmesin. */
+const withCurrent = (options: PickOption[], value: string, label: string): PickOption[] =>
+  value && !options.some((o) => o.value === value) ? [{ value, label }, ...options] : options;
+
+/** Düzenlemeden sonra görünüm değişene kadar korunan satır sırası (`frozenRows`). */
+interface FrozenView {
+  key: string;
+  ids: string[];
+  extra: ReadonlyMap<string, LeadListDto>;
+}
+
 /**
  * Lead listesi (Faz 7g, iş emri §5.4): Excel SATIŞ TAKİP'in karşılığı ve açılış sayfası. Sütun grupları Excel'deki
- * gibi; başlık menüleri otomatik süzgeç gibi; ✔/✘ Excel'in sembolleri. Ulaşım, dönüş ve takip sütunları temas
- * kayıtlarından türetilir (elle yazılmaz). Satırda tek eylem: "İletişim kaydet"; adın altındaki düğmeden ya da
- * Mail / WhatsApp / Diğer kanal hücresine tıklayarak (o kanal seçili) açılır.
+ * gibi; başlık menüleri otomatik süzgeç gibi; ✔/✘ Excel'in sembolleri. Ulaşım, dönüş, teklif ve takip sütunları temas
+ * kayıtlarından türetilir (elle yazılmaz). Hücreye tıklamak o hücrenin düzenlemesini açar: temas sütunlarında ön
+ * seçimli "İletişim kaydet", tek değerli alanlarda yerinde seçim, diğerlerinde küçük form (`cellEdit`).
  */
 export function LeadListPage({ params }: { params: URLSearchParams }) {
   const { t, lang } = useLang();
@@ -85,8 +97,16 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
   const [search, setSearch] = useState(params.get("q") ?? "");
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [frozen, setFrozen] = useState<FrozenView | null>(null);
+  const editors = useRef<CellEditorsApi>(null);
   const seq = useRef(0);
   const serverKey = serverParams(params).toString();
+  const viewKey = params.toString();
+  const view = useRef<{ key: string; shown: LeadListDto[]; serverFiltered: boolean }>({
+    key: viewKey,
+    shown: [],
+    serverFiltered: false,
+  });
 
   // Filtre hatırlama: URL'de süzgeç yoksa ve rapordan gelinmediyse son süzgeç uygulanır.
   useEffect(() => {
@@ -111,7 +131,39 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
       .catch((e) => n === seq.current && setError(e));
   }, [serverKey]);
   useEffect(load, [load]);
-  const contact = useLogContact(load);
+  // Süzgeç, sıralama, arama ya da sayfa değişince satırlar yeniden kurala uyar.
+  useEffect(() => setFrozen((f) => (f && f.key !== viewKey ? null : f)), [viewKey]);
+
+  // Hücre düzenlemesi kaydedildi: satırlar yerinde kalır, yanıt hemen işlenir, liste arka planda yenilenir.
+  const afterEdit = useCallback(
+    (leadId?: string, lead?: LeadDto) => {
+      const v = view.current;
+      const merge = (row: LeadListDto): LeadListDto => (lead && row.id === lead.id ? { ...row, ...lead } : row);
+      setFrozen((f) => {
+        const base: FrozenView = f?.key === v.key ? f : { key: v.key, ids: v.shown.map((r) => r.id), extra: new Map() };
+        const row = v.serverFiltered && leadId ? v.shown.find((r) => r.id === leadId) : undefined;
+        return row ? { ...base, extra: new Map(base.extra).set(row.id, merge(row)) } : base;
+      });
+      if (lead) setRows((cur) => cur?.map(merge) ?? cur);
+      load();
+      // Sunucu süzgecinin dışına düşen satır listede gelmez; güncel hâli ayrıca okunur.
+      if (leadId && v.serverFiltered) {
+        const setExtra = (row: LeadListDto | null) =>
+          setFrozen((f) => {
+            if (f?.key !== v.key) return f;
+            const extra = new Map(f.extra);
+            if (row) extra.set(leadId, row);
+            else extra.delete(leadId);
+            return { ...f, extra };
+          });
+        pipelineApi
+          .get(leadId)
+          .then((d) => setExtra(d.lead))
+          .catch(() => setExtra(null));
+      }
+    },
+    [load],
+  );
 
   const tz = ref?.timeZone ?? "Europe/Istanbul";
   const fmtDay = useMemo(() => new Intl.DateTimeFormat("en-CA", { timeZone: tz }), [tz]);
@@ -188,7 +240,14 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
   };
   const filters = clientFilters(params, user?.id ?? null);
   const base = rows ? searchRows(rows, params.get("q")) : [];
-  const shown = rows ? sortRows(applyFilters(base, filters, ctx), params.get("sort"), ctx) : [];
+  // `live` süzgece uyan satırlar (dışa aktarım bunu kullanır); `shown` ekranda duran satırlar.
+  const live = rows ? sortRows(applyFilters(base, filters, ctx), params.get("sort"), ctx) : [];
+  const shown = rows && frozen?.key === viewKey ? frozenRows(frozen.ids, rows, frozen.extra) : live;
+  view.current = {
+    key: viewKey,
+    shown,
+    serverFiltered: [...new URLSearchParams(serverKey).keys()].some((k) => k !== "limit"),
+  };
   const size = Number(params.get("size")) || 200;
   const pages = Math.max(1, Math.ceil(shown.length / size));
   const page = Math.min(pages, Math.max(1, Number(params.get("page")) || 1));
@@ -215,8 +274,8 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
         sheetName: t("list.title"),
         header: excelHeader(t),
         editable: [...editable, false],
-        rows: shown.map((l) => excelRow(l, ctx)),
-        snapshot: shown.map((l) => excelTexts(l, ctx)),
+        rows: live.map((l) => excelRow(l, ctx)),
+        snapshot: live.map((l) => excelTexts(l, ctx)),
         rtl: dirOf(lang) === "rtl",
         info: {
           sheetName: t("xl.sheet.info"),
@@ -240,32 +299,39 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
         },
       });
       downloadBlob(`satis-takip-${fmtDay.format(new Date())}.xlsx`, new Blob([data], { type: XLSX_MIME }));
-      toast(t("xl.exported", { n: shown.length }));
+      toast(t("xl.exported", { n: live.length }));
     } catch {
       toast(t("xl.exportFailed"), { bad: true });
     } finally {
       setExporting(false);
     }
   };
-  const canActOn = (l: LeadListDto) => !isViewer && (isAdmin || !l.assignedUserId || l.assignedUserId === user?.id);
-  const setStatus = async (l: LeadListDto, v: string) => {
+  const who = {
+    userId: user?.id ?? null,
+    isAdmin,
+    isViewer,
+    repsEditProducts: !!ref?.permissions?.repsEditProducts,
+  };
+  const saveLead = async (l: LeadListDto, run: () => Promise<LeadDto>, message: string) => {
     try {
-      await contactApi.setStatus(l.id, v || null);
-      toast(t("customerStatus.saved"));
-      load();
+      const saved = await run();
+      toast(message);
+      afterEdit(l.id, saved);
     } catch (e) {
       toast(errText(e), { bad: true });
     }
   };
-  const take = async (l: LeadListDto) => {
-    try {
-      await pipelineApi.assign(l.id, { toUserId: user!.id });
-      toast(t("lead.taken"));
-      load();
-    } catch (e) {
-      toast(errText(e), { bad: true });
-    }
-  };
+  const setStatus = (l: LeadListDto, v: string) =>
+    saveLead(
+      l,
+      () => contactApi.setStatus(l.id, v || null),
+      t("customerStatus.saved") + (v === "not_interested" ? ` · ${t("customerStatus.lostHint")}` : ""),
+    );
+  const take = (l: LeadListDto) => saveLead(l, () => pipelineApi.assign(l.id, { toUserId: user!.id }), t("lead.taken"));
+  const runAction = (a: Exclude<CellAction, { kind: "pick" }>, l: LeadListDto) =>
+    a.kind === "log"
+      ? editors.current?.log({ leadId: l.id, leadName: l.fullName, ...a.preset })
+      : editors.current?.form(a.form, l.id);
 
   const chip = (key: string, value: string, label: string, icon: string) => {
     const on = params.get(key) === value;
@@ -291,19 +357,41 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
       );
     const short = (iso: string) =>
       new Date(iso).toLocaleDateString(localeOf(lang), { day: "2-digit", month: "2-digit" });
-    // Ulaşım hücresi: işlem yapılabilen satırda hücrenin tamamı tıklanır; diyalog o kanal seçili, seçenekler açık açılır.
-    const reachCell = (type: ActivityTypeDto, state: string, content: JSX.Element) =>
-      canActOn(l) ? (
+    const perms = cellPerms(l, who);
+    const action = cellAction(c.id, l, perms);
+    const column = t(c.label);
+    // Temas ve form hücreleri: hücrenin tamamı tıklanır. Eylem yoksa içerik düz metin kalır.
+    const editable = (content: ReactNode, state = c.csv(l, ctx) || "—") => {
+      if (!action || action.kind === "pick") return content;
+      const isLog = action.kind === "log";
+      return (
         <button
           type="button"
-          className="ll-reach"
-          title={t("list.reach.tip", { channel: t(c.label) })}
-          aria-label={t("list.reach.log", { channel: t(c.label), state, name: l.fullName })}
-          onClick={() => contact.openDialog({ leadId: l.id, leadName: l.fullName, type, pickChannel: true })}
+          className="ll-cell"
+          title={t(isLog ? "list.cell.logTip" : "list.cell.editTip", { column })}
+          aria-label={
+            isLog
+              ? t("list.reach.log", { channel: column, state, name: l.fullName })
+              : t("list.cell.edit", { column, state, name: l.fullName })
+          }
+          onClick={() => runAction(action, l)}
         >
           {content}
-          <Icon name="plus" size={14} className="ll-reach-add" />
         </button>
+      );
+    };
+    // Tek değerli hücreler: yerinde seçim.
+    const pick = (
+      content: ReactNode,
+      value: string,
+      state: string,
+      options: () => PickOption[],
+      onPick: (v: string) => unknown,
+    ) =>
+      action?.kind === "pick" ? (
+        <PickCell column={column} leadName={l.fullName} state={state} value={value} options={options} onPick={onPick}>
+          {content}
+        </PickCell>
       ) : (
         content
       );
@@ -335,38 +423,85 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
                 </span>
               )}
             </span>
-            {canActOn(l) && (
+            {perms.canAct && (
               <button
                 type="button"
                 className="ll-log"
                 aria-label={t("contact.logFor", { name: l.fullName })}
-                onClick={() => contact.openDialog({ leadId: l.id, leadName: l.fullName })}
+                onClick={() => editors.current?.log({ leadId: l.id, leadName: l.fullName })}
               >
-                <Icon name="plus" size={14} /> {t("contact.log")}
+                <Icon name="edit" size={14} /> {t("contact.log")}
               </button>
             )}
           </span>
         );
-      case "phoneNo":
-        return l.phoneE164 ? <span className="num">{phoneText(l.phoneE164)}</span> : "—";
+      case "phoneNo": {
+        if (!l.phoneE164) return editable("—");
+        const num = <span className="num">{phoneText(l.phoneE164)}</span>;
+        // Numara seçilip kopyalanabilsin diye hücrenin tamamı değil, yanındaki kalem tıklanır.
+        return action?.kind === "form" ? (
+          <span className="ll-with-pen">
+            {num}
+            <button
+              type="button"
+              className="ll-pen"
+              title={t("lead.editContact")}
+              aria-label={`${t("lead.editContact")}: ${l.fullName}`}
+              onClick={() => runAction(action, l)}
+            >
+              <Icon name="edit" size={14} />
+            </button>
+          </span>
+        ) : (
+          num
+        );
+      }
       case "excelNo":
         return String(l.extraAnswers?.["excel_no"] ?? "");
-      case "country":
-        return l.country ? `${countryName(l.country)} (${l.country})` : "—";
+      case "country": {
+        const text = l.country ? `${countryName(l.country)} (${l.country})` : "—";
+        return pick(
+          text,
+          l.country ?? "",
+          text,
+          () =>
+            withCurrent(
+              [
+                { value: "", label: "—" },
+                ...countryOptions(lang).map(([code, name]) => ({ value: code, label: `${name} (${code})` })),
+              ],
+              l.country ?? "",
+              text,
+            ),
+          (v) => saveLead(l, () => pipelineApi.update(l.id, { country: v || null }), t("lead.saved")),
+        );
+      }
       case "owner": {
         const xo = typeof l.extraAnswers?.["excel_owner"] === "string" ? String(l.extraAnswers["excel_owner"]) : "";
-        return l.assignedUserId ? (
-          nameOf(l.assignedUserId)
-        ) : (
-          <span className="ll-pool">
-            {t("common.pool")}
-            {xo && <small className="muted"> · Excel: {xo}</small>}
-            {!isViewer && !isAdmin && (
-              <Button size="sm" onClick={() => take(l)}>
-                {t("lead.take")}
-              </Button>
-            )}
-          </span>
+        const owner = nameOf(l.assignedUserId);
+        return pick(
+          l.assignedUserId ? (
+            owner
+          ) : (
+            <span className="ll-pool">
+              {t("common.pool")}
+              {xo && <small className="muted"> · Excel: {xo}</small>}
+              {!isViewer && !isAdmin && (
+                <Button size="sm" onClick={() => take(l)}>
+                  {t("lead.take")}
+                </Button>
+              )}
+            </span>
+          ),
+          l.assignedUserId ?? "",
+          owner,
+          () =>
+            withCurrent(
+              [{ value: "", label: t("common.pool") }, ...team.map((m) => ({ value: m.id, label: m.name }))],
+              l.assignedUserId ?? "",
+              owner,
+            ),
+          (v) => saveLead(l, () => pipelineApi.assign(l.id, { toUserId: v || null }), t("lead.assigned")),
         );
       }
       case "excelOwner":
@@ -375,14 +510,16 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
         return sourceText(l, t, t(`source.${l.source}`));
       case "phone":
       case "email":
+        // Boş hücrede yönetici bilgiyi ekler; doluysa bağlantılar ve hızlı kayıt çubuğu çalışır.
+        if (action) return editable("—");
         return (
           <ContactLinks
             compact
             phone={c.id === "phone" ? l.phoneE164 : null}
             email={c.id === "email" ? l.email : null}
-            canLog={canActOn(l)}
-            onQuick={(type, outcome) => contact.quick(l.id, type, outcome)}
-            onDetails={(type, outcome) => contact.openDialog({ leadId: l.id, leadName: l.fullName, type, outcome })}
+            canLog={perms.canAct}
+            onQuick={(type, outcome) => editors.current?.quick(l.id, type, outcome)}
+            onDetails={(type, outcome) => editors.current?.log({ leadId: l.id, leadName: l.fullName, type, outcome })}
           />
         );
       case "mail":
@@ -390,13 +527,12 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
         const k = c.id === "mail" ? "email" : "whatsapp";
         if (!ch[k] && l.contact.state === "legacy") {
           const legacy = t("summary.legacyShort");
-          return reachCell(k, legacy, <span className="muted">{legacy}</span>);
+          return editable(<span className="muted">{legacy}</span>, legacy);
         }
         const n = ch[k]?.count ?? 0;
-        return reachCell(
-          k,
-          n > 1 ? `${t("common.yes")} (${n})` : t(n ? "common.yes" : "common.no"),
+        return editable(
           yes(n > 0, n > 1 ? `${n}` : undefined),
+          n > 1 ? `${t("common.yes")} (${n})` : t(n ? "common.yes" : "common.no"),
         );
       }
       case "other": {
@@ -404,103 +540,139 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
           .filter((x) => ch[x])
           .map((x) => `${t(`activity.type.${x}`)} ${ch[x]!.count}`);
         // "Diğer kanal" en sık telefondur; Toplantı ve Diğer diyalogda yanında durur.
-        return reachCell(
-          "call",
-          parts.length ? parts.join(" · ") : t("common.no"),
-          yes(parts.length > 0, parts.join(" · ")),
-        );
+        return editable(yes(parts.length > 0, parts.join(" · ")), parts.length ? parts.join(" · ") : t("common.no"));
       }
       case "mailReply":
       case "waReply": {
         const f = ch[c.id === "mailReply" ? "email" : "whatsapp"];
-        return f?.firstReplyAt ? yes(true, `${f.firstReplyEstimated ? "≈ " : ""}${short(f.firstReplyAt)}`) : "—";
+        return editable(
+          f?.firstReplyAt ? yes(true, `${f.firstReplyEstimated ? "≈ " : ""}${short(f.firstReplyAt)}`) : "—",
+        );
       }
       case "otherReply": {
         const r = (["call", "meeting", "site_visit", "proposal_sent", "other"] as const)
           .map((x) => ch[x]?.firstReplyAt)
           .filter((x): x is string => !!x)
           .sort()[0];
-        return r ? yes(true, short(r)) : "—";
+        return editable(r ? yes(true, short(r)) : "—");
       }
       case "status":
-        return canActOn(l) && ref ? (
-          <select
-            className="ll-status"
-            aria-label={`${t("customerStatus.label")}: ${l.fullName}`}
-            value={l.customerStatus ?? ""}
-            onChange={(e) => setStatus(l, e.target.value)}
-          >
-            <option value="">{t("customerStatus.none")}</option>
-            {ref.customerStatuses.map((s) => (
-              <option key={s.code} value={s.code}>
-                {t(`customerStatus.${s.code}`)}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <CustomerStatusTag status={l.customerStatus} />
+        return pick(
+          <CustomerStatusTag status={l.customerStatus} />,
+          l.customerStatus ?? "",
+          l.customerStatus ? t(`customerStatus.${l.customerStatus}`) : t("customerStatus.none"),
+          () => [
+            { value: "", label: t("customerStatus.none") },
+            ...(ref?.customerStatuses ?? []).map((s) => ({ value: s.code, label: t(`customerStatus.${s.code}`) })),
+          ],
+          (v) => setStatus(l, v),
         );
       case "stage":
-        return <StageTag code={l.currentStage} />;
+        return pick(
+          <StageTag code={l.currentStage} />,
+          l.currentStage,
+          stageName(l.currentStage),
+          () =>
+            [l.currentStage, ...forwardStages(ref?.stages ?? [], l.currentStage)].map((s) => ({
+              value: s,
+              label: stageName(s),
+            })),
+          (v) => editors.current?.moveStage(l, v as StageCodeDto),
+        );
       case "proposal":
-        return l.proposal.given ? yes(true, l.proposal.at ? short(l.proposal.at) : undefined) : yes(false);
+        return editable(l.proposal.given ? yes(true, l.proposal.at ? short(l.proposal.at) : undefined) : yes(false));
       case "standard":
       case "panoramic":
       case "fullPanoramic":
-        return l.products[c.id] ? <span className="num">{l.products[c.id]}</span> : "—";
+        return editable(l.products[c.id] ? <span className="num">{l.products[c.id]}</span> : "—");
       case "roof": {
-        if (!l.products.roof.wanted) return "—";
+        if (!l.products.roof.wanted) return editable("—");
         const a = roofArea(l.products);
-        return a === null ? (
-          <span className="inline-warn">✔ {t("product.roofNoSize")}</span>
-        ) : (
-          `${l.products.roof.widthM} × ${l.products.roof.lengthM} m · ${a.toLocaleString(localeOf(lang))} m²`
+        return editable(
+          a === null ? (
+            <span className="inline-warn">✔ {t("product.roofNoSize")}</span>
+          ) : (
+            `${l.products.roof.widthM} × ${l.products.roof.lengthM} m · ${a.toLocaleString(localeOf(lang))} m²`
+          ),
         );
       }
       case "last":
-        return l.contact.lastAt ? (
-          `${l.contact.lastAtEstimated ? "≈ " : ""}${short(l.contact.lastAt)} · ${daysAgo(l.contact.lastAt, now, lang)}`
-        ) : l.contact.state === "legacy" ? (
-          <span className="muted">{t("summary.legacyShort")}</span>
-        ) : (
-          <StatusTag tone="bad" icon="warn">
-            {t("list.never")}
-          </StatusTag>
+        return editable(
+          l.contact.lastAt ? (
+            `${l.contact.lastAtEstimated ? "≈ " : ""}${short(l.contact.lastAt)} · ${daysAgo(l.contact.lastAt, now, lang)}`
+          ) : l.contact.state === "legacy" ? (
+            <span className="muted">{t("summary.legacyShort")}</span>
+          ) : (
+            <StatusTag tone="bad" icon="warn">
+              {t("list.never")}
+            </StatusTag>
+          ),
         );
       case "first":
-        return l.contact.firstAt ? `${l.contact.firstAtEstimated ? "≈ " : ""}${short(l.contact.firstAt)}` : "—";
+        return editable(
+          l.contact.firstAt ? `${l.contact.firstAtEstimated ? "≈ " : ""}${short(l.contact.firstAt)}` : "—",
+        );
       case "count":
-        return <span className="num">{l.contact.count}</span>;
+        return editable(<span className="num">{l.contact.count}</span>);
       case "next":
         if (l.currentStage === "WON" || l.currentStage === "LOST") return "—";
-        return l.nextActivity ? (
-          `${t(`activity.type.${l.nextActivity.type}`)} · ${new Date(l.nextActivity.dueAt).toLocaleString(localeOf(lang), { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
-        ) : (
-          <StatusTag tone="bad" icon="clock">
-            {t("activity.rotting")}
-          </StatusTag>
+        return editable(
+          l.nextActivity ? (
+            `${t(`activity.type.${l.nextActivity.type}`)} · ${new Date(l.nextActivity.dueAt).toLocaleString(localeOf(lang), { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
+          ) : (
+            <StatusTag tone="bad" icon="clock">
+              {t("activity.rotting")}
+            </StatusTag>
+          ),
         );
-      case "note":
-        return l.notes ? (
-          <span className="ll-note" title={l.notes} tabIndex={0}>
-            {l.notes.length > 40 ? l.notes.slice(0, 40) + "…" : l.notes}
-          </span>
-        ) : (
-          ""
+      case "note": {
+        const text = l.notes.length > 40 ? l.notes.slice(0, 40) + "…" : l.notes;
+        return editable(
+          l.notes ? (
+            <span className="ll-note" title={l.notes} tabIndex={action ? undefined : 0}>
+              {text}
+            </span>
+          ) : (
+            ""
+          ),
+          text || "—",
         );
+      }
       case "warn": {
         const ws = openWarnings(l.warnings);
-        return ws.length ? (
-          <span className="inline-warn" title={ws.map((w) => warningText(w, t, stageName)).join("\n")} tabIndex={0}>
-            <Icon name="warn" size={14} /> {ws.length}
-          </span>
-        ) : (
-          "—"
+        return editable(
+          ws.length ? (
+            <span
+              className="inline-warn"
+              title={ws.map((w) => warningText(w, t, stageName)).join("\n")}
+              tabIndex={action ? undefined : 0}
+            >
+              <Icon name="warn" size={14} /> {ws.length}
+            </span>
+          ) : (
+            "—"
+          ),
         );
       }
       default: {
         const v = c.values?.(l, ctx)[0];
-        return v && v !== "none" ? (c.valueLabel ? c.valueLabel(v, ctx) : v) : "—";
+        const text = v && v !== "none" ? (c.valueLabel ? c.valueLabel(v, ctx) : v) : "—";
+        const field = ANSWER_COLUMNS[c.id as keyof typeof ANSWER_COLUMNS];
+        const answer = field && ANSWER_LIST.find((a) => a.key === field);
+        if (!answer) return text;
+        return pick(
+          text,
+          l[field] ?? "",
+          text,
+          () => [
+            { value: "", label: "—" },
+            ...(ref?.[answer.ref] ?? [])
+              .map((x) => (typeof x === "string" ? x : x.code))
+              .map((code) => ({ value: code, label: t(`${answer.prefix}.${code}`) })),
+          ],
+          (next) =>
+            saveLead(l, () => pipelineApi.update(l.id, { [field]: next || null } as UpdateLeadBody), t("lead.saved")),
+        );
       }
     }
   };
@@ -550,11 +722,14 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
             )}
           </div>
         </details>
+        {/* Dışa aktarım satışçıya da açık (gördüğü lead'ler iner); içe aktarım yalnız yöneticide. */}
+        {!isViewer && (
+          <Button icon="download" onClick={() => void exportXlsx()} disabled={!live.length} loading={exporting}>
+            {t("list.export")}
+          </Button>
+        )}
         {isAdmin && (
           <>
-            <Button icon="download" onClick={() => void exportXlsx()} disabled={!shown.length} loading={exporting}>
-              {t("list.export")}
-            </Button>
             <Button icon="upload" onClick={() => setImporting(true)} disabled={!ref}>
               {t("list.import")}
             </Button>
@@ -778,7 +953,7 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
           </div>
         </>
       )}
-      {contact.dialog}
+      <CellEditors ref={editors} onChanged={afterEdit} />
       {importing && ref && (
         <ExcelImportDialog
           ctxFor={ctxFor}

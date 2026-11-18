@@ -130,11 +130,22 @@ function defaultDue(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function AddActivityForm({ leadId, onAdded }: { leadId: string; onAdded: (a: ActivityDto) => void }) {
+export function AddActivityForm({
+  leadId,
+  onAdded,
+  startOpen = false,
+  onCancel,
+}: {
+  leadId: string;
+  onAdded: (a: ActivityDto) => void;
+  /** Form düğme olmadan açık başlar (pencere içinde kullanım). */
+  startOpen?: boolean;
+  onCancel?: () => void;
+}) {
   const { t } = useLang();
   const { toast } = useCrm();
   const errText = useErrorText();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const [type, setType] = useState<ActivityTypeDto>("call");
   const [subject, setSubject] = useState("");
   const [due, setDue] = useState(defaultDue);
@@ -202,7 +213,7 @@ export function AddActivityForm({ leadId, onAdded }: { leadId: string; onAdded: 
         </Field>
       </div>
       <div className="modal-actions wide">
-        <Button onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+        <Button onClick={onCancel ?? (() => setOpen(false))}>{t("common.cancel")}</Button>
         <Button variant="pri" icon="calendar" loading={saving} type="submit">
           {t("activity.save")}
         </Button>

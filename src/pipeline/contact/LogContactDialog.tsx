@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Button, Icon, Modal, Skeleton, fmtDate } from "../../components/ui";
 import { localeOf, useLang } from "../../i18n";
 import type { ActivityOutcomeDto, ActivityTypeDto, StageCodeDto } from "../../modules/sales-pipeline/api/dto";
@@ -8,10 +8,11 @@ import { useErrorText, useNow, useReference } from "../hooks";
 import { contactApi } from "./contactApi";
 import {
   buildBody,
-  defaultOutcome,
+  changeChannel,
   effectiveTarget,
   initialState,
   nextBlocked,
+  pickPlan,
   retarget,
   saveBlockers,
   setReplied,
@@ -58,16 +59,24 @@ export function LogContactDialog({
   const [channelOpen, setChannelOpen] = useState(!open.type || !!open.pickChannel);
   const [moreOpen, setMoreOpen] = useState(false);
   const [workOpen, setWorkOpen] = useState(false);
+  // Plan dışarıdan verildiyse ya da elle seçildiyse kanal değişimi onu değiştirmez.
+  const [planLocked, setPlanLocked] = useState(open.activityId !== undefined);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
   const helpId = useId();
   const rules = ref?.contactRules;
   const nowMs = useNow(15_000);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const loaded = !!s;
 
   useEffect(() => {
     contactApi.form(open.leadId).then(setForm).catch(setLoadError);
   }, [open.leadId]);
+  // Pencere iskeletle açılır, odak kapat düğmesinde kalır; form gelince seçili sonuca geçer (Enter pencereyi kapatmasın).
+  useEffect(() => {
+    if (loaded) bodyRef.current?.querySelector<HTMLElement>('input[name="cd-outcome"]:checked')?.focus();
+  }, [loaded]);
   useEffect(() => {
     if (form && rules && !s) {
       const init = initialState(form, rules, {
@@ -76,7 +85,7 @@ export function LogContactDialog({
         ...(open.activityId !== undefined ? { activityId: open.activityId } : {}),
       });
       setS(init);
-      if (!open.type && init.activityId) setChannelOpen(false);
+      if (!open.type && !open.pickChannel && init.activityId) setChannelOpen(false);
     }
   }, [form, rules, s, open]);
 
@@ -128,7 +137,7 @@ export function LogContactDialog({
     const futureErr = blockers.includes("contact.futureTime");
 
     return (
-      <div className="cd">
+      <div className="cd" ref={bodyRef}>
         {/* 1. Tamamlanacak iş */}
         {(planned || form.openActivities.length > 0) && (
           <div className="cd-line">
@@ -152,7 +161,10 @@ export function LogContactDialog({
                   type="radio"
                   name="cd-work"
                   checked={s.activityId === a.id}
-                  onChange={() => up({ activityId: a.id, type: a.type, outcome: defaultOutcome(a.type, rules) }, true)}
+                  onChange={() => {
+                    setPlanLocked(true);
+                    setS(pickPlan(s, a, form, rules, open.outcome));
+                  }}
                 />
                 <Icon name={ACTIVITY_ICON[a.type]} size={16} /> {a.subject} · {fmtDate(a.dueAt, true)}
               </label>
@@ -162,7 +174,10 @@ export function LogContactDialog({
                 type="radio"
                 name="cd-work"
                 checked={s.activityId === null}
-                onChange={() => up({ activityId: null })}
+                onChange={() => {
+                  setPlanLocked(true);
+                  up({ activityId: null });
+                }}
               />
               {t("contact.asNew")}
             </label>
@@ -181,7 +196,7 @@ export function LogContactDialog({
                     name="cd-type"
                     value={c}
                     checked={s.type === c}
-                    onChange={() => up({ type: c, outcome: defaultOutcome(c, rules) }, true)}
+                    onChange={() => setS(changeChannel(s, c, form, rules, { presetOutcome: open.outcome, planLocked }))}
                   />
                   <Icon name={ACTIVITY_ICON[c]} size={16} />
                   <span>{typeLabel(c)}</span>
@@ -364,7 +379,10 @@ export function LogContactDialog({
               <div className="cd-next">
                 <label
                   className={
-                    "field" + (target === "WON" && blockers.includes("contact.needAmount") ? " has-error" : "")
+                    "field" +
+                    (blockers.includes("contact.needAmount") || blockers.includes("contact.badAmount")
+                      ? " has-error"
+                      : "")
                   }
                 >
                   <span className="field-l">

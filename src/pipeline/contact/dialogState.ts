@@ -60,7 +60,13 @@ export function initialState(
   rules: ContactRules,
   opts: { type?: ActivityTypeDto; outcome?: ActivityOutcomeDto; activityId?: string | null } = {},
 ): DialogState {
-  const activityId = opts.activityId !== undefined ? opts.activityId : form.completableId;
+  // Kanal önceden seçiliyse (liste hücresi, bağlantı) o kanalın planı tamamlanır; başka kanalın planı değil.
+  const activityId =
+    opts.activityId !== undefined
+      ? opts.activityId
+      : opts.type
+        ? (form.completableByType[opts.type] ?? null)
+        : form.completableId;
   const planned = form.openActivities.find((a) => a.id === activityId);
   const type = opts.type ?? planned?.type ?? form.defaultType;
   const outcome = opts.outcome ?? defaultOutcome(type, rules);
@@ -102,6 +108,49 @@ export function retarget(s: DialogState, form: ContactFormDto, rules: ContactRul
     nextType: d.next?.type ?? s.type,
     nextDueAt: d.next?.dueAt ?? "",
   };
+}
+
+/** Hücreden gelen sonuç ("Teklif gönderildi", "Dönüş alındı") kullanıcı değiştirmedikçe kanal değişiminde korunur. */
+const outcomeFor = (
+  s: DialogState,
+  type: ActivityTypeDto,
+  rules: ContactRules,
+  preset: ActivityOutcomeDto | undefined,
+): ActivityOutcomeDto => (preset && s.outcome === preset ? preset : defaultOutcome(type, rules));
+
+/** Kanal değişimi. Kullanıcı planı elle seçmediyse (`planLocked`) tamamlanacak plan yeni kanala göre yeniden seçilir. */
+export function changeChannel(
+  s: DialogState,
+  type: ActivityTypeDto,
+  form: ContactFormDto,
+  rules: ContactRules,
+  o: { presetOutcome: ActivityOutcomeDto | undefined; planLocked: boolean },
+): DialogState {
+  return retarget(
+    {
+      ...s,
+      type,
+      outcome: outcomeFor(s, type, rules, o.presetOutcome),
+      activityId: o.planLocked ? s.activityId : (form.completableByType[type] ?? null),
+    },
+    form,
+    rules,
+  );
+}
+
+/** Tamamlanacak planın elle seçimi: kanal planın türü olur, hücreden gelen sonuç korunur. */
+export function pickPlan(
+  s: DialogState,
+  plan: { id: string; type: ActivityTypeDto },
+  form: ContactFormDto,
+  rules: ContactRules,
+  presetOutcome: ActivityOutcomeDto | undefined,
+): DialogState {
+  return retarget(
+    { ...s, activityId: plan.id, type: plan.type, outcome: outcomeFor(s, plan.type, rules, presetOutcome) },
+    form,
+    rules,
+  );
 }
 
 /** "Müşteri cevap verdi" değişince `checked_if_replied` aşama satırı onunla birlikte işaretlenir. */
@@ -155,6 +204,8 @@ export function saveBlockers(s: DialogState, form: ContactFormDto, rules: Contac
   const out: string[] = [];
   const target = effectiveTarget(s, form, rules);
   if (target === "WON" && !amountOk(s.amount)) out.push("contact.needAmount");
+  // Teklif tutarı isteğe bağlıdır; ama yazıldıysa okunamayan tutar sessizce düşmesin.
+  if (target === "PROPOSAL" && s.amount.trim() && !amountOk(s.amount)) out.push("contact.badAmount");
   if (target === "LOST" && !s.lostReason) out.push("contact.needReason");
   if (s.occurredAt && new Date(s.occurredAt).getTime() > nowMs + rules.futureToleranceMinutes * 60_000) {
     out.push("contact.futureTime");

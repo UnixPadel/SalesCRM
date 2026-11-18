@@ -350,8 +350,8 @@ export function ProductsPanel({
   );
 }
 
-type AnswerKey = "installSite" | "installTimeline" | "customerProfile" | "courtCountBand";
-const ANSWER_LIST: {
+export type AnswerKey = "installSite" | "installTimeline" | "customerProfile" | "courtCountBand";
+export const ANSWER_LIST: {
   key: AnswerKey;
   label: string;
   prefix: string;

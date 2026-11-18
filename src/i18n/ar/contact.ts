@@ -169,6 +169,7 @@ export const AR_CONTACT: Record<keyof typeof CONTACT_DICT, string> = {
   "contact.saving": "جارٍ الحفظ…",
   "contact.needOutcome": "اختر النتيجة",
   "contact.needAmount": "أدخل المبلغ لمرحلة «تم الفوز»",
+  "contact.badAmount": "أدخل المبلغ بهذه الصيغة: 12500.50",
   "contact.needReason": "اختر سبب الخسارة",
   "contact.futureTime": "لا يمكن اختيار وقت في المستقبل.",
   "contact.beforeLead": "هذا التاريخ قبل إنشاء العميل المحتمل. يمكنك الحفظ إذا كان صحيحًا.",

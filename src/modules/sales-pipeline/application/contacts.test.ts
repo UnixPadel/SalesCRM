@@ -431,4 +431,34 @@ describe("Aktivite kuralları, durum ve uyarılar", () => {
     expect(f.defaults.whatsapp?.awaiting_reply.next?.type).toBe("whatsapp");
     expect(f.defaults.meeting?.negative.next).toBeNull();
   });
+
+  it("ContactForm: her kanal kendi vadesi gelmiş planını seçer; yoksa vadesi gelen başka plana düşer", async () => {
+    const lead = await newLead(ADMIN);
+    const add = async (type: "call" | "whatsapp") =>
+      unwrap(
+        await sp.addActivity.execute({ leadId: lead.id, type, dueAt: new Date("2026-03-01T08:00:00Z"), actor: ADMIN }),
+      );
+    const call = await add("call");
+    const wa = await add("whatsapp");
+    const f = unwrap(await sp.contactForm.get(lead.id, ADMIN));
+    expect(f.completableByType.call).toBe(call.id);
+    expect(f.completableByType.whatsapp).toBe(wa.id);
+    expect([call.id, wa.id]).toContain(f.completableByType.email);
+  });
+
+  it("ContactForm: 'Teklif gönderimi' kanalı yalnız kendi planına bağlanır, vadesi gelmemiş olsa da", async () => {
+    const lead = await newLead(ADMIN);
+    const plan = unwrap(
+      await sp.addActivity.execute({
+        leadId: lead.id,
+        type: "proposal_sent",
+        dueAt: new Date("2099-01-01T08:00:00Z"),
+        actor: ADMIN,
+      }),
+    );
+    const f = unwrap(await sp.contactForm.get(lead.id, ADMIN));
+    expect(f.channels).toContain("proposal_sent");
+    expect(f.completableByType.proposal_sent).toBe(plan.id);
+    expect(f.completableByType.call).toBeNull();
+  });
 });

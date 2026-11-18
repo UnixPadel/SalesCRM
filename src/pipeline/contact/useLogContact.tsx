@@ -11,7 +11,7 @@ import { LogContactDialog, type LogContactOpen } from "./LogContactDialog";
  * Temas kaydını her yerden (lead sayfası, liste satırı, Bugün, pano) aynı biçimde açar ve sonucu tek bildirimle
  * söyler: "Temas kaydedildi · Aşama: … · Takip: … · Lead size atandı [Geri al]". Geri al birleşiktir (temas + aşama).
  */
-export function useLogContact(onDone: () => void): {
+export function useLogContact(onDone: (leadId?: string) => void): {
   openDialog: (o: LogContactOpen) => void;
   quick: (leadId: string, type: ActivityTypeDto, outcome: ActivityOutcomeDto) => Promise<void>;
   undo: (logId: string) => Promise<void>;
@@ -64,7 +64,7 @@ export function useLogContact(onDone: () => void): {
               .undo(r.logId)
               .then((u) => {
                 toast(r.stage && !u.stageUndone ? t("contact.undoneNoStage") : t("contact.undone"));
-                onDone();
+                onDone(r.lead.id);
               })
               .catch((e) => toast(errText(e), { bad: true }));
           },
@@ -79,7 +79,7 @@ export function useLogContact(onDone: () => void): {
       try {
         const r = await contactApi.log(leadId, { type, outcome, quick: true });
         announce(r);
-        onDone();
+        onDone(leadId);
       } catch (e) {
         toast(errText(e), { bad: true });
       }
@@ -94,7 +94,7 @@ export function useLogContact(onDone: () => void): {
       onSaved={(r) => {
         setOpen(null);
         announce(r);
-        onDone();
+        onDone(r.lead.id);
       }}
     />
   ) : null;

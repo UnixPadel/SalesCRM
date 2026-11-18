@@ -139,6 +139,7 @@ function contactFormDto(f: ContactForm): ContactFormDto {
       dueAt: a.dueAt.toISOString(),
     })),
     completableId: f.completableId,
+    completableByType: f.completableByType,
     channels: f.channels,
     defaultType: f.defaultType,
     defaults,

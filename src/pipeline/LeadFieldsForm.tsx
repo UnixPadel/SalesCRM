@@ -16,12 +16,15 @@ export function LeadFieldsForm({
   onSaved,
   onCancel,
   notesOnly = false,
+  hideHint = false,
 }: {
   lead: LeadDto;
   onSaved: (lead: LeadDto) => void;
   onCancel: () => void;
   /** Satışçı görünümü (Faz 7e): yalnız not alanı gönderilir; diğer alanlar yöneticiye ait. */
   notesOnly?: boolean;
+  /** Liste hücresinden açılınca "diğer alanlar yöneticide" ipucu gösterilmez (yöneticiye de açılır). */
+  hideHint?: boolean;
 }) {
   const { t } = useLang();
   const { toast } = useCrm();
@@ -101,7 +104,7 @@ export function LeadFieldsForm({
       noValidate
       aria-label={notesOnly ? t("lead.editNotes") : t("lead.editTitle")}
     >
-      {notesOnly && <p className="muted wide">{t("lead.adminOnlyHint")}</p>}
+      {notesOnly && !hideHint && <p className="muted wide">{t("lead.adminOnlyHint")}</p>}
       {!notesOnly && (
         <>
           {/* Faz 7g (§3.4): kort sayısı ve model artık girilmez; ürün tercihleri ayrı panelde. */}

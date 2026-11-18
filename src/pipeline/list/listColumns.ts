@@ -91,7 +91,7 @@ const ddmm = (iso: string, c: Ctx) => {
 const channelSent = (l: LeadListDto, k: "email" | "whatsapp") => (l.contact.channels[k]?.count ?? 0) > 0;
 const OTHER = ["call", "meeting", "site_visit", "proposal_sent", "other"] as const;
 const otherCount = (l: LeadListDto) => OTHER.reduce((s, k) => s + (l.contact.channels[k]?.count ?? 0), 0);
-const otherReply = (l: LeadListDto) =>
+export const otherReply = (l: LeadListDto) =>
   OTHER.map((k) => l.contact.channels[k]?.firstReplyAt ?? null)
     .filter((x): x is string => !!x)
     .sort()[0] ?? null;

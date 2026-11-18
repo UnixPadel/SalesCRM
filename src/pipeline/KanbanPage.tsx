@@ -24,6 +24,7 @@ import {
   SOURCES,
 } from "./boardFilter";
 import { useBoard, useErrorText, useNow, useReference, useTeamNames } from "./hooks";
+import { forwardStages } from "./list/cellEdit";
 import { useStageMove } from "./useStageMove";
 
 /**
@@ -90,12 +91,7 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
     );
   }
 
-  const order = ref?.stages.map((s) => s.code) ?? [];
-  const idx = (c: StageCodeDto) => order.indexOf(c);
-  const allowed = (from: StageCodeDto, to: StageCodeDto) => {
-    const f = ref?.stages.find((s) => s.code === from);
-    return !!f && !f.isTerminal && idx(to) > idx(from);
-  };
+  const allowed = (from: StageCodeDto, to: StageCodeDto) => forwardStages(ref?.stages ?? [], from).includes(to);
 
   const drop = (target: StageCodeDto) => {
     const lead = dragging;

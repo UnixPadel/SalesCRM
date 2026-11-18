@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { ContactDefaultsDto, ContactFormDto } from "../../modules/sales-pipeline/api/dto.contact";
 import {
   buildBody,
+  changeChannel,
   effectiveTarget,
   initialState,
   nextBlocked,
+  pickPlan,
   retarget,
   saveBlockers,
   setReplied,
@@ -59,6 +61,7 @@ const FORM: ContactFormDto = {
   },
   openActivities: [{ id: "a1", type: "whatsapp", subject: "WhatsApp takibi", dueAt: "2026-11-10T06:00:00Z" }],
   completableId: "a1",
+  completableByType: { call: "a1", whatsapp: "a1", email: "a1", meeting: "a1", other: "a1" },
   channels: ["call", "whatsapp", "email", "meeting", "other"],
   defaultType: "whatsapp",
   defaults: { call: outcomes("call"), whatsapp: outcomes("whatsapp") },
@@ -123,6 +126,66 @@ describe("dialogState", () => {
     expect(buildBody({ ...st, lostChecked: true, lostReason: "competitor" }, noLine, RULES)).toMatchObject({
       customerStatus: "not_interested",
       stage: { target: "LOST", lostReasonCode: "competitor" },
+    });
+  });
+
+  describe("hücreden açılış", () => {
+    const TWO: ContactFormDto = {
+      ...FORM,
+      openActivities: [
+        { id: "c1", type: "call", subject: "Arama", dueAt: "2026-11-09T06:00:00Z" },
+        { id: "w1", type: "whatsapp", subject: "WhatsApp", dueAt: "2026-11-10T06:00:00Z" },
+      ],
+      completableId: "c1",
+      completableByType: { call: "c1", whatsapp: "w1", email: "c1" },
+      defaultType: "call",
+    };
+    const free = { presetOutcome: undefined, planLocked: false };
+
+    it("seçili kanalın planı tamamlanır, son kanalın planı değil", () => {
+      expect(initialState(TWO, RULES, { type: "whatsapp" }).activityId).toBe("w1");
+      expect(initialState(TWO, RULES).activityId).toBe("c1");
+      expect(initialState(TWO, RULES, { type: "whatsapp", activityId: "c1" }).activityId).toBe("c1");
+    });
+
+    it("kanal değişince hücreden gelen sonuç kalır, plan yeni kanala göre seçilir", () => {
+      const s = initialState(TWO, RULES, { type: "call", outcome: "proposal_sent" });
+      const next = changeChannel(s, "whatsapp", TWO, RULES, { presetOutcome: "proposal_sent", planLocked: false });
+      expect(next).toMatchObject({ type: "whatsapp", outcome: "proposal_sent", activityId: "w1" });
+      expect(effectiveTarget(next, TWO, RULES)).toBe("PROPOSAL");
+    });
+
+    it("kullanıcı sonucu değiştirdiyse kanal varsayılanı geçerli; elle seçilen plan korunur", () => {
+      const s = {
+        ...initialState(TWO, RULES, { type: "call", outcome: "proposal_sent" }),
+        outcome: "follow_up" as const,
+      };
+      expect(
+        changeChannel(s, "whatsapp", TWO, RULES, { presetOutcome: "proposal_sent", planLocked: true }),
+      ).toMatchObject({
+        outcome: "awaiting_reply",
+        activityId: "c1",
+      });
+      expect(changeChannel(s, "email", TWO, RULES, free).outcome).toBe("awaiting_reply");
+    });
+
+    it("plan seçimi kanalı plana çevirir, hücreden gelen sonucu silmez", () => {
+      const s = initialState(TWO, RULES, { type: "whatsapp", outcome: "reply_received" });
+      const plan = { id: "c1", type: "call" as const };
+      expect(pickPlan(s, plan, TWO, RULES, "reply_received")).toMatchObject({
+        activityId: "c1",
+        type: "call",
+        outcome: "reply_received",
+      });
+      expect(pickPlan(s, plan, TWO, RULES, undefined).outcome).toBe("awaiting_reply");
+    });
+
+    it("okunamayan teklif tutarı kaydı durdurur; boş ya da geçerli tutar durdurmaz", () => {
+      const s = initialState(FORM, RULES, { outcome: "proposal_sent" });
+      const at = Date.parse(FORM.now);
+      expect(saveBlockers({ ...s, amount: "12.500,00" }, FORM, RULES, at)).toEqual(["contact.badAmount"]);
+      expect(saveBlockers({ ...s, amount: "" }, FORM, RULES, at)).toEqual([]);
+      expect(saveBlockers({ ...s, amount: "12500,50" }, FORM, RULES, at)).toEqual([]);
     });
   });
 });

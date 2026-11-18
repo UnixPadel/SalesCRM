@@ -56,6 +56,8 @@ export interface ContactFormDto {
   /** Vade sırasıyla. */
   openActivities: { id: string; type: ActivityTypeDto; subject: string; dueAt: string }[];
   completableId: string | null;
+  /** Kanal önceden seçiliyken tamamlanacak plan (kanal başına). */
+  completableByType: Partial<Record<ActivityTypeDto, string | null>>;
   /** 5 kanal + açık "Teklif gönderimi"/"Saha ziyareti" planı varsa onun türü. */
   channels: ActivityTypeDto[];
   defaultType: ActivityTypeDto;
