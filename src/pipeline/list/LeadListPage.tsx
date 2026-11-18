@@ -66,9 +66,7 @@ const write = (k: string, v: unknown) => {
  * kayıtlarından türetilir (elle yazılmaz). Satırda tek eylem: "İletişim kaydet"; adın altındaki düğmeden ya da
  * Mail / WhatsApp / Diğer kanal hücresine tıklayarak (o kanal seçili) açılır.
  */
-export function LeadListPage({ params, pool = false }: { params: URLSearchParams; pool?: boolean }) {
-  // Ortak havuz sekmesi: aynı liste, sunucuda yalnız sorumlusu olmayan lead'ler; süzgeç hatırlama yok.
-  const route = pool ? "pool" : "list";
+export function LeadListPage({ params }: { params: URLSearchParams }) {
   const { t, lang } = useLang();
   const { user, isAdmin, isViewer, toast } = useCrm();
   const { ref, stageName } = useReference();
@@ -83,26 +81,22 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
   const [hiddenCols, setHiddenCols] = useState<string[]>(() => read<string[]>(HIDDEN_KEY, []));
   const [search, setSearch] = useState(params.get("q") ?? "");
   const seq = useRef(0);
-  const serverKey = (() => {
-    const s = serverParams(params);
-    if (pool) s.set("owner", "pool");
-    return s.toString();
-  })();
+  const serverKey = serverParams(params).toString();
 
   // Filtre hatırlama: URL'de süzgeç yoksa ve rapordan gelinmediyse son süzgeç uygulanır.
   useEffect(() => {
-    if (pool || hasFilterParams(params)) return;
+    if (hasFilterParams(params)) return;
     const saved = read<string>(FILTER_KEY, "");
-    if (saved) setHashParams(route, new URLSearchParams(saved), true);
+    if (saved) setHashParams("list", new URLSearchParams(saved), true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
-    if (!pool && !params.has("from")) {
+    if (!params.has("from")) {
       const keep = new URLSearchParams(params);
       keep.delete("page");
       write(FILTER_KEY, activeFilterCount(keep) ? keep.toString() : "");
     }
-  }, [params, pool]);
+  }, [params]);
 
   const load = useCallback(() => {
     const n = ++seq.current;
@@ -137,7 +131,7 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
       else p.set(k, v);
     }
     p.delete("page");
-    setHashParams(route, p, true);
+    setHashParams("list", p, true);
   };
   // Arama kutusu: yazarken 250 ms bekler.
   useEffect(() => {
@@ -474,7 +468,7 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
     <section className="pl-page ll-page" aria-labelledby="ll-h">
       <div className="pl-toolbar ll-toolbar">
         <h1 id="ll-h">
-          {t(pool ? "pool.title" : "list.title")} <span className="count">{t("list.count", { n: shown.length })}</span>
+          {t("list.title")} <span className="count">{t("list.count", { n: shown.length })}</span>
         </h1>
         <input
           className="ll-search"
@@ -536,18 +530,13 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
             <button
               type="button"
               className="link-btn"
-              onClick={() => (setSearch(""), setHashParams(route, clearFilters(params), true))}
+              onClick={() => (setSearch(""), setHashParams("list", clearFilters(params), true))}
             >
               {t("board.filter.clear")}
             </button>
           </span>
         )}
       </div>
-      {pool && (
-        <p className="ll-pool-note muted" role="note">
-          <Icon name="info" size={14} /> {t(isAdmin ? "pool.hint.admin" : "pool.hint.rep")}
-        </p>
-      )}
       {fromReport && (
         <div className="ll-from" role="note">
           <Icon name={fromReport === "today" ? "calendar" : "chart"} size={16} />
@@ -576,7 +565,7 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
         </div>
       ) : shown.length === 0 ? (
         <Empty title={t("list.empty")}>
-          <Button onClick={() => (setSearch(""), setHashParams(route, clearFilters(params), true))}>
+          <Button onClick={() => (setSearch(""), setHashParams("list", clearFilters(params), true))}>
             {t("board.filter.clear")}
           </Button>
         </Empty>

@@ -49,9 +49,7 @@ export default function App() {
       <Header route={route} onNewLead={() => setNewLead(true)} />
       <main className="page" id="main">
         {route === "list" ? (
-          <LeadListPage params={params} key="list" />
-        ) : route === "pool" ? (
-          <LeadListPage params={params} pool key="pool" />
+          <LeadListPage params={params} />
         ) : route === "lead" ? (
           <LeadPage id={id} key={id} />
         ) : route === "pipeline" ? (

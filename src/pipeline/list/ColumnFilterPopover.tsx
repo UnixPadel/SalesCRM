@@ -56,7 +56,8 @@ export function ColumnFilterPopover({
     if (!d) return;
     if (open && !d.open) {
       d.show();
-      d.querySelector<HTMLElement>("input, button")?.focus();
+      // İlk odak "Sütunu gizle"ye düşmesin: Enter yanlışlıkla sütunu gizlemesin.
+      d.querySelector<HTMLElement>("input, button:not(.th-hide)")?.focus();
     }
     if (!open && d.open) d.close();
   }, [open]);
@@ -109,6 +110,11 @@ export function ColumnFilterPopover({
           {label}
         </p>
         <div className="th-sort">
+          {onHide && (
+            <button type="button" className="menu-item th-hide" onClick={() => (setOpen(false), onHide())}>
+              <Icon name="eye" size={14} /> {t("list.hideCol")}
+            </button>
+          )}
           <button
             type="button"
             className={"menu-item" + (sort === "asc" ? " on" : "")}
@@ -123,11 +129,6 @@ export function ColumnFilterPopover({
           >
             {t("list.sortDesc")}
           </button>
-          {onHide && (
-            <button type="button" className="menu-item th-hide" onClick={() => (setOpen(false), onHide())}>
-              <Icon name="eye" size={14} /> {t("list.hideCol")}
-            </button>
-          )}
         </div>
         {col.kind === "text" ? (
           <label className="field">
