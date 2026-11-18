@@ -18,6 +18,7 @@ export function ColumnFilterPopover({
   sort,
   onApply,
   onSort,
+  onHide,
 }: {
   col: ColumnDef;
   label: string;
@@ -27,6 +28,8 @@ export function ColumnFilterPopover({
   sort: "asc" | "desc" | null;
   onApply: (v: { values?: string[] | null; text?: string | null }) => void;
   onSort: (dir: "asc" | "desc") => void;
+  /** Verilirse menüde "Sütunu gizle" çıkar (sabit sütunlarda verilmez). */
+  onHide?: () => void;
 }) {
   const { t } = useLang();
   const [open, setOpen] = useState(false);
@@ -120,6 +123,11 @@ export function ColumnFilterPopover({
           >
             {t("list.sortDesc")}
           </button>
+          {onHide && (
+            <button type="button" className="menu-item th-hide" onClick={() => (setOpen(false), onHide())}>
+              <Icon name="eye" size={14} /> {t("list.hideCol")}
+            </button>
+          )}
         </div>
         {col.kind === "text" ? (
           <label className="field">

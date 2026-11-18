@@ -89,3 +89,35 @@ export function sourceText(
   const origin = "excel_no" in extra ? t("source.excel") : "sheet_key" in extra ? t("source.sheet") : sourceName;
   return [origin, surfaceText].filter(Boolean).join(" · ");
 }
+
+/** İki haneli ülke arama kodları; 1 ve 7 tek hanelidir, kalanların hepsi üç hanelidir (ITU E.164). */
+const CC2 = new Set(
+  (
+    "20 27 30 31 32 33 34 36 39 40 41 43 44 45 46 47 48 49 51 52 53 54 55 56 57 58 60 61 62 63 64 65 66 " +
+    "81 82 84 86 90 91 92 93 94 95 98"
+  ).split(" "),
+);
+
+/**
+ * E.164 numarayı okunur yazar ("+905321234567" → "+90 532 123 45 67"). Yalnız gösterim içindir; doğrulama ve
+ * normalleştirme sunucudadır. Türkiye'nin alışılmış 3-3-2-2 kümesi, diğer ülkelerde üçerli kümeler.
+ */
+export function phoneText(e164: string | null | undefined): string {
+  if (!e164) return "";
+  const digits = e164.replace(/\D/g, "");
+  if (!e164.startsWith("+") || digits.length < 8) return e164;
+  const ccLen = digits[0] === "1" || digits[0] === "7" ? 1 : CC2.has(digits.slice(0, 2)) ? 2 : 3;
+  const cc = digits.slice(0, ccLen);
+  const rest = digits.slice(ccLen);
+  if (cc === "90" && rest.length === 10) {
+    return `+90 ${rest.slice(0, 3)} ${rest.slice(3, 6)} ${rest.slice(6, 8)} ${rest.slice(8)}`;
+  }
+  const groups: string[] = [];
+  for (let i = 0; i < rest.length; i += 3) groups.push(rest.slice(i, i + 3));
+  // Tek haneli son küme bir öncekine katılır ("… 555 2671").
+  if (groups.length > 1 && groups[groups.length - 1]!.length === 1) {
+    const last = groups.pop()!;
+    groups[groups.length - 1] += last;
+  }
+  return `+${cc} ${groups.join(" ")}`;
+}

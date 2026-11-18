@@ -196,9 +196,9 @@ export const CONTACT_DICT = {
   "summary.proposalNo": ["Verilmedi", "Not given"],
   "summary.estimated": ["(tahmini)", "(estimated)"],
 
-  // ---- "Temas kaydet" diyaloğu.
-  "contact.log": ["Temas kaydet", "Log contact"],
-  "contact.logFor": ["Temas kaydet: {name}", "Log contact: {name}"],
+  // ---- "İletişim kaydet" diyaloğu (eski adı "Temas kaydet").
+  "contact.log": ["İletişim kaydet", "Log contact"],
+  "contact.logFor": ["İletişim kaydet: {name}", "Log contact: {name}"],
   "contact.completeFor": ["Tamamla: {subject} — {name}", "Complete: {subject} — {name}"],
   "contact.complete": ["Tamamla…", "Complete…"],
   "contact.completes": ["Bu kayıt '{subject} · {due}' işini tamamlar", "This completes '{subject} · {due}'"],
@@ -245,16 +245,16 @@ export const CONTACT_DICT = {
   ],
   "contact.discardTitle": ["Not kaydedilmedi. Kapatılsın mı?", "The note is not saved. Close anyway?"],
   "contact.keepEditing": ["Devam et", "Keep editing"],
-  "contact.saved": ["Temas kaydedildi", "Contact saved"],
+  "contact.saved": ["İletişim kaydedildi", "Contact saved"],
   "contact.savedStage": ["Aşama: {stage}", "Stage: {stage}"],
   "contact.savedNext": ["Takip: {when}", "Follow-up: {when}"],
   "contact.savedAssigned": ["Lead size atandı", "Lead assigned to you"],
   "contact.undo": ["Geri al", "Undo"],
-  "contact.undoLog": ["Temas kaydını geri al", "Undo the contact entry"],
-  "contact.undoLeft": ["Temas kaydını geri al, {n} dakika kaldı", "Undo the contact entry, {n} minutes left"],
-  "contact.undone": ["Temas kaydı geri alındı.", "The contact entry was undone."],
+  "contact.undoLog": ["İletişim kaydını geri al", "Undo the contact entry"],
+  "contact.undoLeft": ["İletişim kaydını geri al, {n} dakika kaldı", "Undo the contact entry, {n} minutes left"],
+  "contact.undone": ["İletişim kaydı geri alındı.", "The contact entry was undone."],
   "contact.undoneNoStage": [
-    "Temas kaydı geri alındı. Aşama sonradan değiştiği için aşama geri alınmadı.",
+    "İletişim kaydı geri alındı. Aşama sonradan değiştiği için aşama geri alınmadı.",
     "The contact entry was undone. The stage changed later, so it was kept.",
   ],
   "contact.by": ["Kaydeden: {who}", "Logged by: {who}"],
@@ -358,7 +358,7 @@ export const CONTACT_DICT = {
   "history.searchNote": ["Notta ara", "Search notes"],
   "history.more": ["Daha eski temaslar", "Older contacts"],
   "history.empty": [
-    "Bu aralıkta kayıtlı temas yok. Bir lead'de 'Temas kaydet' ile ilk teması ekleyin.",
+    "Bu aralıkta kayıtlı temas yok. Bir lead'de 'İletişim kaydet' ile ilk teması ekleyin.",
     "No contacts in this range. Use 'Log contact' on a lead to add the first one.",
   ],
   "history.when": ["Zaman", "When"],

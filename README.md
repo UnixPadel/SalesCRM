@@ -185,8 +185,8 @@ sütunları bu kayıtlardan türetilir.
 
 - **Lead listesi** (`#/list`, açılış sayfası; eski "Gelen kutusu"nun yerinde): Excel'in sütun grupları, başlıkta ▾
   menüsü (sayılı değer listesi, sıralama, Alt+↓), hızlı çipler (Hiç ulaşılmamış, Sıcak, Takipsiz, yöneticide Uyarılı),
-  arama (ad, telefon, e-posta, Excel No), satır içinde "Temas kaydet" ve müşteri durumu, yöneticide CSV (`;`, UTF-8 BOM).
-- **Temas kaydet** (lead sayfası, liste satırı, Bugün "Tamamla…", panoda NEW → İletişim kuruldu): kanal, sonuç, not,
+  arama (ad, telefon, e-posta, Excel No), satır içinde "İletişim kaydet" ve müşteri durumu, yöneticide CSV (`;`, UTF-8 BOM).
+- **İletişim kaydet** (eski adıyla "Temas kaydet"; lead sayfası, liste satırı, Bugün "Tamamla…", panoda NEW → İletişim kuruldu): kanal, sonuç, not,
   sonraki takip, müşteri durumu ve aşama tek istekte (`POST /api/pipeline/leads/:id/contacts`); 10 dk geri al
   (`POST /contact-logs/:id/undo`) aşamayı da geri alır. WhatsApp / e-posta / arama bağlantısından tek dokunuşla kayıt.
 - **Lead sayfası:** Temas özeti, Müşteri durumu, Ürün tercihleri (adet 1–29, çatı ölçüsü), Form cevapları, yöneticide

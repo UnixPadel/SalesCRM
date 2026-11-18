@@ -1,5 +1,5 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Empty, Icon, IconButton, Skeleton, StatusTag } from "../../components/ui";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { Button, Empty, Icon, Skeleton, StatusTag } from "../../components/ui";
 import { countryName } from "../../domain/constants";
 import { useLang } from "../../i18n";
 import type { LeadListDto } from "../../modules/sales-pipeline/api/dto";
@@ -10,13 +10,23 @@ import { StageTag } from "../bits";
 import { contactApi } from "../contact/contactApi";
 import { ContactLinks } from "../contact/ContactQuickBar";
 import { CustomerStatusTag } from "../contact/LeadSections";
-import { dateText, daysAgo, openWarnings, roofArea, sourceText, warningText } from "../contact/trackingView";
+import type { ActivityTypeDto } from "../../modules/sales-pipeline/api/dto";
+import { dateText, daysAgo, openWarnings, phoneText, roofArea, sourceText, warningText } from "../contact/trackingView";
 import { useLogContact } from "../contact/useLogContact";
 import { ageTone, useErrorText, useNow, useReference, useTeamNames } from "../hooks";
 import { ColumnFilterPopover } from "./ColumnFilterPopover";
 import { SheetSyncBadge } from "./SheetSyncBadge";
 import { downloadCsv, toCsv } from "./csv";
-import { COLUMNS, GROUPS, groupSummary, type ColumnDef, type Ctx, type GroupId } from "./listColumns";
+import {
+  COLUMNS,
+  GROUPS,
+  PINNED_COLUMNS,
+  columnRuns,
+  groupSummary,
+  type ColumnDef,
+  type Ctx,
+  type GroupId,
+} from "./listColumns";
 import {
   activeFilterCount,
   applyFilters,
@@ -31,6 +41,7 @@ import {
 
 const COLLAPSE_KEY = "unixcrm.v2.listColumns";
 const FILTER_KEY = "unixcrm.v2.listFilter";
+const HIDDEN_KEY = "unixcrm.v2.listHidden";
 const SIZES = [100, 200, 500] as const;
 
 const read = <T,>(k: string, d: T): T => {
@@ -52,7 +63,8 @@ const write = (k: string, v: unknown) => {
 /**
  * Lead listesi (Faz 7g, iş emri §5.4): Excel SATIŞ TAKİP'in karşılığı ve açılış sayfası. Sütun grupları Excel'deki
  * gibi; başlık menüleri otomatik süzgeç gibi; ✔/✘ Excel'in sembolleri. Ulaşım, dönüş ve takip sütunları temas
- * kayıtlarından türetilir (elle yazılmaz). Satırda tek eylem: "Temas kaydet".
+ * kayıtlarından türetilir (elle yazılmaz). Satırda tek eylem: "İletişim kaydet"; adın altındaki düğmeden ya da
+ * Mail / WhatsApp / Diğer kanal hücresine tıklayarak (o kanal seçili) açılır.
  */
 export function LeadListPage({ params, pool = false }: { params: URLSearchParams; pool?: boolean }) {
   // Ortak havuz sekmesi: aynı liste, sunucuda yalnız sorumlusu olmayan lead'ler; süzgeç hatırlama yok.
@@ -68,6 +80,7 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
   const [collapsed, setCollapsed] = useState<GroupId[]>(() =>
     read<GroupId[]>(COLLAPSE_KEY, window.innerWidth < 768 ? ["reply", "customer", "proposal", "products", "form"] : []),
   );
+  const [hiddenCols, setHiddenCols] = useState<string[]>(() => read<string[]>(HIDDEN_KEY, []));
   const [search, setSearch] = useState(params.get("q") ?? "");
   const seq = useRef(0);
   const serverKey = (() => {
@@ -137,6 +150,38 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
 
   const groups = GROUPS.filter((g) => !g.adminOnly || isAdmin);
   const visibleCols = (g: GroupId) => COLUMNS.filter((c) => c.group === g && !c.hidden);
+  // Kullanıcının gizlediği sütunlar çift çizgili dar şerit olarak yerinde kalır (yan yana olanlar tek şerit).
+  const runs = (g: GroupId) => columnRuns(visibleCols(g), hiddenCols);
+  const nHidden = groups.reduce(
+    (n, g) => n + runs(g.id).reduce((m, r) => m + (r.kind === "gap" ? r.cols.length : 0), 0),
+    0,
+  );
+  const changeHidden = (change: (cur: string[]) => string[]) =>
+    setHiddenCols((cur) => {
+      const next = change(cur);
+      write(HIDDEN_KEY, next);
+      return next;
+    });
+  const showCols = (ids: readonly string[]) => changeHidden((cur) => cur.filter((id) => !ids.includes(id)));
+  const hideCol = (c: ColumnDef) => {
+    changeHidden((cur) => [...cur.filter((id) => id !== c.id), c.id]);
+    toast(t("list.colHidden", { name: t(c.label) }), {
+      action: { label: t("contact.undo"), run: () => showCols([c.id]) },
+    });
+  };
+  // Şeridin bir hücresine gelince bütün şerit (başlık + satırlar) birlikte vurgulanır. Yeniden çizim yapmadan,
+  // doğrudan sınıf ekleyerek: yüzlerce satırlık tabloda fare her geçişte React'i çalıştırmasın.
+  const gapHover = (e: MouseEvent<HTMLTableElement>) => {
+    const key = (e.target as HTMLElement).closest<HTMLElement>(".ll-gap")?.dataset["gap"];
+    if (!key) return;
+    for (const el of e.currentTarget.querySelectorAll(`.ll-gap[data-gap="${key}"]`)) {
+      el.classList.toggle("hover", e.type === "mouseover");
+    }
+  };
+  const stickyOf = (c: ColumnDef) => {
+    const i = PINNED_COLUMNS.indexOf(c.id);
+    return i < 0 ? "" : ` sticky s${i}`;
+  };
   const filters = clientFilters(params, user?.id ?? null);
   const base = rows ? searchRows(rows, params.get("q")) : [];
   const shown = rows ? sortRows(applyFilters(base, filters, ctx), params.get("sort"), ctx) : [];
@@ -146,6 +191,10 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
   const pageRows = shown.slice((page - 1) * size, page * size);
   const nFilters = activeFilterCount(params);
   const sort = params.get("sort") || "-createdAt";
+  const gapFiltered = (cols: readonly ColumnDef[]) => cols.some((c) => filters.has(c.id));
+  const gapLabel = (cols: readonly ColumnDef[]) =>
+    t("list.showCols", { names: cols.map((c) => t(c.label)).join(", ") }) +
+    (gapFiltered(cols) ? ` (${t("list.filtered")})` : "");
 
   const toggleGroup = (g: GroupId) => {
     const next = collapsed.includes(g) ? collapsed.filter((x) => x !== g) : [...collapsed, g];
@@ -153,7 +202,9 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
     write(COLLAPSE_KEY, next);
   };
   const exportCsv = () => {
-    const cols = groups.flatMap((g) => (collapsed.includes(g.id) ? [] : COLUMNS.filter((c) => c.group === g.id)));
+    const cols = groups.flatMap((g) =>
+      collapsed.includes(g.id) ? [] : COLUMNS.filter((c) => c.group === g.id && !c.noCsv),
+    );
     const text = toCsv(
       cols.map((c) => t(c.label)),
       shown.map((l) => cols.map((c) => c.csv(l, ctx))),
@@ -204,41 +255,64 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
       );
     const short = (iso: string) =>
       new Date(iso).toLocaleDateString(lang === "tr" ? "tr-TR" : "en-GB", { day: "2-digit", month: "2-digit" });
+    // Ulaşım hücresi: işlem yapılabilen satırda hücrenin tamamı tıklanır; diyalog o kanal seçili, seçenekler açık açılır.
+    const reachCell = (type: ActivityTypeDto, state: string, content: JSX.Element) =>
+      canActOn(l) ? (
+        <button
+          type="button"
+          className="ll-reach"
+          title={t("list.reach.tip", { channel: t(c.label) })}
+          aria-label={t("list.reach.log", { channel: t(c.label), state, name: l.fullName })}
+          onClick={() => contact.openDialog({ leadId: l.id, leadName: l.fullName, type, pickChannel: true })}
+        >
+          {content}
+          <Icon name="plus" size={14} className="ll-reach-add" />
+        </button>
+      ) : (
+        content
+      );
     switch (c.id) {
       case "createdAt": {
         const tone = ageTone(l, now);
         return (
-          <>
+          <span className="ll-date">
             {dateText(l.createdAt, false, t, lang)}
             {tone && <span className={"age age-" + tone}> · {daysAgo(l.createdAt, now, lang)}</span>}
-          </>
+          </span>
         );
       }
       case "name":
         return (
           <span className="ll-name">
-            <a
-              href={`#/lead/${encodeURIComponent(l.id)}`}
-              onClick={(e) => (e.preventDefault(), navigate("lead", undefined, l.id))}
-            >
-              {l.fullName}
-            </a>
-            {l.hot && (
-              <span className="hot" title={t("hot.label")}>
-                <Icon name="flame" size={14} />
-                <span className="sr-only">{t("hot.short")}</span>
-              </span>
-            )}
+            <span className="ll-name-top">
+              <a
+                href={`#/lead/${encodeURIComponent(l.id)}`}
+                title={l.fullName}
+                onClick={(e) => (e.preventDefault(), navigate("lead", undefined, l.id))}
+              >
+                {l.fullName}
+              </a>
+              {l.hot && (
+                <span className="hot" title={t("hot.label")}>
+                  <Icon name="flame" size={14} />
+                  <span className="sr-only">{t("hot.short")}</span>
+                </span>
+              )}
+            </span>
             {canActOn(l) && (
-              <IconButton
-                icon="chat"
-                className="hit"
-                label={t("contact.logFor", { name: l.fullName })}
+              <button
+                type="button"
+                className="ll-log"
+                aria-label={t("contact.logFor", { name: l.fullName })}
                 onClick={() => contact.openDialog({ leadId: l.id, leadName: l.fullName })}
-              />
+              >
+                <Icon name="plus" size={14} /> {t("contact.log")}
+              </button>
             )}
           </span>
         );
+      case "phoneNo":
+        return l.phoneE164 ? <span className="num">{phoneText(l.phoneE164)}</span> : "—";
       case "excelNo":
         return String(l.extraAnswers?.["excel_no"] ?? "");
       case "country":
@@ -278,14 +352,27 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
       case "mail":
       case "wa": {
         const k = c.id === "mail" ? "email" : "whatsapp";
-        if (!ch[k] && l.contact.state === "legacy") return <span className="muted">{t("summary.legacyShort")}</span>;
-        return yes(!!ch[k], ch[k] && ch[k]!.count > 1 ? `${ch[k]!.count}` : undefined);
+        if (!ch[k] && l.contact.state === "legacy") {
+          const legacy = t("summary.legacyShort");
+          return reachCell(k, legacy, <span className="muted">{legacy}</span>);
+        }
+        const n = ch[k]?.count ?? 0;
+        return reachCell(
+          k,
+          n > 1 ? `${t("common.yes")} (${n})` : t(n ? "common.yes" : "common.no"),
+          yes(n > 0, n > 1 ? `${n}` : undefined),
+        );
       }
       case "other": {
         const parts = (["call", "meeting", "site_visit", "proposal_sent", "other"] as const)
           .filter((x) => ch[x])
           .map((x) => `${t(`activity.type.${x}`)} ${ch[x]!.count}`);
-        return yes(parts.length > 0, parts.join(" · "));
+        // "Diğer kanal" en sık telefondur; Toplantı ve Diğer diyalogda yanında durur.
+        return reachCell(
+          "call",
+          parts.length ? parts.join(" · ") : t("common.no"),
+          yes(parts.length > 0, parts.join(" · ")),
+        );
       }
       case "mailReply":
       case "waReply": {
@@ -406,6 +493,12 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
         <details className="menu-dd">
           <summary className="btn btn-sec btn-md">
             <Icon name="columns" size={16} /> {t("list.columns")}
+            {nHidden > 0 && (
+              <span className="ll-hidden-n" title={t("list.showAllCols", { n: nHidden })}>
+                <span className="sr-only">{t("list.hiddenCount", { n: nHidden })}</span>
+                <span aria-hidden="true">{nHidden}</span>
+              </span>
+            )}
           </summary>
           <div className="pop">
             {groups.map((g) => (
@@ -414,6 +507,11 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
                 {t(g.label)}
               </label>
             ))}
+            {nHidden > 0 && (
+              <button type="button" className="menu-item ll-show-all" onClick={() => changeHidden(() => [])}>
+                <Icon name="eye" size={14} /> {t("list.showAllCols", { n: nHidden })}
+              </button>
+            )}
           </div>
         </details>
         {isAdmin && (
@@ -508,14 +606,10 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
             </div>
           ) : null}
           <div className="ll-wrap" tabIndex={0} role="region" aria-label={t("list.title")}>
-            <table className="ll">
+            <table className="ll" onMouseOver={gapHover} onMouseOut={gapHover}>
               <caption className="sr-only">{t("list.caption", { n: shown.length })}</caption>
               {groups.map((g) => (
-                <colgroup
-                  key={g.id}
-                  span={collapsed.includes(g.id) ? 1 : visibleCols(g.id).length}
-                  className={`cg-${g.id}`}
-                />
+                <colgroup key={g.id} span={collapsed.includes(g.id) ? 1 : runs(g.id).length} className={`cg-${g.id}`} />
               ))}
               <thead>
                 <tr className="ll-groups">
@@ -523,7 +617,7 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
                     <th
                       key={g.id}
                       scope="colgroup"
-                      colSpan={collapsed.includes(g.id) ? 1 : visibleCols(g.id).length}
+                      colSpan={collapsed.includes(g.id) ? 1 : runs(g.id).length}
                       className={`g-${g.id}`}
                     >
                       <button
@@ -544,7 +638,37 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
                         <span className="muted">{t("list.summary")}</span>
                       </th>
                     ) : (
-                      visibleCols(g.id).map((c, i) => {
+                      runs(g.id).map((r) => {
+                        if (r.kind === "gap") {
+                          const label = gapLabel(r.cols);
+                          return (
+                            <th
+                              key={`gap-${r.cols[0]!.id}`}
+                              scope="col"
+                              className={`g-${g.id} ll-gap`}
+                              data-gap={r.cols[0]!.id}
+                            >
+                              <button
+                                type="button"
+                                className="ll-gap-btn"
+                                aria-label={label}
+                                title={label}
+                                onClick={() => showCols(r.cols.map((c) => c.id))}
+                              >
+                                <span className="ll-gap-knob">
+                                  <Icon name="expand" size={12} />
+                                  {gapFiltered(r.cols) && <span className="th-dot" aria-hidden="true" />}
+                                </span>
+                                {r.cols.length > 1 && (
+                                  <span className="ll-gap-n" aria-hidden="true">
+                                    {r.cols.length}
+                                  </span>
+                                )}
+                              </button>
+                            </th>
+                          );
+                        }
+                        const c = r.col;
                         const dir = sort === c.id ? "asc" : sort === `-${c.id}` ? "desc" : null;
                         const f = filters.get(c.id);
                         const others = applyFilters(base, filters, ctx, c.id);
@@ -553,7 +677,7 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
                             key={c.id}
                             scope="col"
                             aria-sort={dir === "asc" ? "ascending" : dir === "desc" ? "descending" : undefined}
-                            className={`g-${g.id}` + (g.id === "lead" && i < 2 ? ` sticky s${i}` : "")}
+                            className={`g-${g.id}` + stickyOf(c)}
                           >
                             <span className="th-in">
                               <span>{t(c.label)}</span>
@@ -565,6 +689,7 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
                                 text={f?.text}
                                 sort={dir}
                                 onSort={(d) => set({ sort: d === "asc" ? c.id : `-${c.id}` })}
+                                {...(PINNED_COLUMNS.includes(c.id) ? {} : { onHide: () => hideCol(c) })}
                                 onApply={(v) =>
                                   set({
                                     [c.param]:
@@ -594,14 +719,21 @@ export function LeadListPage({ params, pool = false }: { params: URLSearchParams
                         </td>
                       ) : (
                         <Fragment key={g.id}>
-                          {visibleCols(g.id).map((c, i) => (
-                            <td
-                              key={c.id}
-                              className={`g-${g.id} c-${c.id}` + (g.id === "lead" && i < 2 ? ` sticky s${i}` : "")}
-                            >
-                              {cell(c, l)}
-                            </td>
-                          ))}
+                          {runs(g.id).map((r) =>
+                            r.kind === "gap" ? (
+                              <td
+                                key={`gap-${r.cols[0]!.id}`}
+                                className={`g-${g.id} ll-gap`}
+                                data-gap={r.cols[0]!.id}
+                                title={gapLabel(r.cols)}
+                                onClick={() => showCols(r.cols.map((c) => c.id))}
+                              />
+                            ) : (
+                              <td key={r.col.id} className={`g-${g.id} c-${r.col.id}` + stickyOf(r.col)}>
+                                {cell(r.col, l)}
+                              </td>
+                            ),
+                          )}
                         </Fragment>
                       ),
                     )}

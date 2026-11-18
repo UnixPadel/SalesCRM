@@ -4,7 +4,7 @@
  * sıralama anahtarı ve CSV metni. Saf: React yok; çeviri `t` ve takvim günü `day` dışarıdan gelir.
  */
 import type { LeadListDto } from "../../modules/sales-pipeline/api/dto";
-import { courtLine, productLine, roofArea, type T } from "../contact/trackingView";
+import { courtLine, phoneText, productLine, roofArea, type T } from "../contact/trackingView";
 
 export type GroupId = "lead" | "reach" | "reply" | "customer" | "proposal" | "products" | "follow" | "form" | "check";
 
@@ -54,6 +54,8 @@ export interface ColumnDef {
   sort: (l: LeadListDto, c: Ctx) => string | number;
   /** CSV hücresi (Excel'in sembolleriyle). */
   csv: (l: LeadListDto, c: Ctx) => string;
+  /** Dışa aktarımda yer almaz (aynı bilgi başka sütunda zaten var). */
+  noCsv?: boolean;
 }
 
 const YES = "yes";
@@ -119,6 +121,18 @@ export const COLUMNS: ColumnDef[] = [
     text: (l) => `${l.fullName} ${excelNo(l)} ${l.company}`,
     sort: (l) => l.fullName.toLocaleLowerCase("tr"),
     csv: (l) => l.fullName,
+  },
+  {
+    // Numaranın kendisi, adın hemen yanında. Arama bağlantıları "Telefon" sütununda kalır; CSV'de numara oradan çıkar.
+    id: "phoneNo",
+    group: "lead",
+    label: "list.col.phoneNo",
+    param: "f_phoneNo",
+    kind: "text",
+    text: (l) => (l.phoneE164 ? `${l.phoneE164} ${phoneText(l.phoneE164)}` : ""),
+    sort: (l) => l.phoneE164 ?? "~",
+    csv: (l) => l.phoneE164 ?? "",
+    noCsv: true,
   },
   {
     id: "excelNo",
@@ -484,6 +498,29 @@ export const COLUMNS: ColumnDef[] = [
 ];
 
 export const columnById = new Map(COLUMNS.map((c) => [c.id, c]));
+
+/** Gizlenemeyen sütunlar: solda yapışık duran kimlik sütunları (tarih, ad). Sıra, yapışma sırasıdır. */
+export const PINNED_COLUMNS: readonly string[] = ["createdAt", "name"];
+
+export type ColumnRun = { kind: "col"; col: ColumnDef } | { kind: "gap"; cols: ColumnDef[] };
+
+/**
+ * Kullanıcının gizlediği sütunlar tablodan kalkmaz, Excel'deki gibi çift çizgili dar bir şeride iner; yan yana
+ * gizlenenler tek şeritte birleşir. Sabit sütunlar gizli listesinde olsa da görünür kalır.
+ */
+export function columnRuns(cols: readonly ColumnDef[], hidden: readonly string[]): ColumnRun[] {
+  const out: ColumnRun[] = [];
+  for (const col of cols) {
+    if (!hidden.includes(col.id) || PINNED_COLUMNS.includes(col.id)) {
+      out.push({ kind: "col", col });
+      continue;
+    }
+    const last = out[out.length - 1];
+    if (last?.kind === "gap") last.cols.push(col);
+    else out.push({ kind: "gap", cols: [col] });
+  }
+  return out;
+}
 
 /** Katlı grubun özet metni ("Ulaşıldı", "2 Panoramic · Kapatma 200 m²", "3 ay içinde · Tam kapalı"). */
 export function groupSummary(g: GroupId, l: LeadListDto, c: Ctx): string {

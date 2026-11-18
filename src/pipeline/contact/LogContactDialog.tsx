@@ -28,6 +28,8 @@ export interface LogContactOpen {
   /** Bağlantıdan (WhatsApp, e-posta, arama) ya da plandan gelen kanal: özet satırı olarak görünür. */
   type?: ActivityTypeDto;
   outcome?: ActivityOutcomeDto;
+  /** `type` seçili gelir ama kanal seçenekleri açık kalır (liste hücresinden: kullanıcı başka kanala geçebilir). */
+  pickChannel?: boolean;
   /** Tamamlama modu (Bugün "Tamamla…", plan satırı). */
   activityId?: string | null;
   /** İkincil bağlantı (panoda "Yalnız aşamayı taşı"): diyalog kapanır, eski akış çalışır. */
@@ -35,7 +37,7 @@ export interface LogContactOpen {
 }
 
 /**
- * "Temas kaydet" (Faz 7g, iş emri §5.3): Excel'de dört yere yazılan bilgi tek kayıtta. Varsayılan görünüm dört
+ * "İletişim kaydet" (eski adı "Temas kaydet"; Faz 7g, iş emri §5.3): Excel'de dört yere yazılan bilgi tek kayıtta. Varsayılan görünüm dört
  * blok (Sonuç, Not, özet satırı, düğmeler); kanal, zaman, takip ve durum gerektiğinde açılır (Hick). Tek istek.
  */
 export function LogContactDialog({
@@ -53,7 +55,7 @@ export function LogContactDialog({
   const [form, setForm] = useState<ContactFormDto | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [s, setS] = useState<DialogState | null>(null);
-  const [channelOpen, setChannelOpen] = useState(!open.type);
+  const [channelOpen, setChannelOpen] = useState(!open.type || !!open.pickChannel);
   const [moreOpen, setMoreOpen] = useState(false);
   const [workOpen, setWorkOpen] = useState(false);
   const [saving, setSaving] = useState(false);
