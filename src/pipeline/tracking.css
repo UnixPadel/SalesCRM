@@ -1173,3 +1173,231 @@
 .kb-foot.kb-state .status {
   max-inline-size: 100%;
 }
+
+/* ---- Excel'den içe aktarım penceresi: dosya seç → önizleme → sonuç ---- */
+.xl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.xl p,
+.xl h3 {
+  margin: 0;
+  max-inline-size: 64ch;
+}
+.xl-rules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: 0;
+  padding-inline-start: var(--s-5);
+  max-inline-size: 64ch;
+  font-size: var(--t-sm);
+  color: var(--text-2);
+}
+/* Dosya alanı: tamamı tıklanır (etiket), dosya da bırakılır. Gizli girdi odaklanınca çerçeve alanın kendisinde. */
+.xl-drop,
+.xl-busy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-1);
+  min-block-size: 136px;
+  padding: var(--s-5) var(--s-4);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--r-3);
+  background: var(--surface-2);
+  color: var(--text-2);
+  text-align: center;
+}
+.xl-drop {
+  cursor: pointer;
+  transition:
+    background-color var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out);
+}
+.xl-drop-t {
+  font-size: var(--t-md);
+  font-weight: 700;
+  color: var(--brand-ink);
+}
+.xl-drop-h {
+  font-size: var(--t-sm);
+}
+@media (hover: hover) {
+  .xl-drop:hover {
+    background: var(--brand-weak);
+    border-color: var(--brand);
+  }
+}
+.xl-drop:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+/* Adım değişince odağı alan kapsayıcı etkileşimli değildir; çerçeve içindeki denetimlerde görünür. */
+.xl:focus {
+  outline: none;
+}
+.xl-drop:active,
+.xl-drop.over {
+  background: var(--brand-weak);
+  border-color: var(--brand);
+  border-style: solid;
+}
+.xl-busy {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  border-color: var(--border);
+}
+.xl-alert {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-inline-start: 4px solid var(--bad);
+  border-radius: var(--r-2);
+  background: var(--bad-weak);
+  color: var(--bad-ink);
+}
+.xl-alert p {
+  font-weight: 600;
+}
+.xl-alert ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: var(--s-2) 0 0;
+  padding-inline-start: var(--s-4);
+  font-size: var(--t-sm);
+  overflow-wrap: anywhere;
+}
+.xl-file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-sm);
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.xl-sum,
+.xl-none h3 {
+  font-size: var(--t-lg);
+  line-height: var(--lh-tight);
+}
+.xl-none p {
+  margin-block-start: var(--s-1);
+  color: var(--text-2);
+}
+.xl p.xl-note {
+  max-inline-size: none;
+}
+.xl-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-2);
+  font-size: var(--t-sm);
+}
+.xl-note .ic {
+  margin-block-start: 2px;
+}
+.xl-note.warn {
+  background: var(--warn-weak);
+  color: var(--warn-ink);
+}
+.xl-note.info {
+  background: var(--info-weak);
+  color: var(--info-ink);
+}
+.xl-invalid {
+  display: block;
+}
+.xl-invalid summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-block-size: var(--hit-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.xl-invalid ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: var(--s-2) 0 var(--s-1);
+  padding-inline-start: var(--s-5);
+  overflow-wrap: anywhere;
+}
+.xl-table-wrap {
+  max-block-size: 320px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+}
+.xl-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-sm);
+}
+.xl-table th,
+.xl-table td {
+  padding: var(--s-2) var(--s-3);
+  text-align: start;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.xl-table thead th {
+  position: sticky;
+  inset-block-start: 0;
+  background: var(--surface-2);
+  color: var(--text-2);
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+.xl-table tbody tr.first > * {
+  border-block-start: 1px solid var(--border);
+}
+.xl-table tbody th {
+  font-weight: 600;
+}
+/* Eski değer üstü çizili, yeni değer kalın: anlam renkle değil, sütun başlığı ve yazı biçimiyle verilir. */
+.xl-from {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+.xl-to {
+  font-weight: 600;
+}
+.xl-blank {
+  display: inline-block;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--text-3);
+}
+.xl-stale {
+  display: inline-flex;
+  margin-inline-start: var(--s-1);
+  vertical-align: middle;
+  color: var(--warn-ink);
+}
+.xl-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font-size: var(--t-sm);
+  color: var(--text-2);
+}
+.xl-progress progress {
+  inline-size: 100%;
+  block-size: var(--s-2);
+  accent-color: var(--brand);
+}
+.xl-done {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-lg);
+  color: var(--ok-ink);
+}

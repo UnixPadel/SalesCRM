@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Button, Empty, Icon, Skeleton, StatusTag } from "../../components/ui";
 import { countryName } from "../../domain/constants";
-import { localeOf, useLang } from "../../i18n";
+import { dirOf, localeOf, refName, translate, useLang, type Lang } from "../../i18n";
 import type { LeadListDto } from "../../modules/sales-pipeline/api/dto";
 import { navigate, setHashParams } from "../../router";
 import { useCrm } from "../../state/CrmContext";
@@ -15,8 +15,11 @@ import { dateText, daysAgo, openWarnings, phoneText, roofArea, sourceText, warni
 import { useLogContact } from "../contact/useLogContact";
 import { ageTone, useErrorText, useNow, useReference, useTeamNames } from "../hooks";
 import { ColumnFilterPopover } from "./ColumnFilterPopover";
+import { ExcelImportDialog } from "./ExcelImportDialog";
 import { SheetSyncBadge } from "./SheetSyncBadge";
-import { downloadCsv, toCsv } from "./csv";
+import { downloadBlob } from "./csv";
+import { XLSX_MIME, buildWorkbook } from "./excelFile";
+import { EXCEL_COLUMNS, excelHeader, excelRow, excelTexts, isEditable } from "./excelSync";
 import {
   COLUMNS,
   GROUPS,
@@ -70,7 +73,7 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
   const { t, lang } = useLang();
   const { user, isAdmin, isViewer, toast } = useCrm();
   const { ref, stageName } = useReference();
-  const { nameOf } = useTeamNames();
+  const { team, nameOf } = useTeamNames();
   const errText = useErrorText();
   const now = useNow(60_000);
   const [rows, setRows] = useState<LeadListDto[] | null>(null);
@@ -80,6 +83,8 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
   );
   const [hiddenCols, setHiddenCols] = useState<string[]>(() => read<string[]>(HIDDEN_KEY, []));
   const [search, setSearch] = useState(params.get("q") ?? "");
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const seq = useRef(0);
   const serverKey = serverParams(params).toString();
 
@@ -110,19 +115,24 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
 
   const tz = ref?.timeZone ?? "Europe/Istanbul";
   const fmtDay = useMemo(() => new Intl.DateTimeFormat("en-CA", { timeZone: tz }), [tz]);
-  const ctx: Ctx = useMemo(
-    () => ({
-      t,
-      lang,
+  // Bağlam dile göre kurulur: liste arayüz diliyle çizilir, içe aktarılan Excel kendi dışa aktarıldığı dille okunur.
+  const ctxFor = useCallback(
+    (l: Lang): Ctx => ({
+      t: (key, vars) => translate(l, key, vars),
+      lang: l,
       day: (iso: string) => fmtDay.format(new Date(iso)),
       nameOf,
-      stageName: (c: string) => stageName(c),
-      countryName: (c: string) => countryName(c),
-      sourceName: (s: string) => t(`source.${s}`),
+      stageName: (c: string) => {
+        const s = ref?.stages.find((x) => x.code === c);
+        return s ? refName(l, "stage", s) : c;
+      },
+      countryName: (c: string) => countryName(c, l),
+      sourceName: (s: string) => translate(l, `source.${s}`),
       now,
     }),
-    [t, lang, fmtDay, nameOf, stageName, now],
+    [fmtDay, nameOf, ref, now],
   );
+  const ctx = useMemo(() => ctxFor(lang), [ctxFor, lang]);
 
   const set = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams(params);
@@ -195,15 +205,47 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
     setCollapsed(next);
     write(COLLAPSE_KEY, next);
   };
-  const exportCsv = () => {
-    const cols = groups.flatMap((g) =>
-      collapsed.includes(g.id) ? [] : COLUMNS.filter((c) => c.group === g.id && !c.noCsv),
-    );
-    const text = toCsv(
-      cols.map((c) => t(c.label)),
-      shown.map((l) => cols.map((c) => c.csv(l, ctx))),
-    );
-    downloadCsv(`satis-takip-${fmtDay.format(new Date())}.csv`, text);
+  // Excel'e aktar: süzülmüş satırlar, her zaman tam sütun düzeniyle (katlı grup ve gizli sütun dosyayı değiştirmez;
+  // içe aktarım bu düzeni birebir arar). Yeşil başlık: içe alınan sütun, gri başlık: programın hesapladığı sütun.
+  const exportXlsx = async () => {
+    setExporting(true);
+    try {
+      const editable = EXCEL_COLUMNS.map((c) => isEditable(c.id));
+      const data = await buildWorkbook({
+        sheetName: t("list.title"),
+        header: excelHeader(t),
+        editable: [...editable, false],
+        rows: shown.map((l) => excelRow(l, ctx)),
+        snapshot: shown.map((l) => excelTexts(l, ctx)),
+        rtl: dirOf(lang) === "rtl",
+        info: {
+          sheetName: t("xl.sheet.info"),
+          lines: [
+            t("xl.info.exported", {
+              date: new Date().toLocaleString(localeOf(lang), {
+                dateStyle: "medium",
+                timeStyle: "short",
+                timeZone: tz,
+              }),
+            }),
+            t("xl.info.editable", {
+              names: EXCEL_COLUMNS.filter((_, i) => editable[i])
+                .map((c) => t(c.label))
+                .join(", "),
+            }),
+            t("xl.info.readonly"),
+            t("xl.info.layout"),
+            t("xl.info.id"),
+          ],
+        },
+      });
+      downloadBlob(`satis-takip-${fmtDay.format(new Date())}.xlsx`, new Blob([data], { type: XLSX_MIME }));
+      toast(t("xl.exported", { n: shown.length }));
+    } catch {
+      toast(t("xl.exportFailed"), { bad: true });
+    } finally {
+      setExporting(false);
+    }
   };
   const canActOn = (l: LeadListDto) => !isViewer && (isAdmin || !l.assignedUserId || l.assignedUserId === user?.id);
   const setStatus = async (l: LeadListDto, v: string) => {
@@ -510,8 +552,11 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
         </details>
         {isAdmin && (
           <>
-            <Button icon="download" onClick={exportCsv} disabled={!shown.length}>
+            <Button icon="download" onClick={() => void exportXlsx()} disabled={!shown.length} loading={exporting}>
               {t("list.export")}
+            </Button>
+            <Button icon="upload" onClick={() => setImporting(true)} disabled={!ref}>
+              {t("list.import")}
             </Button>
             <label className="cd-check">
               <input
@@ -734,6 +779,22 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
         </>
       )}
       {contact.dialog}
+      {importing && ref && (
+        <ExcelImportDialog
+          ctxFor={ctxFor}
+          owners={team}
+          refData={{
+            customerStatuses: ref.customerStatuses.map((s) => s.code),
+            installSites: ref.installSites,
+            installTimelines: ref.installTimelines.map((x) => x.code),
+            customerProfiles: ref.customerProfiles,
+            courtCountBands: ref.courtCountBands,
+            productQtyMax: ref.productQtyMax,
+          }}
+          onClose={() => setImporting(false)}
+          onApplied={load}
+        />
+      )}
     </section>
   );
 }

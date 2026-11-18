@@ -9,7 +9,129 @@ export const LIST_DICT = {
   "list.quick.never": ["Hiç ulaşılmamış", "Never reached"],
   "list.quick.warning": ["Uyarılı", "With warnings"],
   "list.columns": ["Sütunlar", "Columns"],
-  "list.export": ["Excel'e aktar (CSV)", "Export to Excel (CSV)"],
+  "list.export": ["Excel'e aktar", "Export to Excel"],
+  "list.import": ["Excel'den içe aktar", "Import from Excel"],
+  // Excel gidiş-dönüşü (yönetici): dosya metinleri, düzen denetimi, önizleme ve sonuç.
+  "xl.exported": ["{n} lead Excel'e aktarıldı", "{n, plural, one {# lead} other {# leads}} exported to Excel"],
+  "xl.exportFailed": ["Excel dosyası oluşturulamadı.", "The Excel file could not be created."],
+  "xl.col.id": ["CRM kimliği", "CRM ID"],
+  "xl.sheet.info": ["Açıklama", "Read me"],
+  "xl.info.exported": [
+    "Bu dosya {date} tarihinde lead listesinden dışa aktarıldı.",
+    "This file was exported from the lead list on {date}.",
+  ],
+  "xl.info.editable": [
+    "Değiştirebileceğiniz sütunlar (yeşil başlık): {names}",
+    "Columns you can edit (green header): {names}",
+  ],
+  "xl.info.readonly": [
+    "Gri başlıklı sütunları program hesaplar; bu sütunlardaki değişiklikler içe aktarılmaz.",
+    "Columns with a grey header are calculated by the CRM; changes to them are not imported.",
+  ],
+  "xl.info.layout": [
+    "Sütun başlıklarını, sırasını ve sayısını değiştirmeyin; aksi halde dosya içe aktarılamaz.",
+    "Do not change the column headers, their order or their number; otherwise the file cannot be imported.",
+  ],
+  "xl.info.id": [
+    "«CRM kimliği» sütunu her satırı programdaki lead ile eşleştirir; silmeyin ve değiştirmeyin. Yeni lead'leri programdan ekleyin.",
+    "The “CRM ID” column links each row to its lead in the CRM; do not delete or change it. Add new leads in the CRM.",
+  ],
+  "xl.intro": [
+    "Lead listesinden dışa aktardığınız Excel dosyasını seçin. Dosyada değiştirdiğiniz bilgiler, siz onayladıktan sonra programa işlenir.",
+    "Choose the Excel file you exported from the lead list. The details you changed in the file are applied to the CRM after you confirm.",
+  ],
+  "xl.rule.layout": [
+    "Sütun başlıkları, sırası ve sayısı programdaki listeyle birebir aynı olmalıdır.",
+    "The column headers, their order and their number must match the list in the CRM exactly.",
+  ],
+  "xl.rule.scope": [
+    "Yalnız yeşil başlıklı sütunlardaki değişiklikler alınır; gri başlıklı sütunları program hesaplar.",
+    "Only changes in columns with a green header are imported; columns with a grey header are calculated by the CRM.",
+  ],
+  "xl.pick": ["Excel dosyası seç", "Choose Excel file"],
+  "xl.pickHint": ["ya da dosyayı buraya sürükleyin · yalnız .xlsx", "or drag the file here · .xlsx only"],
+  "xl.pickOther": ["Başka dosya seç", "Choose another file"],
+  "xl.checking": ["Dosya denetleniyor…", "Checking the file…"],
+  "xl.err.layout": [
+    "Excel tablosu programdaki liste ile uyuşmadığı için entegre edilemedi. Tablodaki sütun başlıklarını ve sayılarını birebir aynı yapın veya bilgileri elle girin.",
+    "The Excel table could not be imported because it does not match the list in the CRM. Make the column headers and the number of columns exactly the same, or enter the details manually.",
+  ],
+  "xl.err.count": [
+    "Programda {expected} sütun var, dosyada {actual}.",
+    "The CRM has {expected} columns, the file has {actual}.",
+  ],
+  "xl.err.col": [
+    "{n}. sütun: programda «{expected}», dosyada «{actual}».",
+    "Column {n}: “{expected}” in the CRM, “{actual}” in the file.",
+  ],
+  "xl.err.type": [
+    "Yalnız .xlsx uzantılı Excel dosyaları içe aktarılır.",
+    "Only Excel files with the .xlsx extension can be imported.",
+  ],
+  "xl.err.size": ["Dosya çok büyük (en fazla {mb} MB).", "The file is too large ({mb} MB maximum)."],
+  "xl.err.read": [
+    "Dosya okunamadı. Dosyayı Excel'de açıp .xlsx olarak yeniden kaydedin ve tekrar deneyin.",
+    "The file could not be read. Open it in Excel, save it again as .xlsx and retry.",
+  ],
+  "xl.err.load": [
+    "Lead'ler yüklenemediği için içe aktarım başlatılamadı. Tekrar deneyin.",
+    "The import could not start because the leads failed to load. Try again.",
+  ],
+  "xl.blank": ["(boş)", "(empty)"],
+  "xl.summary": [
+    "{leads} lead'de {n} değişiklik bulundu",
+    "{n, plural, one {# change} other {# changes}} found · leads affected: {leads}",
+  ],
+  "xl.none.title": ["İçe aktarılacak değişiklik yok", "No changes to import"],
+  "xl.none.text": ["Dosyadaki bilgiler programdakilerle aynı.", "The details in the file match the CRM."],
+  "xl.th.lead": ["Lead", "Lead"],
+  "xl.th.col": ["Sütun", "Column"],
+  "xl.th.from": ["Programda", "In the CRM"],
+  "xl.th.to": ["Excel'de", "In Excel"],
+  "xl.changes": ["Uygulanacak değişiklikler", "Changes to apply"],
+  "xl.more": ["ve {n} değişiklik daha", "and {n, plural, one {# more change} other {# more changes}}"],
+  "xl.stale": [
+    "{n} lead, dosya dışa aktarıldıktan sonra programda da güncellendi. Uygularsanız Excel'deki değerler programdakilerin yerini alır.",
+    "{n, plural, one {# lead was} other {# leads were}} also updated in the CRM after the file was exported. If you apply, the Excel values replace the CRM values.",
+  ],
+  "xl.staleRow": ["Dışa aktarımdan sonra programda güncellendi", "Updated in the CRM after export"],
+  "xl.skip.noId": [
+    "CRM kimliği olmayan {n} satır alınmadı. Yeni lead'leri programdan ekleyin.",
+    "{n, plural, one {# row} other {# rows}} without a CRM ID skipped. Add new leads in the CRM.",
+  ],
+  "xl.skip.unknown": [
+    "Programda karşılığı bulunmayan {n} satır alınmadı.",
+    "{n, plural, one {# row} other {# rows}} with no matching lead in the CRM skipped.",
+  ],
+  "xl.skip.duplicate": [
+    "Aynı lead dosyada birden çok satırda geçiyor; ilk satır alındı, {n} satır atlandı.",
+    "The same lead appears on more than one row; the first row was used, {n, plural, one {# row} other {# rows}} skipped.",
+  ],
+  "xl.invalid.title": [
+    "Okunamayan {n} hücre alınmadı",
+    "{n, plural, one {# cell} other {# cells}} could not be read and skipped",
+  ],
+  "xl.invalid.row": ["Satır {row}, {col}: «{value}». {reason}", "Row {row}, {col}: “{value}”. {reason}"],
+  "xl.bad.required": ["Bu alan boş bırakılamaz.", "This field cannot be empty."],
+  "xl.bad.option": ["Listede böyle bir seçenek yok.", "This is not one of the available options."],
+  "xl.bad.owner": ["Bu adla bir satışçı bulunamadı.", "No sales rep with this name was found."],
+  "xl.bad.country": [
+    "Ülke tanınmadı; ülke adını ya da iki harfli kodunu yazın.",
+    "The country was not recognised; enter its name or two-letter code.",
+  ],
+  "xl.bad.qty": [
+    "1 ile {max} arasında tam sayı yazın ya da boş bırakın.",
+    "Enter a whole number from 1 to {max}, or leave it empty.",
+  ],
+  "xl.bad.roof": [
+    "En ve boyu «20 x 10» biçiminde yazın, ✔ koyun ya da boş bırakın.",
+    "Enter width and length as “20 x 10”, put ✔, or leave it empty.",
+  ],
+  "xl.apply": ["{n} değişikliği uygula", "Apply {n, plural, one {# change} other {# changes}}"],
+  "xl.applying": ["Değişiklikler uygulanıyor: {done} / {total} lead", "Applying changes: {done} / {total} leads"],
+  "xl.done.title": ["İçe aktarım tamamlandı", "Import complete"],
+  "xl.done.ok": ["{n} lead güncellendi", "{n, plural, one {# lead} other {# leads}} updated"],
+  "xl.done.failed": ["{n} lead güncellenemedi:", "{n, plural, one {# lead} other {# leads}} could not be updated:"],
   // Form tablosu göstergesi (yönetici).
   "sheet.label": ["Form tablosu", "Form sheet"],
   "sheet.syncedAgo": ["{ago} eşitlendi", "synced {ago}"],

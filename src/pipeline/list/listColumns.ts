@@ -1,7 +1,7 @@
 /**
  * Lead listesi sütunları (Faz 7g, iş emri §5.4): Excel SATIŞ TAKİP'in sütun grupları. Her sütun satırdan bir ya da
  * daha çok "değer anahtarı" üretir (başlık menüsündeki sayılı liste ve URL süzgeci aynı anahtarı kullanır), bir
- * sıralama anahtarı ve CSV metni. Saf: React yok; çeviri `t` ve takvim günü `day` dışarıdan gelir.
+ * sıralama anahtarı ve dışa aktarım (Excel) metni. Saf: React yok; çeviri `t` ve takvim günü `day` dışarıdan gelir.
  */
 import { localeOf } from "../../i18n/lang";
 import type { LeadListDto } from "../../modules/sales-pipeline/api/dto";
@@ -53,7 +53,7 @@ export interface ColumnDef {
   /** Metin süzgeci için aranacak metin. */
   text?: (l: LeadListDto, c: Ctx) => string;
   sort: (l: LeadListDto, c: Ctx) => string | number;
-  /** CSV hücresi (Excel'in sembolleriyle). */
+  /** Dışa aktarım hücresi (Excel'in sembolleriyle); içe aktarım değişikliği bu metne göre arar. */
   csv: (l: LeadListDto, c: Ctx) => string;
   /** Dışa aktarımda yer almaz (aynı bilgi başka sütunda zaten var). */
   noCsv?: boolean;
@@ -124,7 +124,7 @@ export const COLUMNS: ColumnDef[] = [
     csv: (l) => l.fullName,
   },
   {
-    // Numaranın kendisi, adın hemen yanında. Arama bağlantıları "Telefon" sütununda kalır; CSV'de numara oradan çıkar.
+    // Numaranın kendisi, adın hemen yanında. Arama bağlantıları "Telefon" sütununda kalır; Dışa aktarımda numara oradan çıkar.
     id: "phoneNo",
     group: "lead",
     label: "list.col.phoneNo",

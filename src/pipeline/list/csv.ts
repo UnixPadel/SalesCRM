@@ -17,7 +17,10 @@ export function toCsv(header: readonly string[], rows: readonly (readonly string
 
 /** Tarayıcıda indirme (yalnız arayüz katmanı çağırır). */
 export function downloadCsv(name: string, text: string): void {
-  const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+  downloadBlob(name, new Blob([text], { type: "text/csv;charset=utf-8" }));
+}
+
+export function downloadBlob(name: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
