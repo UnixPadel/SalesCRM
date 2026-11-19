@@ -285,6 +285,9 @@ Faz 2: `INBOX_ENCRYPTION_KEY`, `META_*`, `GOOGLE_LEAD_FORM_KEY`, `SMTP_*`, `PUBL
 |-------|-------|-----|
 | Elshan | KullaniciBilgileri (Yonetici) | **admin** |
 | Admin | admin@unixpadel.com + `server/data/config.json` içindeki `adminPassword` | **admin** (posta kutusu yok) |
+| Admin (tablo) | KullaniciBilgileri'ndeki `admin` kullanıcısı (Yonetici) + tablodaki şifre | **admin** |
+
+"admin" giriş adı önce config.json şifresiyle denenir; tutmazsa kullanıcı tablosuna sorulur.
 | Salah, Yuşa, Ahlem, Mohamed, Simon | KullaniciBilgileri (Temsilci) | satışçı |
 | Muhasebe, Fabrika, Lojistik, Gözlemci | KullaniciBilgileri | görüntüleyici |
 | Pazarlama / ajans (ör. MarcaDM) | KullaniciBilgileri (Gozlemci) + `CRM_MARKETING_USERS` | pazarlama |

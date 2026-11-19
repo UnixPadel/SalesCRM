@@ -373,6 +373,9 @@ app.post("/api/auth/login", async (req, res) => {
     return res.status(status).json({ error });
   };
   const who = userFor(email);
+  // KullaniciBilgileri'nde "admin" kullanıcı adlı bir satır (Yonetici) var: giriş adı yerel Admin hesabıyla çakışır.
+  // config.json şifresi tutmazsa giriş kullanıcı tablosuna sorulur; tablodaki admin tam yetkiyle (admin) girer.
+  if (who.local && authDbEnabled() && !adminLoginOk(password)) who.local = false;
 
   const devBypass = Boolean(process.env.CRM_DEV_PASSWORD) && sameSecret(password, process.env.CRM_DEV_PASSWORD);
   if (who.local) {
