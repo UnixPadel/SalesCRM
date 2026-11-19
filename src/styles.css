@@ -215,6 +215,35 @@ h4 {
   line-height: var(--lh-tight);
   margin: 0;
 }
+/* Başlık ve düğmelerde her kelime büyük harfle başlar (2026-11-19). `capitalize` belgenin diline uyar (lang="tr":
+   i → İ), Arapçada etkisizdir ve metni değiştirmez (ekran okuyucu, kopyalama, testler aynı metni görür). Cümle
+   taşıyan başlıklar (boş durum) ve kullanıcının yazdığı metinler `.no-cap` ile dışarıda kalır. */
+h1,
+h2,
+h3,
+h4,
+legend,
+th,
+.btn,
+.tab,
+.nav-link,
+.menu-item,
+.sec-h,
+.field-l,
+.chip,
+.seg-chip,
+.seg-opt,
+.link-btn,
+.col-name,
+.toast-action {
+  text-transform: capitalize;
+}
+.empty h3,
+.seg-sub,
+.no-cap,
+.no-cap * {
+  text-transform: none;
+}
 p {
   margin: 0;
 }
