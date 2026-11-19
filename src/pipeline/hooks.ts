@@ -189,11 +189,16 @@ export function useTodayCount() {
 export function useTeamNames() {
   const { user } = useCrm();
   const [team, setTeam] = useState<TeamMember[]>([]);
+  // Bütün kullanıcıların adları (pasif ve satış dışı hesaplar dahil): eski sorumlu numarayla görünmesin.
+  const [names, setNames] = useState<{ id: string; name: string; active: boolean }[]>([]);
   useEffect(() => {
     if (!user) return;
     api<TeamMember[]>("GET", "/api/users")
       .then(setTeam)
       .catch(() => setTeam([]));
+    api<{ id: string; name: string; active: boolean }[]>("GET", "/api/users?names=1")
+      .then(setNames)
+      .catch(() => setNames([]));
   }, [user]);
   const { t } = useLang();
   const nameOf = useCallback(
@@ -203,9 +208,12 @@ export function useTeamNames() {
       if (userId === "import") return t("source.importActor");
       if (user && userId === user.id) return user.name;
       const m = team.find((x) => x.id === userId || x.email === userId);
-      return m?.name ?? userId;
+      if (m) return m.name;
+      const other = names.find((x) => x.id === userId);
+      if (other) return other.active ? other.name : t("team.inactiveName", { name: other.name });
+      return userId;
     },
-    [team, user, t],
+    [team, names, user, t],
   );
   const assignable = useMemo(() => team.filter((m) => m.role !== "viewer" && m.role !== "marketing"), [team]);
   return { team: assignable, nameOf };

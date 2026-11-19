@@ -26,6 +26,7 @@ export const DICT = {
   "common.loading": ["Yükleniyor…", "Loading…"],
   "common.all": ["Hepsi", "All"],
   "common.pool": ["Ortak havuz", "Shared pool"],
+  "team.inactiveName": ["{name} (pasif)", "{name} (inactive)"],
   "common.me": ["Ben", "Me"],
   "common.unknown": ["Belirsiz", "Unknown"],
   "common.retry": ["Tekrar dene", "Retry"],

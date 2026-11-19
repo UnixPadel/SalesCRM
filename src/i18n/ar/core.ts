@@ -18,6 +18,7 @@ export const AR_CORE = {
   "common.search": "بحث…",
   "common.loading": "جارٍ التحميل…",
   "common.all": "الكل",
+  "team.inactiveName": "{name} (غير نشط)",
   "common.pool": "المجموعة المشتركة",
   "common.me": "أنا",
   "common.unknown": "غير محدد",

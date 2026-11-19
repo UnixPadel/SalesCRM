@@ -577,6 +577,13 @@ app.get("/api/users", auth, async (req, res) => {
       rows.map((r) => ({ id: r.id, name: r.first || r.login, email: r.email, role: r.role, active: r.active })),
     );
   }
+  // ?names=1: kimlik → ad eşlemesi, pasif ve satış dışı hesaplar dahil (2026-11-19). Eski sorumlular ve dosya
+  // yükleyenler listelerde numarayla değil adıyla görünsün diye her oturuma açıktır; yalnız kimlik, ad ve aktiflik
+  // döner (e-posta ve rol yok).
+  if (req.query.names === "1") {
+    const rows = await team.rows();
+    return res.json((rows ?? []).map((r) => ({ id: String(r.id), name: r.first || r.login, active: r.active })));
+  }
   if (!authDbEnabled()) {
     return res.json(
       USERS.filter((u) => !u.local).map((u) => ({ id: u.emails[0], name: u.name, email: u.emails[0], role: u.role })),
