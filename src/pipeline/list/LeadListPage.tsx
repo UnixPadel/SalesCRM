@@ -1,8 +1,16 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { Button, Empty, Icon, Skeleton, StatusTag } from "../../components/ui";
+import { Button, Empty, Icon, Skeleton, StatusTag, relDays } from "../../components/ui";
+import { usePhone } from "../../components/useMediaQuery";
 import { countryName, countryOptions } from "../../domain/constants";
 import { dirOf, localeOf, refName, translate, useLang, type Lang } from "../../i18n";
-import type { LeadDto, LeadListDto, StageCodeDto, UpdateLeadBody } from "../../modules/sales-pipeline/api/dto";
+import type {
+  ActivityOutcomeDto,
+  ActivityTypeDto,
+  LeadDto,
+  LeadListDto,
+  StageCodeDto,
+  UpdateLeadBody,
+} from "../../modules/sales-pipeline/api/dto";
 import { navigate, setHashParams } from "../../router";
 import { useCrm } from "../../state/CrmContext";
 import { pipelineApi } from "../api";
@@ -98,6 +106,8 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
   const { team, nameOf } = useTeamNames();
   const errText = useErrorText();
   const now = useNow(60_000);
+  // Telefonda tablo yerine kart listesi; hücre düzenleme tablet ve masaüstünde kalır.
+  const phone = usePhone();
   const [rows, setRows] = useState<LeadListDto[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [collapsed, setCollapsed] = useState<GroupId[]>(() =>
@@ -733,6 +743,25 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
           {chip("rotting", "1", t("activity.rotting"), "clock")}
           {isAdmin && chip("warning", "1", t("list.quick.warning"), "warn")}
         </div>
+        {phone && (
+          <label className="ll-sort">
+            {t("list.sortBy")}
+            <select value={sort} onChange={(e) => set({ sort: e.target.value })}>
+              {[
+                ["-createdAt", "list.sort.newest"],
+                ["createdAt", "list.sort.oldest"],
+                ["name", "list.sort.name"],
+              ].map(([v, k]) => (
+                <option key={v} value={v}>
+                  {t(k!)}
+                </option>
+              ))}
+              {!["-createdAt", "createdAt", "name"].includes(sort) && (
+                <option value={sort}>{t("list.sort.custom")}</option>
+              )}
+            </select>
+          </label>
+        )}
         <details className="menu-dd">
           <summary className="btn btn-sec btn-md">
             <Icon name="columns" size={16} /> {t("list.columns")}
@@ -851,148 +880,172 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
               )}
             </div>
           ) : null}
-          <div className="ll-wrap" tabIndex={0} role="region" aria-label={t("list.title")}>
-            <table className="ll" onMouseOver={gapHover} onMouseOut={gapHover}>
-              <caption className="sr-only">{t("list.caption", { n: shown.length })}</caption>
-              {groups.map((g) => (
-                <colgroup key={g.id} span={collapsed.includes(g.id) ? 1 : runs(g.id).length} className={`cg-${g.id}`} />
+          {phone ? (
+            <ul className="ll-cards" aria-label={t("list.caption", { n: shown.length })}>
+              {pageRows.map((l) => (
+                <LeadCard
+                  key={l.id}
+                  l={l}
+                  now={now}
+                  ctx={ctx}
+                  owner={l.assignedUserId ? nameOf(l.assignedUserId) : t("common.pool")}
+                  canAct={cellPerms(l, who).canAct}
+                  onLog={() => editors.current?.log({ leadId: l.id, leadName: l.fullName })}
+                  onQuick={(type, outcome) => editors.current?.quick(l.id, type, outcome)}
+                  onDetails={(type, outcome) =>
+                    editors.current?.log({ leadId: l.id, leadName: l.fullName, type, outcome })
+                  }
+                />
               ))}
-              <thead>
-                <tr className="ll-groups">
-                  {groups.map((g) => (
-                    <th
-                      key={g.id}
-                      scope="colgroup"
-                      colSpan={collapsed.includes(g.id) ? 1 : runs(g.id).length}
-                      className={`g-${g.id}`}
-                    >
-                      {g.fixed ? (
-                        t(g.label)
-                      ) : (
-                        <button
-                          type="button"
-                          className="g-btn"
-                          aria-expanded={!collapsed.includes(g.id)}
-                          onClick={() => toggleGroup(g.id)}
-                        >
-                          <Icon name="chevron" size={12} className={collapsed.includes(g.id) ? "rot" : ""} />{" "}
-                          {t(g.label)}
-                        </button>
-                      )}
-                    </th>
-                  ))}
-                </tr>
-                <tr className="ll-cols">
-                  {groups.map((g) =>
-                    collapsed.includes(g.id) ? (
-                      <th key={g.id} scope="col" className={`g-${g.id}`}>
-                        <span className="muted">{t("list.summary")}</span>
-                      </th>
-                    ) : (
-                      runs(g.id).map((r) => {
-                        if (r.kind === "gap") {
-                          const label = gapLabel(r.cols);
-                          return (
-                            <th
-                              key={`gap-${r.cols[0]!.id}`}
-                              scope="col"
-                              className={`g-${g.id} ll-gap`}
-                              data-gap={r.cols[0]!.id}
-                            >
-                              <button
-                                type="button"
-                                className="ll-gap-btn"
-                                aria-label={label}
-                                title={label}
-                                onClick={() => showCols(r.cols.map((c) => c.id))}
-                              >
-                                <span className="ll-gap-knob">
-                                  <Icon name="expand" size={12} />
-                                  {gapFiltered(r.cols) && <span className="th-dot" aria-hidden="true" />}
-                                </span>
-                                {r.cols.length > 1 && (
-                                  <span className="ll-gap-n" aria-hidden="true">
-                                    {r.cols.length}
-                                  </span>
-                                )}
-                              </button>
-                            </th>
-                          );
-                        }
-                        const c = r.col;
-                        const dir = sort === c.id ? "asc" : sort === `-${c.id}` ? "desc" : null;
-                        const f = filters.get(c.id);
-                        const others = applyFilters(base, filters, ctx, c.id);
-                        return (
-                          <th
-                            key={c.id}
-                            scope="col"
-                            aria-sort={dir === "asc" ? "ascending" : dir === "desc" ? "descending" : undefined}
-                            className={`g-${g.id}` + stickyOf(c)}
+            </ul>
+          ) : (
+            <div className="ll-wrap" tabIndex={0} role="region" aria-label={t("list.title")}>
+              <table className="ll" onMouseOver={gapHover} onMouseOut={gapHover}>
+                <caption className="sr-only">{t("list.caption", { n: shown.length })}</caption>
+                {groups.map((g) => (
+                  <colgroup
+                    key={g.id}
+                    span={collapsed.includes(g.id) ? 1 : runs(g.id).length}
+                    className={`cg-${g.id}`}
+                  />
+                ))}
+                <thead>
+                  <tr className="ll-groups">
+                    {groups.map((g) => (
+                      <th
+                        key={g.id}
+                        scope="colgroup"
+                        colSpan={collapsed.includes(g.id) ? 1 : runs(g.id).length}
+                        className={`g-${g.id}`}
+                      >
+                        {g.fixed ? (
+                          t(g.label)
+                        ) : (
+                          <button
+                            type="button"
+                            className="g-btn"
+                            aria-expanded={!collapsed.includes(g.id)}
+                            onClick={() => toggleGroup(g.id)}
                           >
-                            <span className="th-in">
-                              <span>{t(c.label)}</span>
-                              <ColumnFilterPopover
-                                col={c}
-                                label={t(c.label)}
-                                counts={c.kind === "values" ? valueCounts(others, c, ctx) : []}
-                                selected={f?.values}
-                                text={f?.text}
-                                sort={dir}
-                                onSort={(d) => set({ sort: d === "asc" ? c.id : `-${c.id}` })}
-                                {...(PINNED_COLUMNS.includes(c.id) ? {} : { onHide: () => hideCol(c) })}
-                                onApply={(v) =>
-                                  set({
-                                    [c.param]:
-                                      v.text !== undefined
-                                        ? v.text
-                                        : v.values === null || v.values === undefined
-                                          ? null
-                                          : v.values.join(","),
-                                  })
-                                }
-                              />
-                            </span>
-                          </th>
-                        );
-                      })
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((l) => (
-                  <tr key={l.id}>
+                            <Icon name="chevron" size={12} className={collapsed.includes(g.id) ? "rot" : ""} />{" "}
+                            {t(g.label)}
+                          </button>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                  <tr className="ll-cols">
                     {groups.map((g) =>
                       collapsed.includes(g.id) ? (
-                        <td key={g.id} className={`g-${g.id}`}>
-                          {groupSummary(g.id, l, ctx) || (g.id === "lead" ? l.fullName : "")}
-                        </td>
+                        <th key={g.id} scope="col" className={`g-${g.id}`}>
+                          <span className="muted">{t("list.summary")}</span>
+                        </th>
                       ) : (
-                        <Fragment key={g.id}>
-                          {runs(g.id).map((r) =>
-                            r.kind === "gap" ? (
-                              <td
+                        runs(g.id).map((r) => {
+                          if (r.kind === "gap") {
+                            const label = gapLabel(r.cols);
+                            return (
+                              <th
                                 key={`gap-${r.cols[0]!.id}`}
+                                scope="col"
                                 className={`g-${g.id} ll-gap`}
                                 data-gap={r.cols[0]!.id}
-                                title={gapLabel(r.cols)}
-                                onClick={() => showCols(r.cols.map((c) => c.id))}
-                              />
-                            ) : (
-                              <td key={r.col.id} className={`g-${g.id} c-${r.col.id}` + stickyOf(r.col)}>
-                                {cell(r.col, l)}
-                              </td>
-                            ),
-                          )}
-                        </Fragment>
+                              >
+                                <button
+                                  type="button"
+                                  className="ll-gap-btn"
+                                  aria-label={label}
+                                  title={label}
+                                  onClick={() => showCols(r.cols.map((c) => c.id))}
+                                >
+                                  <span className="ll-gap-knob">
+                                    <Icon name="expand" size={12} />
+                                    {gapFiltered(r.cols) && <span className="th-dot" aria-hidden="true" />}
+                                  </span>
+                                  {r.cols.length > 1 && (
+                                    <span className="ll-gap-n" aria-hidden="true">
+                                      {r.cols.length}
+                                    </span>
+                                  )}
+                                </button>
+                              </th>
+                            );
+                          }
+                          const c = r.col;
+                          const dir = sort === c.id ? "asc" : sort === `-${c.id}` ? "desc" : null;
+                          const f = filters.get(c.id);
+                          const others = applyFilters(base, filters, ctx, c.id);
+                          return (
+                            <th
+                              key={c.id}
+                              scope="col"
+                              aria-sort={dir === "asc" ? "ascending" : dir === "desc" ? "descending" : undefined}
+                              className={`g-${g.id}` + stickyOf(c)}
+                            >
+                              <span className="th-in">
+                                <span>{t(c.label)}</span>
+                                <ColumnFilterPopover
+                                  col={c}
+                                  label={t(c.label)}
+                                  counts={c.kind === "values" ? valueCounts(others, c, ctx) : []}
+                                  selected={f?.values}
+                                  text={f?.text}
+                                  sort={dir}
+                                  onSort={(d) => set({ sort: d === "asc" ? c.id : `-${c.id}` })}
+                                  {...(PINNED_COLUMNS.includes(c.id) ? {} : { onHide: () => hideCol(c) })}
+                                  onApply={(v) =>
+                                    set({
+                                      [c.param]:
+                                        v.text !== undefined
+                                          ? v.text
+                                          : v.values === null || v.values === undefined
+                                            ? null
+                                            : v.values.join(","),
+                                    })
+                                  }
+                                />
+                              </span>
+                            </th>
+                          );
+                        })
                       ),
                     )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {pageRows.map((l) => (
+                    <tr key={l.id}>
+                      {groups.map((g) =>
+                        collapsed.includes(g.id) ? (
+                          <td key={g.id} className={`g-${g.id}`}>
+                            {groupSummary(g.id, l, ctx) || (g.id === "lead" ? l.fullName : "")}
+                          </td>
+                        ) : (
+                          <Fragment key={g.id}>
+                            {runs(g.id).map((r) =>
+                              r.kind === "gap" ? (
+                                <td
+                                  key={`gap-${r.cols[0]!.id}`}
+                                  className={`g-${g.id} ll-gap`}
+                                  data-gap={r.cols[0]!.id}
+                                  title={gapLabel(r.cols)}
+                                  onClick={() => showCols(r.cols.map((c) => c.id))}
+                                />
+                              ) : (
+                                <td key={r.col.id} className={`g-${g.id} c-${r.col.id}` + stickyOf(r.col)}>
+                                  {cell(r.col, l)}
+                                </td>
+                              ),
+                            )}
+                          </Fragment>
+                        ),
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
       <CellEditors ref={editors} onChanged={afterEdit} />
@@ -1014,5 +1067,95 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
         />
       )}
     </section>
+  );
+}
+
+/**
+ * Telefon kartı: listenin ilk bakışta gereken kısmı (ad, aşama, sorumlu, yaş, sonraki adım, ürünler) ve tek
+ * dokunuşla arama / WhatsApp / iletişim kaydı. Kartın tamamı lead sayfasını açar; ayrıntılı düzenleme orada.
+ */
+function LeadCard({
+  l,
+  now,
+  ctx,
+  owner,
+  canAct,
+  onLog,
+  onQuick,
+  onDetails,
+}: {
+  l: LeadListDto;
+  now: number;
+  ctx: Ctx;
+  owner: string;
+  canAct: boolean;
+  onLog: () => void;
+  onQuick: (type: ActivityTypeDto, outcome: ActivityOutcomeDto) => Promise<void> | void;
+  onDetails: (type: ActivityTypeDto, outcome: ActivityOutcomeDto) => void;
+}) {
+  const { t, lang } = useLang();
+  const tone = ageTone(l, now);
+  const products = productLine(l.products, ctx.productName, 2);
+  return (
+    <li className="ll-card">
+      <div className="ll-card-top">
+        <a
+          className="ll-card-name"
+          href={`#/lead/${encodeURIComponent(l.id)}`}
+          onClick={(e) => (e.preventDefault(), navigate("lead", undefined, l.id))}
+        >
+          {l.fullName}
+          {l.hot && (
+            <span className="hot" title={t("hot.label")}>
+              {" "}
+              <Icon name="flame" size={14} />
+              <span className="sr-only">{t("hot.short")}</span>
+            </span>
+          )}
+        </a>
+        <StageTag code={l.currentStage} />
+      </div>
+      <div className="ll-card-meta">
+        {l.company && <span>{l.company}</span>}
+        {l.country && <span>{countryName(l.country, lang)}</span>}
+        <span>{owner}</span>
+      </div>
+      <div className="ll-card-meta">
+        <span className="ll-date">
+          {dateText(l.createdAt, false, t, lang)}
+          {tone && <span className={"age age-" + tone}> · {daysAgo(l.createdAt, now, lang)}</span>}
+        </span>
+        {l.contact.state === "never" ? (
+          <span className="age age-bad">{t("summary.never")}</span>
+        ) : l.nextActivity ? (
+          <span>{t("board.nextAt", { d: relDays(l.nextActivity.dueAt) })}</span>
+        ) : null}
+      </div>
+      {products && <div className="ll-card-sub">{products}</div>}
+      {(l.phoneE164 || canAct) && (
+        <div className="ll-card-acts">
+          {l.phoneE164 && (
+            <ContactLinks
+              compact
+              phone={l.phoneE164}
+              email={null}
+              canLog={canAct}
+              onQuick={onQuick}
+              onDetails={onDetails}
+            />
+          )}
+          {canAct && (
+            <button
+              type="button"
+              className="ll-log"
+              onClick={onLog}
+              aria-label={t("contact.logFor", { name: l.fullName })}
+            >
+              <Icon name="edit" size={14} /> {t("contact.log")}
+            </button>
+          )}
+        </div>
+      )}
+    </li>
   );
 }

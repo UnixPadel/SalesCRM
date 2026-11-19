@@ -191,7 +191,7 @@ function StageReport() {
           <p>{t("reports.won.desc", { n: months })}</p>
           <ul
             className="vbars"
-            style={{ gridTemplateColumns: `repeat(${report.months.length}, minmax(0, 1fr))` }}
+            style={{ ["--months" as string]: report.months.length }}
             role="img"
             aria-label={
               wonMonths.length

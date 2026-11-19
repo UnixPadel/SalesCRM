@@ -23,6 +23,78 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-19-2",
+    date: "2026-11-19",
+    items: {
+      tr: [
+        {
+          title: "Telefonda rahat kullanım",
+          text: "Program artık telefonda da düzgün açılır. Sayfalar (Lead listesi, Pano, Bugün, Kişiler, Raporlar) ekranın altındaki menüdedir; başparmağınızla geçebilirsiniz.",
+        },
+        {
+          title: "Telefonda arama",
+          text: "Üstteki büyütece dokunun, ad, telefon ya da firma yazın. Sonuca dokununca lead açılır.",
+        },
+        {
+          title: "Lead listesi telefonda kartlar",
+          text: 'Telefonda her lead bir kart olarak görünür: ad, aşama, sorumlu, tarih ve ürünler. Karttan doğrudan Ara, WhatsApp ya da "İletişim kaydet"e basabilirsiniz; karta dokununca lead açılır. "Sırala" kutusuyla en yeni, en eski ya da ada göre sıralayın.',
+        },
+        {
+          title: "Kartı aşamaya taşı",
+          text: "Pano kartlarının sağ altındaki ↔ düğmesine basıp yeni aşamayı seçin. Sürüklemek yerine bu düğme telefonda ve tablette de çalışır. Telefonda panonun üstündeki aşama düğmeleriyle sütunlar arasında geçin.",
+        },
+        {
+          title: "Pencereler telefona uygun",
+          text: "İletişim kaydı ve yeni lead gibi pencereler telefonda ekranın altından açılır; Kaydet düğmesi hep görünür kalır.",
+        },
+      ],
+      en: [
+        {
+          title: "Works on your phone",
+          text: "The app now fits phone screens. The pages (Lead list, Board, Today, Contacts, Reports) are in the menu at the bottom of the screen, within reach of your thumb.",
+        },
+        {
+          title: "Search on your phone",
+          text: "Tap the magnifier at the top and type a name, phone number or company. Tap a result to open the lead.",
+        },
+        {
+          title: "Lead list as cards on your phone",
+          text: 'On a phone each lead is a card with its name, stage, owner, date and products. Call, WhatsApp and "Log contact" work straight from the card; tap the card to open the lead. Use "Sort" to show newest, oldest or by name.',
+        },
+        {
+          title: "Move a card to a stage",
+          text: "On the Board, tap the ↔ button at the bottom of a card and pick the new stage. It does the same as dragging and also works on phones and tablets. On a phone, use the stage buttons above the board to switch columns.",
+        },
+        {
+          title: "Windows fit your phone",
+          text: "Windows such as Log contact and New lead open from the bottom of the screen on a phone, and the Save button always stays visible.",
+        },
+      ],
+      ar: [
+        {
+          title: "يعمل على هاتفك",
+          text: "أصبح البرنامج مناسبًا لشاشة الهاتف. الصفحات (قائمة العملاء، اللوحة، اليوم، جهات الاتصال، التقارير) في القائمة أسفل الشاشة، في متناول إبهامك.",
+        },
+        {
+          title: "البحث على الهاتف",
+          text: "اضغط على العدسة في الأعلى واكتب اسمًا أو رقم هاتف أو شركة. اضغط على النتيجة لفتح العميل.",
+        },
+        {
+          title: "قائمة العملاء كبطاقات على الهاتف",
+          text: "على الهاتف يظهر كل عميل كبطاقة فيها الاسم والمرحلة والمسؤول والتاريخ والمنتجات. يمكنك الاتصال أو فتح واتساب أو تسجيل التواصل من البطاقة مباشرة، والضغط على البطاقة يفتح العميل. استخدم «ترتيب» للعرض حسب الأحدث أو الأقدم أو الاسم.",
+        },
+        {
+          title: "نقل البطاقة إلى مرحلة",
+          text: "في اللوحة، اضغط على زر ↔ أسفل البطاقة واختر المرحلة الجديدة. يقوم بنفس عمل السحب ويعمل أيضًا على الهاتف والجهاز اللوحي. على الهاتف، استخدم أزرار المراحل أعلى اللوحة للتنقل بين الأعمدة.",
+        },
+        {
+          title: "نوافذ مناسبة للهاتف",
+          text: "النوافذ مثل تسجيل التواصل وعميل جديد تُفتح من أسفل الشاشة على الهاتف، ويبقى زر الحفظ ظاهرًا دائمًا.",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-19",
     date: "2026-11-19",
     items: {

@@ -3693,7 +3693,7 @@ select.bare {
 }
 .vbars {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--months, 12), minmax(0, 1fr));
   gap: var(--s-2);
   align-items: end;
   block-size: 232px;

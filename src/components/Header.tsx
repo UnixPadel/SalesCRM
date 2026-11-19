@@ -8,7 +8,7 @@ import { useReference, useTodayCount } from "../pipeline/hooks";
 import { useCrm, type Theme } from "../state/CrmContext";
 import { LangMenu } from "./LangMenu";
 import { WhatsNewDialog, useWhatsNew } from "./WhatsNew";
-import { Avatar, Button, Icon } from "./ui";
+import { Avatar, Button, Icon, IconButton } from "./ui";
 
 const THEMES: { key: Theme; icon: string }[] = [
   { key: "auto", icon: "auto" },
@@ -195,6 +195,8 @@ function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [opts, setOpts] = useState<Opt[]>([]);
+  // Telefonda kutu başlıkta yer kaplamaz: büyüteç düğmesi tam genişlik arama şeridini açar.
+  const [sheet, setSheet] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const listId = useId();
 
@@ -258,16 +260,31 @@ function GlobalSearch() {
     };
   }, [q, t, stageName]);
 
-  const choose = (o: Opt) => {
-    o.go();
+  const close = () => {
     setQ("");
     setOpen(false);
+    setSheet(false);
+  };
+  const choose = (o: Opt) => {
+    o.go();
+    close();
     input.current?.blur();
   };
   const showList = open && q.trim().length >= 2;
 
   return (
-    <div className="gsearch">
+    <div className={"gsearch" + (sheet ? " is-open" : "")}>
+      <IconButton
+        icon="search"
+        label={t("search.aria")}
+        className="gsearch-open"
+        aria-expanded={sheet}
+        onClick={() => {
+          setSheet(true);
+          // Klavye, dokunuşla aynı olayda odaklanınca açılır (iOS).
+          input.current?.focus();
+        }}
+      />
       <div className="gsearch-box">
         <Icon name="search" />
         <input
@@ -286,8 +303,13 @@ function GlobalSearch() {
             setActive(0);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 120)}
+          onFocus={() => (setOpen(true), setSheet(true))}
+          onBlur={() =>
+            setTimeout(() => {
+              setOpen(false);
+              if (!input.current?.value) setSheet(false);
+            }, 120)
+          }
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") {
               e.preventDefault();
@@ -298,14 +320,23 @@ function GlobalSearch() {
             } else if (e.key === "Enter" && opts[active]) {
               choose(opts[active]);
             } else if (e.key === "Escape") {
-              setQ("");
-              setOpen(false);
+              close();
             }
           }}
         />
         <kbd className="kbd" aria-hidden="true">
           Ctrl K
         </kbd>
+        <IconButton
+          icon="x"
+          label={t("common.close")}
+          className="gsearch-close"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            close();
+            input.current?.blur();
+          }}
+        />
       </div>
       {showList && (
         <ul className="gs-list" id={listId} role="listbox" aria-label={t("search.results")}>

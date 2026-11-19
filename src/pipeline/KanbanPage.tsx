@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Empty, Icon, Skeleton, StatusTag, eur, money, relDays } from "../components/ui";
 import { countryOptions } from "../domain/constants";
 import type { Currency } from "../domain/types";
@@ -67,6 +67,15 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
   });
   const [dragging, setDragging] = useState<LeadListDto | null>(null);
   const [over, setOver] = useState<StageCodeDto | null>(null);
+  // Telefonda pano aşama başına bir ekran: üstteki şerit hangi aşamada olunduğunu gösterir ve oraya kaydırır.
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [seen, setSeen] = useState(0);
+  const onBoardScroll = () => {
+    const el = boardRef.current;
+    const col = el?.querySelector<HTMLElement>(".kb-col");
+    if (!el || !col) return;
+    setSeen(Math.round(Math.abs(el.scrollLeft) / (col.offsetWidth + 12)));
+  };
 
   const onChanged = useCallback(() => reload(), [reload]);
   const { move, dialog } = useStageMove(ref, onChanged);
@@ -97,7 +106,11 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
     const lead = dragging;
     setDragging(null);
     setOver(null);
-    if (!lead || lead.currentStage === target || !ref) return;
+    if (lead) moveTo(lead, target);
+  };
+  // Sürükle-bırak ve kartın aşama menüsü (dokunmatik, klavye) aynı akışı çağırır.
+  const moveTo = (lead: LeadListDto, target: StageCodeDto) => {
+    if (lead.currentStage === target || !ref) return;
     if (!allowed(lead.currentStage, target)) {
       toast(t("stage.backwardBlocked", { n: ref.undoWindowMinutes }), { bad: true });
       return;
@@ -218,153 +231,200 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
           ))}
         </div>
       ) : (
-        <div className="kanban">
-          {ref.stages.map((s, stageIdx) => {
-            const cards = board.leads.filter((l) => l.currentStage === s.code);
-            const st = statsOf(s.code);
-            const canDrop = dragging ? allowed(dragging.currentStage, s.code) : false;
-            const blocked = dragging ? !canDrop && dragging.currentStage !== s.code : false;
-            return (
-              <div
+        <>
+          <nav className="kb-stages" aria-label={t("board.stages")}>
+            {ref.stages.map((s, i) => (
+              <button
                 key={s.code}
-                className={
-                  "col kb-col" +
-                  (over === s.code ? (canDrop ? " over-ok" : " over-no") : "") +
-                  (blocked ? " blocked" : "")
+                type="button"
+                className="kb-stage-btn"
+                aria-current={seen === i ? "true" : undefined}
+                onClick={() =>
+                  boardRef.current
+                    ?.querySelectorAll<HTMLElement>(".kb-col")
+                    [i]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" })
                 }
-                style={{ ["--tone" as string]: `var(--col-${STAGE_TONE[s.code]})` }}
-                onDragOver={(e) => {
-                  if (!dragging) return;
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = canDrop ? "move" : "none";
-                  if (over !== s.code) setOver(s.code);
-                }}
-                onDragLeave={() => over === s.code && setOver(null)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  drop(s.code);
-                }}
               >
-                <div className="col-head">
-                  <span className="col-no">{stageIdx + 1}</span>
-                  <span>
-                    <b className="col-name">{refName(lang, "stage", s)}</b>
-                  </span>
-                  <span className="col-count">{cards.length}</span>
-                  {st && cards.length > 0 && (
-                    <span className="col-stats" title={t("board.stats.hint")}>
-                      {st.totalEur > 0 && <b>{eur(st.totalEur, true)}</b>}
-                      {st.unconverted > 0 && <span title={t("board.stats.unconverted", { n: st.unconverted })}>*</span>}
-                      <span>{t("board.stats.avgDays", { n: st.avgDays })}</span>
+                {refName(lang, "stage", s)}
+                <span className="count">{board.leads.filter((l) => l.currentStage === s.code).length}</span>
+              </button>
+            ))}
+          </nav>
+          <div className="kanban" ref={boardRef} onScroll={onBoardScroll}>
+            {ref.stages.map((s, stageIdx) => {
+              const cards = board.leads.filter((l) => l.currentStage === s.code);
+              const st = statsOf(s.code);
+              const canDrop = dragging ? allowed(dragging.currentStage, s.code) : false;
+              const blocked = dragging ? !canDrop && dragging.currentStage !== s.code : false;
+              return (
+                <div
+                  key={s.code}
+                  className={
+                    "col kb-col" +
+                    (over === s.code ? (canDrop ? " over-ok" : " over-no") : "") +
+                    (blocked ? " blocked" : "")
+                  }
+                  style={{ ["--tone" as string]: `var(--col-${STAGE_TONE[s.code]})` }}
+                  onDragOver={(e) => {
+                    if (!dragging) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = canDrop ? "move" : "none";
+                    if (over !== s.code) setOver(s.code);
+                  }}
+                  onDragLeave={() => over === s.code && setOver(null)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    drop(s.code);
+                  }}
+                >
+                  <div className="col-head">
+                    <span className="col-no">{stageIdx + 1}</span>
+                    <span>
+                      <b className="col-name">{refName(lang, "stage", s)}</b>
                     </span>
-                  )}
-                </div>
-                <div className="col-body">
-                  {cards.length === 0 && (
-                    <div className="col-empty">{dragging && canDrop ? t("board.dropHere") : t("board.empty")}</div>
-                  )}
-                  {cards.map((l) => (
-                    <article
-                      key={l.id}
-                      className={"card kb-card" + (dragging?.id === l.id ? " dragging" : "")}
-                      draggable={!isViewer && !s.isTerminal}
-                      tabIndex={0}
-                      onDragStart={(e) => {
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", l.id);
-                        setDragging(l);
-                      }}
-                      onDragEnd={() => {
-                        setDragging(null);
-                        setOver(null);
-                      }}
-                      onClick={() => navigate("lead", undefined, l.id)}
-                      onKeyDown={(e) => e.key === "Enter" && navigate("lead", undefined, l.id)}
-                      aria-label={`${l.fullName}, ${t("board.open")}`}
-                    >
-                      {/* Kart 4 satır (Faz 7g, §5.1): ad · ürün · tek durum çipi · sorumlu ve son temas. */}
-                      <div className="card-name">{l.fullName}</div>
-                      {(() => {
-                        const sub =
-                          productLine(l.products, productNamesOf(ref?.products), 2) ||
-                          [courtLine(l, t), l.productInterest].filter(Boolean).join(" · ") ||
-                          l.courtModel;
-                        return sub ? <div className="card-sub">{sub}</div> : null;
-                      })()}
-                      <div className="kb-foot kb-state">
-                        {!s.isTerminal && l.contact.state === "never" ? (
-                          <StatusTag tone="bad" icon="warn">
-                            {t("summary.never")}
-                          </StatusTag>
-                        ) : l.rotting ? (
-                          <StatusTag tone="bad" icon="clock" title={t("activity.rottingHint")}>
-                            {t("activity.rotting")}
-                          </StatusTag>
-                        ) : l.nextActivity ? (
-                          <span
-                            className={"kb-next is-" + dueState(l.nextActivity.dueAt, now)}
-                            title={`${l.nextActivity.subject} · ${l.nextActivity.dueAt.slice(0, 16).replace("T", " ")}`}
-                          >
-                            <Icon name={ACTIVITY_ICON[l.nextActivity.type]} size={13} />
-                            {t("board.nextAt", { d: relDays(l.nextActivity.dueAt) })}
-                          </span>
-                        ) : null}
-                        {l.hot && (
-                          <StatusTag tone="warn" icon="flame">
-                            {t("hot.label")}
-                          </StatusTag>
+                    <span className="col-count">{cards.length}</span>
+                    {st && cards.length > 0 && (
+                      <span className="col-stats" title={t("board.stats.hint")}>
+                        {st.totalEur > 0 && <b>{eur(st.totalEur, true)}</b>}
+                        {st.unconverted > 0 && (
+                          <span title={t("board.stats.unconverted", { n: st.unconverted })}>*</span>
                         )}
-                        {(s.code === "PROPOSAL" || s.code === "WON") && l.value && (
-                          <span className="kb-chip kb-chip-money" title={t("lead.value")}>
-                            <Icon name="money" size={13} /> {money(l.value.amount, l.value.currency as Currency, true)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="kb-foot">
-                        <span className="kb-owner">
-                          {l.assignedUserId ? (
-                            nameOf(l.assignedUserId)
-                          ) : (
-                            <>
-                              {t("common.pool")}
-                              {!isViewer && !isAdmin && (
-                                <Button
-                                  size="sm"
-                                  className="hit"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    take(l);
-                                  }}
-                                >
-                                  {t("lead.take")}
-                                </Button>
-                              )}
-                            </>
+                        <span>{t("board.stats.avgDays", { n: st.avgDays })}</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="col-body">
+                    {cards.length === 0 && (
+                      <div className="col-empty">{dragging && canDrop ? t("board.dropHere") : t("board.empty")}</div>
+                    )}
+                    {cards.map((l) => (
+                      <article
+                        key={l.id}
+                        className={"card kb-card" + (dragging?.id === l.id ? " dragging" : "")}
+                        draggable={!isViewer && !s.isTerminal}
+                        tabIndex={0}
+                        onDragStart={(e) => {
+                          e.dataTransfer.effectAllowed = "move";
+                          e.dataTransfer.setData("text/plain", l.id);
+                          setDragging(l);
+                        }}
+                        onDragEnd={() => {
+                          setDragging(null);
+                          setOver(null);
+                        }}
+                        onClick={() => navigate("lead", undefined, l.id)}
+                        onKeyDown={(e) => e.key === "Enter" && navigate("lead", undefined, l.id)}
+                        aria-label={`${l.fullName}, ${t("board.open")}`}
+                      >
+                        {/* Kart 4 satır (Faz 7g, §5.1): ad · ürün · tek durum çipi · sorumlu ve son temas. */}
+                        <div className="card-name">{l.fullName}</div>
+                        {(() => {
+                          const sub =
+                            productLine(l.products, productNamesOf(ref?.products), 2) ||
+                            [courtLine(l, t), l.productInterest].filter(Boolean).join(" · ") ||
+                            l.courtModel;
+                          return sub ? <div className="card-sub">{sub}</div> : null;
+                        })()}
+                        <div className="kb-foot kb-state">
+                          {!s.isTerminal && l.contact.state === "never" ? (
+                            <StatusTag tone="bad" icon="warn">
+                              {t("summary.never")}
+                            </StatusTag>
+                          ) : l.rotting ? (
+                            <StatusTag tone="bad" icon="clock" title={t("activity.rottingHint")}>
+                              {t("activity.rotting")}
+                            </StatusTag>
+                          ) : l.nextActivity ? (
+                            <span
+                              className={"kb-next is-" + dueState(l.nextActivity.dueAt, now)}
+                              title={`${l.nextActivity.subject} · ${l.nextActivity.dueAt.slice(0, 16).replace("T", " ")}`}
+                            >
+                              <Icon name={ACTIVITY_ICON[l.nextActivity.type]} size={13} />
+                              {t("board.nextAt", { d: relDays(l.nextActivity.dueAt) })}
+                            </span>
+                          ) : null}
+                          {l.hot && (
+                            <StatusTag tone="warn" icon="flame">
+                              {t("hot.label")}
+                            </StatusTag>
                           )}
-                        </span>
-                        <span className="muted">
-                          {l.contact.lastAt
-                            ? t("board.lastContact", { d: daysAgo(l.contact.lastAt, now, lang) })
-                            : l.contact.state === "legacy"
-                              ? t("summary.legacyShort")
-                              : ""}
-                        </span>
-                        {isAdmin && openWarnings(l.warnings).length > 0 && (
-                          <span
-                            className="inline-warn"
-                            aria-label={t("warning.count", { n: openWarnings(l.warnings).length })}
-                          >
-                            <Icon name="warn" size={13} /> {openWarnings(l.warnings).length}
+                          {(s.code === "PROPOSAL" || s.code === "WON") && l.value && (
+                            <span className="kb-chip kb-chip-money" title={t("lead.value")}>
+                              <Icon name="money" size={13} />{" "}
+                              {money(l.value.amount, l.value.currency as Currency, true)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="kb-foot">
+                          <span className="kb-owner">
+                            {l.assignedUserId ? (
+                              nameOf(l.assignedUserId)
+                            ) : (
+                              <>
+                                {t("common.pool")}
+                                {!isViewer && !isAdmin && (
+                                  <Button
+                                    size="sm"
+                                    className="hit"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      take(l);
+                                    }}
+                                  >
+                                    {t("lead.take")}
+                                  </Button>
+                                )}
+                              </>
+                            )}
                           </span>
-                        )}
-                      </div>
-                    </article>
-                  ))}
+                          <span className="muted">
+                            {l.contact.lastAt
+                              ? t("board.lastContact", { d: daysAgo(l.contact.lastAt, now, lang) })
+                              : l.contact.state === "legacy"
+                                ? t("summary.legacyShort")
+                                : ""}
+                          </span>
+                          {isAdmin && openWarnings(l.warnings).length > 0 && (
+                            <span
+                              className="inline-warn"
+                              aria-label={t("warning.count", { n: openWarnings(l.warnings).length })}
+                            >
+                              <Icon name="warn" size={13} /> {openWarnings(l.warnings).length}
+                            </span>
+                          )}
+                          {!isViewer && !s.isTerminal && (
+                            <label
+                              className="kb-move"
+                              title={t("board.moveTo")}
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                            >
+                              <Icon name="move" size={16} />
+                              <select
+                                aria-label={t("board.moveFor", { name: l.fullName })}
+                                value=""
+                                onChange={(e) => e.target.value && moveTo(l, e.target.value as StageCodeDto)}
+                              >
+                                <option value="">{t("board.moveTo")}</option>
+                                {ref.stages
+                                  .filter((x) => allowed(s.code, x.code))
+                                  .map((x) => (
+                                    <option key={x.code} value={x.code}>
+                                      {refName(lang, "stage", x)}
+                                    </option>
+                                  ))}
+                              </select>
+                            </label>
+                          )}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
       {dialog}
       {contact.dialog}

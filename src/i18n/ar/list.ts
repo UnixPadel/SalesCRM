@@ -154,4 +154,12 @@ export const AR_LIST: Record<keyof typeof LIST_DICT, string> = {
   "board.nextAt": "المتابعة: {d}",
   "board.filtersActive": "عوامل التصفية: {n}",
   "board.noLeadsFiltered": "لا يوجد عملاء محتملون بهذه العوامل.",
+  "list.sortBy": "ترتيب",
+  "list.sort.newest": "الأحدث",
+  "list.sort.oldest": "الأقدم",
+  "list.sort.name": "حسب الاسم",
+  "list.sort.custom": "ترتيب العمود",
+  "board.moveTo": "نقل إلى مرحلة",
+  "board.moveFor": "{name}: نقل إلى مرحلة",
+  "board.stages": "المراحل",
 };

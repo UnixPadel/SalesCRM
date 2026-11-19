@@ -7,6 +7,7 @@ import "./styles.css";
 import "./pipeline/pipeline.css";
 import "./pipeline/tracking.css";
 import "./pipeline/admin/admin.css";
+import "./responsive.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

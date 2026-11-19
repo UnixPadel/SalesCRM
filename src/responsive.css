@@ -1,0 +1,549 @@
+/* =====================================================================
+   Telefon ve dokunmatik uyarlaması (en son yüklenir).
+   Kırılım: telefon ≤768px (useMediaQuery.ts PHONE_QUERY ile aynı). Dokunma: (pointer: coarse).
+   Yalnız mevcut belirteçler; mantıksal özellikler (Arapça sağdan sola aynen çalışır).
+   ===================================================================== */
+
+:root {
+  --tabbar-h: 60px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+/* ---- Dokunmatik: küçük hedefler büyür, masaüstü yoğunluğu değişmez ---- */
+@media (pointer: coarse) {
+  :root {
+    --hit-sm: 40px;
+    --hit-md: 44px;
+  }
+  .afchip {
+    min-block-size: var(--hit-sm);
+  }
+  .ll-pen {
+    inline-size: var(--hit-sm);
+    block-size: var(--hit-sm);
+  }
+}
+
+/* ---- Açılır paneller ekrandan taşmaz ---- */
+.pop,
+.th-pop,
+.usermenu .pop {
+  max-inline-size: calc(100vw - 16px);
+}
+
+/* ---- Sekme şeritleri: sığmayan sekme yana kayar ---- */
+.tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+}
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+.tabs > * {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+/* ---- Pencere alt çubuğu düğmeleri sarar ---- */
+.modal-foot {
+  flex-wrap: wrap;
+}
+
+/* ---- Pano kartı: aşamaya taşı (dokunmatikte sürükleme yerine; klavyede de çalışır) ----
+   Görünen yüz bir simge düğmesi; üstünde görünmez yerel seçim kutusu durur, telefonda sistemin seçicisi açılır. */
+.kb-move {
+  position: relative;
+  margin-inline-start: auto;
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--hit-sm);
+  block-size: var(--hit-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  color: var(--text-2);
+  background: var(--surface-1);
+  flex: 0 0 auto;
+}
+.kb-move select {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 16px;
+}
+.kb-move:focus-within {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+@media (hover: hover) {
+  .kb-move:hover {
+    background: var(--surface-3);
+    color: var(--text-1);
+  }
+}
+
+/* ---- Masaüstünde telefon parçaları görünmez ---- */
+.gsearch-open,
+.gsearch-close,
+.kb-stages,
+.ll-cards {
+  display: none;
+}
+
+/* =====================================================================
+   TELEFON
+   ===================================================================== */
+@media (max-width: 768px) {
+  /* ---- Başlık + alt sekme çubuğu ---- */
+  .hdr {
+    padding-inline: max(var(--s-3), env(safe-area-inset-left)) max(var(--s-3), env(safe-area-inset-right));
+    gap: var(--s-2);
+  }
+  .wordmark {
+    display: flex;
+  }
+  .wordmark b {
+    font-size: var(--t-md);
+  }
+  .hdr-end {
+    gap: var(--s-1);
+  }
+  .nav {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 25;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 0;
+    block-size: calc(var(--tabbar-h) + var(--safe-b));
+    padding-block-end: var(--safe-b);
+    padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+    background: var(--surface-1);
+    border-block-start: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(40, 30, 10, 0.06);
+  }
+  .nav-link {
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: var(--s-1) 2px;
+    min-inline-size: 0;
+    font-size: 11px;
+    line-height: 1.15;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .nav-link span.lbl {
+    display: block;
+    max-inline-size: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .nav-link::after {
+    inset-block: 0 auto;
+    inset-inline: 25%;
+    border-radius: 0 0 3px 3px;
+  }
+  .nav-link:active {
+    background: var(--surface-2);
+  }
+  .nav-badge {
+    position: absolute;
+    inset-block-start: 4px;
+    inset-inline-start: calc(50% + 4px);
+    min-inline-size: 18px;
+    block-size: 18px;
+    font-size: 11px;
+  }
+  .page {
+    padding-block-end: calc(var(--tabbar-h) + var(--safe-b));
+  }
+  .toasts {
+    inset-block-end: calc(var(--tabbar-h) + var(--safe-b) + var(--s-2));
+  }
+
+  /* ---- Genel arama: büyüteç → tam genişlik şerit ---- */
+  .gsearch {
+    display: block;
+    flex: 0 0 auto;
+  }
+  .gsearch-open {
+    display: inline-grid;
+  }
+  .gsearch-box {
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline: 0;
+    z-index: 45;
+    block-size: 56px;
+    padding-inline: var(--s-4) var(--s-1);
+    border: 0;
+    border-block-end: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--surface-1);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px);
+    transition:
+      opacity var(--dur) var(--ease-out),
+      transform var(--dur) var(--ease-out);
+  }
+  .gsearch-box:focus-within {
+    box-shadow: none;
+  }
+  .gsearch-box input {
+    font-size: 16px; /* iOS yakınlaştırmasın */
+  }
+  .gsearch.is-open .gsearch-box {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+  .gsearch.is-open .gsearch-close {
+    display: inline-grid;
+  }
+  .gsearch .kbd {
+    display: none;
+  }
+  .gs-list {
+    position: fixed;
+    inset-block-start: 56px;
+    inset-inline: 0;
+    z-index: 45;
+    border-radius: 0;
+    border-inline: 0;
+    max-block-size: calc(100dvh - 56px - var(--tabbar-h) - var(--safe-b));
+  }
+  .gs-opt {
+    min-block-size: var(--hit-lg);
+  }
+  .gs-m {
+    max-inline-size: 40%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ---- Kullanıcı menüsü ve açılır paneller ---- */
+  .usermenu .pop,
+  .hdr .pop {
+    position: fixed;
+    inset-block-start: 56px;
+    inset-inline-end: var(--s-2);
+  }
+
+  /* ---- Pencereler: alttan açılan sayfa ---- */
+  dialog.modal {
+    inline-size: 100vw !important;
+    max-inline-size: 100vw;
+    max-block-size: 92dvh;
+    margin: auto 0 0;
+    border-radius: var(--r-3) var(--r-3) 0 0;
+  }
+  dialog.modal[open] {
+    animation: sheet-in 220ms var(--ease-out);
+  }
+  .modal-head {
+    padding-inline-start: var(--s-4);
+  }
+  .modal-body {
+    padding: var(--s-4);
+  }
+  .modal-foot {
+    position: sticky;
+    inset-block-end: 0;
+    padding: var(--s-3) var(--s-4) max(var(--s-3), var(--safe-b));
+    border-radius: 0;
+  }
+  .modal-foot > .btn {
+    flex: 1 1 auto;
+  }
+  /* Form alanları 16px: iOS odaklanınca sayfayı büyütmesin. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* ---- Lead listesi: kartlar ---- */
+  .ll-toolbar {
+    gap: var(--s-2);
+  }
+  .ll-toolbar h1 {
+    flex: 1 1 100%;
+    font-size: var(--t-lg);
+  }
+  .ll-search {
+    inline-size: 100%;
+  }
+  .ll-toolbar .chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-inline: calc(var(--s-4) * -1);
+    padding-inline: var(--s-4);
+    inline-size: calc(100% + var(--s-4) * 2);
+  }
+  .ll-toolbar .chips::-webkit-scrollbar {
+    display: none;
+  }
+  .ll-toolbar .chip {
+    flex: 0 0 auto;
+  }
+  .ll-toolbar > .menu-dd {
+    display: none;
+  }
+  .ll-sort {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    color: var(--text-2);
+    font-size: var(--t-sm);
+  }
+  .ll-sort select {
+    min-block-size: var(--hit-md);
+  }
+  .ll-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ll-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+    border: 1px solid var(--border);
+    border-radius: var(--r-2);
+    background: var(--surface-1);
+  }
+  .ll-card:active {
+    background: var(--surface-2);
+  }
+  .ll-card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-2);
+  }
+  .ll-card-name {
+    flex: 1;
+    min-inline-size: 0;
+    font-weight: 700;
+    font-size: var(--t-md);
+    color: var(--text-1);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+  /* Kartın tamamı lead'e götürür; içteki düğmeler bunun üstünde kalır. */
+  .ll-card-name::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+  .ll-card-name:focus-visible {
+    outline: none;
+  }
+  .ll-card-name:focus-visible::after {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .ll-card .hot {
+    color: var(--warn-ink);
+  }
+  .ll-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--s-2);
+    font-size: var(--t-sm);
+    color: var(--text-2);
+  }
+  .ll-card-meta > * + *::before {
+    content: "·";
+    margin-inline-end: var(--s-2);
+    color: var(--text-3);
+  }
+  .ll-card-sub {
+    font-size: var(--t-sm);
+    color: var(--text-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ll-card-acts {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    margin-block-start: var(--s-1);
+  }
+  .ll-card-acts .qlinks {
+    flex: 1 1 auto;
+  }
+  .ll-pager {
+    justify-content: space-between;
+    gap: var(--s-2);
+  }
+
+  /* ---- Pano: aşama başına bir ekran, yana kaydırma ---- */
+  .kb-stages {
+    display: flex;
+    gap: var(--s-1);
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: var(--s-2) var(--s-4) 0;
+  }
+  .kb-stages::-webkit-scrollbar {
+    display: none;
+  }
+  .kb-stage-btn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    min-block-size: var(--hit-md);
+    padding-inline: var(--s-3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-pill);
+    background: var(--surface-1);
+    color: var(--text-2);
+    font: inherit;
+    font-size: var(--t-sm);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .kb-stage-btn[aria-current="true"] {
+    border-color: var(--brand);
+    background: var(--brand-weak);
+    color: var(--brand-ink);
+  }
+  .kb-stage-btn .count {
+    font-variant-numeric: tabular-nums;
+    color: var(--text-3);
+  }
+  .kanban {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: calc(100% - var(--s-4) * 2 - var(--s-5));
+    padding: var(--s-3) var(--s-4) var(--s-4);
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--s-4);
+    overscroll-behavior-x: contain;
+  }
+  .kb-col {
+    scroll-snap-align: start;
+    min-block-size: 0;
+  }
+
+  /* Pano süzgeçleri tek satır: yana kayan şerit (dikey alan kartlara kalsın). */
+  .board-bar .filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-inline: calc(var(--s-4) * -1);
+    padding-inline: var(--s-4);
+    padding-block-end: 2px;
+  }
+  .board-bar .filters::-webkit-scrollbar {
+    display: none;
+  }
+  .board-bar .filters > * {
+    flex: 0 0 auto;
+  }
+  .board-bar .filters select {
+    max-inline-size: 60vw;
+  }
+  .kanban {
+    scrollbar-width: none;
+  }
+  .kanban::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ---- Lead sayfası ---- */
+  .fact-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  /* ---- Kişiler, yönetim ---- */
+  .searchfield {
+    inline-size: 100%;
+  }
+  .searchfield input {
+    inline-size: 100%;
+    min-inline-size: 0;
+  }
+  .adm-input {
+    min-inline-size: 0;
+  }
+
+  /* Kişi ve kuruluş tabloları yana kayar; ad sütunu solda sabit, okunur genişlikte. */
+  .people-page .tbl :is(th, td):first-child {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 1;
+    min-inline-size: 136px;
+    background: var(--surface-1);
+    box-shadow: inset -1px 0 0 var(--border);
+  }
+  [dir="rtl"] .people-page .tbl :is(th, td):first-child {
+    box-shadow: inset 1px 0 0 var(--border);
+  }
+
+  /* Aylık grafik: aylar sığmaz; veri gizlenmez, grafik kartın içinde yana kayar. */
+  .rgrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rcard {
+    min-inline-size: 0;
+  }
+  .vbars {
+    grid-template-columns: repeat(var(--months, 12), 56px);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-block-end: var(--s-1);
+  }
+  .vbar-l {
+    font-size: var(--t-xs);
+  }
+  .vbar-v {
+    white-space: nowrap;
+  }
+
+  /* ---- Raporlar: çubuk etiketi üstte, çubuk tam genişlik ---- */
+  .hbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 2px;
+  }
+  .hbar > :nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog.modal[open],
+  .gsearch-box {
+    animation: none;
+    transition: none;
+  }
+}

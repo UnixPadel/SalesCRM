@@ -223,4 +223,13 @@ export const LIST_DICT = {
   "board.nextAt": ["Takip: {d}", "Follow-up: {d}"],
   "board.filtersActive": ["{n} filtre", "{n, plural, one {# filter} other {# filters}}"],
   "board.noLeadsFiltered": ["Bu filtrelerle lead yok.", "No leads with these filters."],
+  // Telefon düzeni: kart listesinin sıralaması ve pano kartındaki aşama menüsü.
+  "list.sortBy": ["Sırala", "Sort"],
+  "list.sort.newest": ["En yeni", "Newest"],
+  "list.sort.oldest": ["En eski", "Oldest"],
+  "list.sort.name": ["Ada göre", "By name"],
+  "list.sort.custom": ["Sütun sıralaması", "Column sort"],
+  "board.moveTo": ["Aşamaya taşı", "Move to stage"],
+  "board.moveFor": ["{name}: aşamaya taşı", "{name}: move to stage"],
+  "board.stages": ["Aşamalar", "Stages"],
 } as const satisfies Record<string, readonly [string, string]>;
