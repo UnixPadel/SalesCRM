@@ -101,8 +101,11 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
   const [rows, setRows] = useState<LeadListDto[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [collapsed, setCollapsed] = useState<GroupId[]>(() =>
-    // Dar ekranda bazı gruplar katlı başlar; Form cevapları her ekranda açık gelir.
-    read<GroupId[]>(COLLAPSE_KEY, window.innerWidth < 768 ? ["customer", "proposal", "products"] : []),
+    // Dar ekranda bazı gruplar katlı başlar; Form cevapları her ekranda açık gelir. Sabit gruplar (Ürünler) hiç
+    // daralmaz; tarayıcıda kalmış eski daraltma kaydı da yok sayılır.
+    read<GroupId[]>(COLLAPSE_KEY, window.innerWidth < 768 ? ["customer", "proposal"] : []).filter(
+      (g) => !GROUPS.find((x) => x.id === g)?.fixed,
+    ),
   );
   const [hiddenCols, setHiddenCols] = useState<string[]>(() => read<string[]>(HIDDEN_KEY, []));
   const [search, setSearch] = useState(params.get("q") ?? "");
@@ -518,9 +521,9 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
           l.assignedUserId ? (
             owner
           ) : (
-            <span className="ll-pool">
+            // Excel sorumlusu satır içinde yazılmaz (sütunu uzatıyordu, 2026-11-19); ipucunda ve kendi sütununda.
+            <span className="ll-pool" title={xo ? t("list.excelOwnerHint", { name: xo }) : undefined}>
               {t("common.pool")}
-              {xo && <small className="muted"> · Excel: {xo}</small>}
               {!isViewer && !isAdmin && (
                 <Button size="sm" onClick={() => take(l)}>
                   {t("lead.take")}
@@ -741,12 +744,14 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
             )}
           </summary>
           <div className="pop">
-            {groups.map((g) => (
-              <label key={g.id} className="menu-item">
-                <input type="checkbox" checked={!collapsed.includes(g.id)} onChange={() => toggleGroup(g.id)} />{" "}
-                {t(g.label)}
-              </label>
-            ))}
+            {groups
+              .filter((g) => !g.fixed)
+              .map((g) => (
+                <label key={g.id} className="menu-item">
+                  <input type="checkbox" checked={!collapsed.includes(g.id)} onChange={() => toggleGroup(g.id)} />{" "}
+                  {t(g.label)}
+                </label>
+              ))}
             {nHidden > 0 && (
               <button type="button" className="menu-item ll-show-all" onClick={() => changeHidden(() => [])}>
                 <Icon name="eye" size={14} /> {t("list.showAllCols", { n: nHidden })}
@@ -861,14 +866,19 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
                       colSpan={collapsed.includes(g.id) ? 1 : runs(g.id).length}
                       className={`g-${g.id}`}
                     >
-                      <button
-                        type="button"
-                        className="g-btn"
-                        aria-expanded={!collapsed.includes(g.id)}
-                        onClick={() => toggleGroup(g.id)}
-                      >
-                        <Icon name="chevron" size={12} className={collapsed.includes(g.id) ? "rot" : ""} /> {t(g.label)}
-                      </button>
+                      {g.fixed ? (
+                        t(g.label)
+                      ) : (
+                        <button
+                          type="button"
+                          className="g-btn"
+                          aria-expanded={!collapsed.includes(g.id)}
+                          onClick={() => toggleGroup(g.id)}
+                        >
+                          <Icon name="chevron" size={12} className={collapsed.includes(g.id) ? "rot" : ""} />{" "}
+                          {t(g.label)}
+                        </button>
+                      )}
                     </th>
                   ))}
                 </tr>

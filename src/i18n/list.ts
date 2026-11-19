@@ -1,7 +1,7 @@
 /** Lead listesi metinleri (Faz 7g, iş emri §5.4); `dict.ts` sözlüğe yayar. */
 export const LIST_DICT = {
-  "nav.list": ["Lead listesi", "Lead list"],
-  "list.title": ["Lead listesi", "Lead list"],
+  "nav.list": ["Lead Listesi", "Lead List"],
+  "list.title": ["Lead Listesi", "Lead List"],
   "list.count": ["{n} lead", "{n, plural, one {# lead} other {# leads}}"],
   "list.caption": ["Lead listesi · {n} lead", "Lead list · {n, plural, one {# lead} other {# leads}}"],
   "list.search": ["Ad, telefon, e-posta ya da Excel No", "Name, phone, email or Excel no."],
@@ -160,6 +160,7 @@ export const LIST_DICT = {
   "list.pageSize": ["Sayfa başına", "Per page"],
   "list.page": ["Sayfa {p} / {n}", "Page {p} / {n}"],
   "list.summary": ["Özet", "Summary"],
+  "list.excelOwnerHint": ["Excel: {name}", "Excel: {name}"],
   "list.hideCol": ["Sütunu gizle", "Hide column"],
   "list.colHidden": ["{name} sütunu gizlendi", "{name} column hidden"],
   "list.showCols": ["Gizli sütunu göster: {names}", "Show hidden column: {names}"],

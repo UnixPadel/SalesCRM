@@ -9,12 +9,13 @@ import { phoneText, productLine, type ProductNames, type T } from "../contact/tr
 
 export type GroupId = "lead" | "reach" | "customer" | "proposal" | "products" | "follow" | "form" | "check";
 
-export const GROUPS: { id: GroupId; label: string; adminOnly?: boolean }[] = [
+/** `fixed`: başlığa tıklayınca "Özet" sütununa daralmaz, Sütunlar menüsünde yoktur (Ürünler, 2026-11-19). */
+export const GROUPS: { id: GroupId; label: string; adminOnly?: boolean; fixed?: boolean }[] = [
   { id: "lead", label: "list.group.lead" },
   { id: "reach", label: "list.group.reach" },
   { id: "customer", label: "list.group.customer" },
   { id: "proposal", label: "list.group.proposal" },
-  { id: "products", label: "list.group.products" },
+  { id: "products", label: "list.group.products", fixed: true },
   { id: "follow", label: "list.group.follow" },
   { id: "form", label: "list.group.form" },
   { id: "check", label: "list.group.check", adminOnly: true },

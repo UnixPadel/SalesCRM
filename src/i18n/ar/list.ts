@@ -91,6 +91,7 @@ export const AR_LIST: Record<keyof typeof LIST_DICT, string> = {
   "list.pageSize": "لكل صفحة",
   "list.page": "صفحة {p} / {n}",
   "list.summary": "الملخص",
+  "list.excelOwnerHint": "Excel: {name}",
   "list.hideCol": "إخفاء العمود",
   "list.colHidden": "تم إخفاء عمود {name}",
   "list.showCols": "إظهار العمود المخفي: {names}",
