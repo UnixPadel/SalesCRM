@@ -102,9 +102,10 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
       toast(t("stage.backwardBlocked", { n: ref.undoWindowMinutes }), { bad: true });
       return;
     }
-    // Faz 7g (§5.1): temas kaydı olmayan lead NEW → CONTACTED bırakılınca "Temas kaydet" açılır (aşama satırı
-    // önerili); "Yalnız aşamayı taşı" eski akıştır.
-    if (lead.currentStage === "NEW" && target === "CONTACTED" && lead.contact.state !== "contacted") {
+    // Faz 7g (§5.1): lead NEW → CONTACTED bırakılınca "Temas kaydet" açılır (aşama satırı önerili); "Yalnız aşamayı
+    // taşı" eski akıştır. Önceden temas kaydı olan lead'de (ör. Sheet senkronunun "mail atıldı" e-posta teması)
+    // pencere atlanıyordu; artık her kullanıcı ve her lead için açılır (2026-11-19).
+    if (lead.currentStage === "NEW" && target === "CONTACTED") {
       contact.openDialog({
         leadId: lead.id,
         leadName: lead.fullName,
