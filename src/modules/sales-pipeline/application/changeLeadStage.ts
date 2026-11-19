@@ -20,6 +20,9 @@ export interface ChangeLeadStageInput {
   value?: { amount: number; currency: string } | null;
   lostReasonCode?: string | null;
   qualificationAnswers?: Partial<Record<string, boolean>> | null;
+  /** Nitelikli ayrıntıları (ham); `requireQualificationDetails` ile zorunlu olur (arayüz isteği). */
+  qualificationDetails?: unknown;
+  requireQualificationDetails?: boolean;
   /** Eski kayıt taşıma: geçmişte gönderilmiş teklif için bugün bir takip aktivitesi açılmaz. */
   skipFollowUp?: boolean;
 }
@@ -61,6 +64,8 @@ export class ChangeLeadStage {
           value: input.value ?? null,
           lostReasonCode: input.lostReasonCode ?? null,
           qualificationAnswers: input.qualificationAnswers ?? null,
+          qualificationDetails: input.qualificationDetails ?? null,
+          requireQualificationDetails: input.requireQualificationDetails === true,
           knownLostReasons: await repos.lostReasons.activeCodes(),
         });
         if (!plan.ok) return plan;
@@ -83,6 +88,7 @@ export class ChangeLeadStage {
             value: draft.value,
             lostReasonCode: draft.lostReasonCode,
             qualificationAnswers: draft.qualificationAnswers,
+            qualificationDetails: draft.qualificationDetails,
             undoneAt: null,
           };
           await repos.stageEvents.insert(event);

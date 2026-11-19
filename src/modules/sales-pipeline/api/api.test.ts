@@ -560,3 +560,54 @@ describe("actorFromSession", () => {
     });
   });
 });
+
+describe("Nitelikli ayrıntıları", () => {
+  const YES = { budget_approved: true, site_known: true, install_within_12m: true };
+
+  it("POST /stage QUALIFIED: bütçe, proje yeri ve kurulum zamanı zorunlu; kaydedilir ve detayda okunur", async () => {
+    const created = await call<{ lead: LeadDto }>("rep1", "POST", "/api/pipeline/leads", {
+      fullName: "Nitelik Deneme",
+      email: "nitelik@example.com",
+    });
+    const path = `/api/pipeline/leads/${created.body.lead.id}/stage`;
+
+    const none = await call<ApiErrorDto>("rep1", "POST", path, { target: "QUALIFIED", qualificationAnswers: YES });
+    expect([none.status, none.body.code]).toEqual([422, "stage.qualification_details"]);
+    expect(none.body.details?.["missing"]).toEqual(["budget", "site", "install"]);
+
+    const partial = await call<ApiErrorDto>("rep1", "POST", path, {
+      target: "QUALIFIED",
+      qualificationAnswers: YES,
+      qualificationDetails: { budgetAmount: 120000, budgetCurrency: "EUR", site: "", installMonths: null },
+    });
+    expect(partial.body.details?.["missing"]).toEqual(["site", "install"]);
+
+    const ok = await call<{ lead: LeadDto }>("rep1", "POST", path, {
+      target: "QUALIFIED",
+      qualificationAnswers: YES,
+      qualificationDetails: {
+        budgetAmount: 120000,
+        budgetCurrency: "EUR",
+        site: "Antalya, Lara",
+        installMonths: null,
+        installMonth: "2027-04",
+      },
+    });
+    expect(ok.status).toBe(200);
+    expect(ok.body.lead.currentStage).toBe("QUALIFIED");
+
+    const detail = await call<LeadDetailDto>("rep1", "GET", `/api/pipeline/leads/${created.body.lead.id}`);
+    const byStage = Object.fromEntries(detail.body.events.map((e) => [e.stageCode, e.qualificationDetails ?? null]));
+    expect(byStage).toEqual({
+      NEW: null,
+      CONTACTED: null,
+      QUALIFIED: {
+        budgetAmount: 120000,
+        budgetCurrency: "EUR",
+        site: "Antalya, Lara",
+        installMonths: null,
+        installMonth: "2027-04",
+      },
+    });
+  });
+});

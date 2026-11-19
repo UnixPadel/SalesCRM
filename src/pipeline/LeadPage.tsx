@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Empty, Icon, Skeleton, StatusTag, fmtDate, money, relDays } from "../components/ui";
 import type { Currency } from "../domain/types";
-import { useLang } from "../i18n";
+import { localeOf, useLang } from "../i18n";
 import type { ActivityDto, LeadDto, StageCodeDto, StageEventDto } from "../modules/sales-pipeline/api/dto";
 import type { AttachmentDto } from "../modules/sales-pipeline/api/dto.attachment";
 import { navigate } from "../router";
@@ -538,7 +538,7 @@ function TimelineItem({
   reasonName: (c: string | null) => string;
   who: (id: string | null) => string;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   return (
     <li className={"tl-i" + (e.undoneAt ? " undone" : "") + (e.origin === "auto_fill" ? " auto" : "")}>
       <span className="tl-dot">
@@ -567,6 +567,24 @@ function TimelineItem({
           {e.value && ` · ${money(e.value.amount, e.value.currency as Currency)}`}
           {e.lostReasonCode && ` · ${reasonName(e.lostReasonCode)}`}
         </small>
+        {e.qualificationDetails && (
+          <p className="tl-note">
+            {t("qual.sum.budget", {
+              v: money(e.qualificationDetails.budgetAmount, e.qualificationDetails.budgetCurrency as Currency),
+            })}
+            {" · "}
+            {t("qual.sum.site", { v: e.qualificationDetails.site })}
+            {" · "}
+            {e.qualificationDetails.installMonths
+              ? t("qual.sum.months", { n: e.qualificationDetails.installMonths })
+              : t("qual.sum.month", {
+                  v: new Date(`${e.qualificationDetails.installMonth}-01T00:00:00`).toLocaleDateString(localeOf(lang), {
+                    month: "long",
+                    year: "numeric",
+                  }),
+                })}
+          </p>
+        )}
       </div>
     </li>
   );

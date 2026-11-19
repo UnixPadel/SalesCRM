@@ -15,6 +15,7 @@ import type {
   LeadConsent,
   LeadSource,
   Person,
+  QualificationDetails,
   StageCode,
   StageEvent,
   StageEventOrigin,
@@ -314,6 +315,7 @@ export interface StageEventRow extends Record<string, unknown> {
   lost_reason_code: string | null;
   qualification_answers: Record<string, boolean> | string | null;
   undone_at: Date | string | null;
+  qualification_details?: QualificationDetails | string | null;
 }
 
 export const stageEventFromRow = (r: StageEventRow): StageEvent => ({
@@ -330,4 +332,8 @@ export const stageEventFromRow = (r: StageEventRow): StageEvent => ({
   lostReasonCode: r.lost_reason_code,
   qualificationAnswers: r.qualification_answers === null ? null : json(r.qualification_answers),
   undoneAt: r.undone_at === null ? null : date(r.undone_at),
+  qualificationDetails:
+    r.qualification_details === null || r.qualification_details === undefined
+      ? null
+      : json<QualificationDetails>(r.qualification_details),
 });

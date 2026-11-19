@@ -778,3 +778,10 @@ a.pl-row:focus-visible {
     padding: var(--s-3);
   }
 }
+
+/* Nitelikli penceresi: "evet" cevabının altındaki zorunlu ayrıntı alanları (2026-11-19). */
+.qa-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}

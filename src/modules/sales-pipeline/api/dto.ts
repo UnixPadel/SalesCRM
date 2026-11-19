@@ -189,7 +189,20 @@ export interface StageEventDto {
   value: { amount: number; currency: string } | null;
   lostReasonCode: string | null;
   qualificationAnswers: Record<string, boolean> | null;
+  /** Nitelikli ayrıntıları; eski ve otomatik doldurulan olaylarda null ya da yok. */
+  qualificationDetails?: QualificationDetailsDto | null;
   undoneAt: string | null;
+}
+
+/** Nitelikli sorularına "evet" denince zorunlu ayrıntılar: kurulumda ay sayısı ya da belli ay (tam olarak biri). */
+export interface QualificationDetailsDto {
+  budgetAmount: number;
+  budgetCurrency: string;
+  site: string;
+  /** 1–12. */
+  installMonths: number | null;
+  /** "YYYY-MM". */
+  installMonth: string | null;
 }
 
 export interface ActivityDto {
@@ -383,6 +396,8 @@ export interface ChangeStageBody {
   value?: { amount: number; currency: string } | null;
   lostReasonCode?: string | null;
   qualificationAnswers?: Record<string, boolean> | null;
+  /** QUALIFIED için zorunlu. */
+  qualificationDetails?: QualificationDetailsDto | null;
 }
 
 export interface AssignBody {

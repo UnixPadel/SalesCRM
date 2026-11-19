@@ -5,14 +5,38 @@ import type { ChangeStageBody, ReferenceDto } from "../modules/sales-pipeline/ap
 
 /** Aşamaya özel pencereler (Genel plan, satışçı arayüzü 3): ek bilgi yalnız gereken aşamada istenir. */
 
+/** Nitelikli ayrıntılarının ön denetimi (sunucu aynı kuralı uygular): eksik alanların listesi. */
+export function qualificationProblems(d: {
+  amount: string;
+  site: string;
+  months: string;
+  month: string;
+}): ("budget" | "site" | "install")[] {
+  const out: ("budget" | "site" | "install")[] = [];
+  if (!(parseAmount(d.amount) > 0)) out.push("budget");
+  if (!d.site.trim()) out.push("site");
+  const m = Number(d.months);
+  const monthsOk = d.months.trim() !== "" && Number.isInteger(m) && m >= 1 && m <= 12;
+  const monthOk = /^\d{4}-(0[1-9]|1[0-2])$/.test(d.month);
+  // Tam olarak biri: ay sayısı ya da belli ay.
+  if (d.months.trim() !== "" ? !monthsOk || d.month !== "" : !monthOk) out.push("install");
+  return out;
+}
+
+/**
+ * Üç soru; her "evet" cevabında ayrıntısı zorunludur (2026-11-19): bütçe tutarı ve para birimi, proje yeri, kurulum
+ * için kaç ay içinde ya da hangi ay.
+ */
 export function QualifiedDialog({
   questions,
+  currencies,
   saving,
   extra,
   onCancel,
   onConfirm,
 }: {
   questions: string[];
+  currencies: string[];
   saving: boolean;
   /** Pencerenin altına eklenen bölüm (dosya ekleme). */
   extra?: ReactNode;
@@ -22,29 +46,109 @@ export function QualifiedDialog({
   const { t } = useLang();
   const [answers, setAnswers] = useState<Record<string, boolean>>({});
   const [tried, setTried] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState(currencies[0] ?? "EUR");
+  const [site, setSite] = useState("");
+  const [months, setMonths] = useState("");
+  const [month, setMonth] = useState("");
   const allYes = questions.every((q) => answers[q] === true);
   const anyNo = questions.some((q) => answers[q] === false);
+  const problems = qualificationProblems({ amount, site, months, month });
+  const bad = (f: "budget" | "site" | "install") => tried && problems.includes(f);
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const detail = (q: string) => {
+    if (answers[q] !== true) return null;
+    if (q === "budget_approved")
+      return (
+        <MoneyFields
+          currencies={currencies}
+          amountLabel={t("qual.budget")}
+          amount={amount}
+          currency={currency}
+          error={bad("budget") ? t("qual.err.budget") : ""}
+          errorId="qual-budget-err"
+          onAmount={setAmount}
+          onCurrency={setCurrency}
+        />
+      );
+    if (q === "site_known")
+      return (
+        <Field label={t("qual.site")} error={bad("site") ? t("qual.err.site") : ""} errorId="qual-site-err">
+          <input
+            value={site}
+            maxLength={200}
+            aria-required="true"
+            placeholder={t("qual.sitePh")}
+            onChange={(e) => setSite(e.target.value)}
+          />
+        </Field>
+      );
+    if (q === "install_within_12m")
+      return (
+        <>
+          <div className="won-row">
+            <Field label={t("qual.installMonths")}>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={12}
+                step={1}
+                value={months}
+                onChange={(e) => {
+                  setMonths(e.target.value);
+                  if (e.target.value) setMonth("");
+                }}
+              />
+            </Field>
+            <Field label={t("qual.installMonth")}>
+              <input
+                type="month"
+                min={thisMonth}
+                value={month}
+                onChange={(e) => {
+                  setMonth(e.target.value);
+                  if (e.target.value) setMonths("");
+                }}
+              />
+            </Field>
+          </div>
+          {bad("install") && (
+            <p className="field-err" role="alert" id="qual-install-err">
+              {t("qual.err.install")}
+            </p>
+          )}
+        </>
+      );
+    return null;
+  };
+
   return (
     <Modal title={t("dialog.qualified.title")} onClose={onCancel}>
       <p className="lede">{t("dialog.qualified.lede")}</p>
       <div className="qa-list">
         {questions.map((q) => (
-          <fieldset key={q} className="qa">
-            <legend>{t(`q.${q}`)}</legend>
-            <div className="seg" role="radiogroup">
-              {[true, false].map((v) => (
-                <label key={String(v)} className={"seg-opt" + (answers[q] === v ? " on" : "")}>
-                  <input
-                    type="radio"
-                    name={q}
-                    checked={answers[q] === v}
-                    onChange={() => setAnswers((a) => ({ ...a, [q]: v }))}
-                  />
-                  {v ? t("common.yes") : t("common.no")}
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <div key={q} className="qa-block">
+            <fieldset className="qa">
+              <legend>{t(`q.${q}`)}</legend>
+              <div className="seg" role="radiogroup">
+                {[true, false].map((v) => (
+                  <label key={String(v)} className={"seg-opt" + (answers[q] === v ? " on" : "")}>
+                    <input
+                      type="radio"
+                      name={q}
+                      checked={answers[q] === v}
+                      onChange={() => setAnswers((a) => ({ ...a, [q]: v }))}
+                    />
+                    {v ? t("common.yes") : t("common.no")}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {detail(q)}
+          </div>
         ))}
       </div>
       {tried && !allYes && (
@@ -61,7 +165,18 @@ export function QualifiedDialog({
           disabled={anyNo}
           onClick={() => {
             setTried(true);
-            if (allYes) onConfirm({ target: "QUALIFIED", qualificationAnswers: answers });
+            if (!allYes || problems.length) return;
+            onConfirm({
+              target: "QUALIFIED",
+              qualificationAnswers: answers,
+              qualificationDetails: {
+                budgetAmount: parseAmount(amount),
+                budgetCurrency: currency,
+                site: site.trim(),
+                installMonths: months.trim() ? Number(months) : null,
+                installMonth: months.trim() ? null : month,
+              },
+            });
           }}
         >
           {t("dialog.qualified.confirm")}
@@ -76,6 +191,7 @@ export type MoneyValue = { amount: number; currency: string };
 /** Tutar + para birimi girişi; Teklif ve Kazanıldı pencereleri paylaşır. */
 function MoneyFields({
   currencies,
+  amountLabel,
   amount,
   currency,
   error,
@@ -84,6 +200,8 @@ function MoneyFields({
   onCurrency,
 }: {
   currencies: string[];
+  /** Tutar alanının etiketi; verilmezse "Tutar". */
+  amountLabel?: string;
   amount: string;
   currency: string;
   error: string;
@@ -94,7 +212,7 @@ function MoneyFields({
   const { t } = useLang();
   return (
     <div className="won-row">
-      <Field label={t("dialog.won.amount")} error={error} errorId={errorId}>
+      <Field label={amountLabel ?? t("dialog.won.amount")} error={error} errorId={errorId}>
         <input
           type="number"
           inputMode="decimal"
@@ -117,7 +235,9 @@ function MoneyFields({
   );
 }
 
-const parseAmount = (s: string) => Number(s.replace(",", "."));
+function parseAmount(s: string): number {
+  return Number(s.replace(",", "."));
+}
 
 /** Teklif tutarı isteğe bağlıdır: boş geçilebilir, girildiyse sıfırdan büyük olmalı. */
 export function ProposalDialog({

@@ -255,6 +255,9 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
         value: b.value ?? null,
         lostReasonCode: b.lostReasonCode ?? null,
         qualificationAnswers: b.qualificationAnswers ?? null,
+        qualificationDetails: b.qualificationDetails ?? null,
+        // Arayüzden gelen Nitelikli geçişinde bütçe, proje yeri ve kurulum zamanı zorunludur.
+        requireQualificationDetails: true,
       }),
     );
   });

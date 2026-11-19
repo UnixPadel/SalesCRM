@@ -1,4 +1,5 @@
 import { RuleError, err, ok, type Result } from "../../shared/kernel";
+import type { QualificationDetails } from "./qualification";
 import type { CourtCountBand, CustomerProfile, CustomerStatus, InstallSite, InstallTimeline } from "./leadProfile";
 import { emptyProducts, type ProductPrefs } from "./products";
 import type { StageCode } from "./stage";
@@ -157,6 +158,8 @@ export interface StageEvent {
   value: { amount: number; currency: string } | null;
   lostReasonCode: string | null;
   qualificationAnswers: Record<string, boolean> | null;
+  /** Nitelikli ayrıntıları (bütçe, proje yeri, kurulum zamanı); eski ve otomatik olaylarda yok. */
+  qualificationDetails?: QualificationDetails | null | undefined;
   undoneAt: Date | null;
 }
 

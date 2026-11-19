@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { unwrap } from "../../shared/kernel";
 import { PlatformLeadId, isLeadSource } from "./lead";
-import { checkQualification, normalizeAnswers } from "./qualification";
+import { checkQualification, normalizeAnswers, parseQualificationDetails } from "./qualification";
 import { planStageChange, type StageChangeRequest } from "./transition";
 
 const REASONS = ["price_too_high", "unqualified"];
@@ -20,7 +20,14 @@ describe("planStageChange", () => {
       from: "NEW",
       to: "CONTACTED",
       events: [
-        { stageCode: "CONTACTED", origin: "manual", value: null, lostReasonCode: null, qualificationAnswers: null },
+        {
+          stageCode: "CONTACTED",
+          origin: "manual",
+          value: null,
+          lostReasonCode: null,
+          qualificationAnswers: null,
+          qualificationDetails: null,
+        },
       ],
     });
   });
@@ -120,6 +127,62 @@ describe("planStageChange", () => {
       expect(plan.events.map((e) => e.stageCode)).toEqual(["CONTACTED", "QUALIFIED"]);
       expect(plan.events[1]?.qualificationAnswers).toEqual(YES);
     });
+    const DETAILS = { budgetAmount: 85000, budgetCurrency: "eur", site: " İzmir, Çeşme ", installMonths: 6 };
+
+    it("ayrıntılar: arayüz isteğinde zorunlu; verilmezse eski akış (içe aktarım) ayrıntısız geçer", () => {
+      const legacy = unwrap(planStageChange(base({ target: "QUALIFIED", qualificationAnswers: YES })));
+      expect(legacy.events.at(-1)?.qualificationDetails).toBeNull();
+
+      const need = planStageChange(
+        base({ target: "QUALIFIED", qualificationAnswers: YES, requireQualificationDetails: true }),
+      );
+      expect(!need.ok && [need.error.code, need.error.details["missing"]]).toEqual([
+        "stage.qualification_details",
+        ["budget", "site", "install"],
+      ]);
+
+      const plan = unwrap(
+        planStageChange(
+          base({
+            target: "QUALIFIED",
+            qualificationAnswers: YES,
+            qualificationDetails: DETAILS,
+            requireQualificationDetails: true,
+          }),
+        ),
+      );
+      expect(plan.events.map((e) => e.qualificationDetails)).toEqual([
+        null,
+        { budgetAmount: 85000, budgetCurrency: "EUR", site: "İzmir, Çeşme", installMonths: 6, installMonth: null },
+      ]);
+    });
+
+    it("ayrıntı doğrulaması: bütçe sıfırdan büyük, yer dolu, kurulumda ay sayısı ya da belli ay (tam olarak biri)", () => {
+      const missing = (d: Record<string, unknown>) => {
+        const r = parseQualificationDetails(d);
+        return r.ok ? [] : r.error.details["missing"];
+      };
+      expect(missing({ ...DETAILS, budgetAmount: 0 })).toEqual(["budget"]);
+      expect(missing({ ...DETAILS, budgetAmount: "85000" })).toEqual(["budget"]);
+      expect(missing({ ...DETAILS, budgetCurrency: "" })).toEqual(["budget"]);
+      expect(missing({ ...DETAILS, site: "   " })).toEqual(["site"]);
+      expect(missing({ ...DETAILS, installMonths: 0 })).toEqual(["install"]);
+      expect(missing({ ...DETAILS, installMonths: 13 })).toEqual(["install"]);
+      expect(missing({ ...DETAILS, installMonths: 2.5 })).toEqual(["install"]);
+      expect(missing({ ...DETAILS, installMonths: null })).toEqual(["install"]);
+      expect(missing({ ...DETAILS, installMonths: null, installMonth: "2027-13" })).toEqual(["install"]);
+      expect(missing({ ...DETAILS, installMonth: "2027-03" })).toEqual(["install"]);
+      expect(missing(null as unknown as Record<string, unknown>)).toEqual(["budget", "site", "install"]);
+      expect(unwrap(parseQualificationDetails({ ...DETAILS, installMonths: null, installMonth: "2027-03" }))).toEqual({
+        budgetAmount: 85000,
+        budgetCurrency: "EUR",
+        site: "İzmir, Çeşme",
+        installMonths: null,
+        installMonth: "2027-03",
+      });
+      expect(unwrap(parseQualificationDetails({ ...DETAILS, site: "x".repeat(300) })).site).toHaveLength(200);
+    });
+
     it("QUALIFIED atlanırsa (NEW → PROPOSAL) sorular istenmez", () => {
       expect(planStageChange(base({ target: "PROPOSAL" })).ok).toBe(true);
     });

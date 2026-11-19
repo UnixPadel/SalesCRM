@@ -380,7 +380,7 @@ export function pgPersonRepository(q: Queryable): PersonRepository {
 }
 
 const EVENT_COLS =
-  "id, lead_id, change_id, stage_code, occurred_at, sequence, actor_user_id, origin, value_amount, currency, lost_reason_code, qualification_answers, undone_at";
+  "id, lead_id, change_id, stage_code, occurred_at, sequence, actor_user_id, origin, value_amount, currency, lost_reason_code, qualification_answers, undone_at, qualification_details";
 
 export function pgStageEventRepository(q: Queryable): StageEventRepository {
   return {
@@ -436,7 +436,7 @@ export function pgStageEventRepository(q: Queryable): StageEventRepository {
     },
     async insert(e: StageEvent) {
       await q.query(
-        `INSERT INTO lead_stage_events (${EVENT_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        `INSERT INTO lead_stage_events (${EVENT_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
         [
           e.id,
           e.leadId,
@@ -451,6 +451,7 @@ export function pgStageEventRepository(q: Queryable): StageEventRepository {
           e.lostReasonCode,
           e.qualificationAnswers === null ? null : JSON.stringify(e.qualificationAnswers),
           e.undoneAt,
+          e.qualificationDetails ? JSON.stringify(e.qualificationDetails) : null,
         ],
       );
     },

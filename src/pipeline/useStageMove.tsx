@@ -89,6 +89,7 @@ export function useStageMove(
       dialog = (
         <QualifiedDialog
           questions={ref.qualificationQuestions}
+          currencies={ref.currencies}
           saving={saving}
           extra={extra}
           onCancel={close}

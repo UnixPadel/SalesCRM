@@ -1,6 +1,12 @@
 import { Money, RuleError, err, ok, type Result } from "../../shared/kernel";
 import type { StageEventOrigin } from "./lead";
-import { checkQualification, normalizeAnswers, type QualificationAnswers } from "./qualification";
+import {
+  checkQualification,
+  normalizeAnswers,
+  parseQualificationDetails,
+  type QualificationAnswers,
+  type QualificationDetails,
+} from "./qualification";
 import { allowedTransitions, isTerminal, skippedStages, type StageCode } from "./stage";
 
 /** Bir aşama değişikliği isteğinin saf değerlendirmesi. Veritabanı yok, saat dışarıdan gelir. */
@@ -13,6 +19,10 @@ export interface StageChangeRequest {
   lostReasonCode?: string | null;
   /** QUALIFIED için zorunlu; üçü de "evet". */
   qualificationAnswers?: Partial<Record<string, boolean>> | null;
+  /** QUALIFIED ayrıntıları (bütçe, proje yeri, kurulum zamanı); verildiyse doğrulanır. */
+  qualificationDetails?: unknown;
+  /** Arayüzden gelen istekte ayrıntılar zorunludur; içe aktarım ve eski kayıt taşıma bunu vermez. */
+  requireQualificationDetails?: boolean;
   knownLostReasons: readonly string[];
 }
 
@@ -22,6 +32,7 @@ export interface StageEventDraft {
   value: { amount: number; currency: string } | null;
   lostReasonCode: string | null;
   qualificationAnswers: QualificationAnswers | null;
+  qualificationDetails: QualificationDetails | null;
 }
 
 export interface StageChangePlan {
@@ -58,6 +69,7 @@ export function planStageChange(req: StageChangeRequest): Result<StageChangePlan
     value: null,
     lostReasonCode: null,
     qualificationAnswers: null,
+    qualificationDetails: null,
   });
 
   const target = draft(to, "manual");
@@ -104,6 +116,12 @@ export function planStageChange(req: StageChangeRequest): Result<StageChangePlan
       );
     }
     target.qualificationAnswers = normalizeAnswers(req.qualificationAnswers ?? {});
+    const given = req.qualificationDetails !== null && req.qualificationDetails !== undefined;
+    if (given || req.requireQualificationDetails) {
+      const details = parseQualificationDetails(req.qualificationDetails);
+      if (!details.ok) return details;
+      target.qualificationDetails = details.value;
+    }
   }
 
   return ok({

@@ -13,7 +13,7 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
 
   it("dosyaları sırayla uygular, ikinci çalıştırmada atlar", async () => {
     const files = readMigrations(MIGRATIONS_DIR);
-    expect(files.map((f) => f.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
+    expect(files.map((f) => f.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
     const first = await migrate(db, files);
     expect(first.applied).toEqual([
       "0001_faz1_core",
@@ -34,10 +34,11 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
       "0016_redact_tokens_in_errors",
       "0017_urun_listesi",
       "0018_lead_attachments",
+      "0019_qualification_details",
     ]);
     const second = await migrate(db, files);
     expect(second.applied).toEqual([]);
-    expect(second.skipped).toHaveLength(18);
+    expect(second.skipped).toHaveLength(19);
   });
 
   it("yirmi tablo ve seed verisi var", async () => {
