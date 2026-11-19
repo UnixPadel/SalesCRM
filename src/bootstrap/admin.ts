@@ -6,7 +6,6 @@
  */
 import type { Request, Router } from "express";
 import { GOOGLE_DM_SECRET_NAMES } from "../modules/ad-feedback/adapters/google-data-manager";
-import { META_CAPI_SECRET_NAMES } from "../modules/ad-feedback/adapters/meta-capi";
 import { createAdminRouter, type ProviderInfo } from "../modules/integration-settings/api";
 import { GOOGLE_SECRET_NAMES } from "../modules/lead-intake/adapters/google";
 import { META_SECRET_NAMES } from "../modules/lead-intake/adapters/meta";
@@ -45,8 +44,8 @@ export function bootAdmin(
       secrets: [
         secret(META_SECRET_NAMES.appSecret),
         secret(META_SECRET_NAMES.verifyToken),
+        // META_CAPI_TOKEN listelenmez (2026-11-19): giden yön sistem kullanıcısı token'ıyla çalışıyor.
         secret(META_SECRET_NAMES.systemUserToken),
-        secret(META_CAPI_SECRET_NAMES.token),
       ],
       settings: [
         // Meta kimlikleri yalnız rakamdır; token gibi metinler reddedilir (2026-11-17: veri seti alanına token girilmişti).
