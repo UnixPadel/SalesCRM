@@ -10,7 +10,7 @@ import { createConnection } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import ExcelJS from "exceljs";
-import { importExcel, IMPORT_ACTOR, type ImportExcelReport } from "../src/bootstrap/importExcel";
+import { importExcel, IMPORT_ACTOR, LEGACY_PRODUCT_IDS, type ImportExcelReport } from "../src/bootstrap/importExcel";
 import { compareRows, excelSummary } from "../src/bootstrap/excelVerify";
 import { readSnapshot, SnapshotError, type SheetLike, type WorkbookLike } from "../src/bootstrap/excelSnapshot";
 import { labelParts, matchTeamLabel, type DirectoryEntry } from "../src/bootstrap/teamMatch";
@@ -259,9 +259,14 @@ if (verify) {
     );
   }
   console.log("[excel] §4 Ürünler (Excel tercih → CRM tercih)");
-  ["standard", "panoramic", "full_panoramic", "roof"].forEach((code, i) => {
-    const p = t!.products.find((x) => x.code === code)!;
-    line(code, ex[`C${42 + i}`], p.preferred, "A2/A9");
+  [
+    ["standard", LEGACY_PRODUCT_IDS.standard],
+    ["panoramic", LEGACY_PRODUCT_IDS.panoramic],
+    ["full_panoramic", LEGACY_PRODUCT_IDS.fullPanoramic],
+    ["roof", LEGACY_PRODUCT_IDS.roof],
+  ].forEach(([code, id], i) => {
+    const p = t!.products.find((x) => x.productId === id);
+    line(String(code), ex[`C${42 + i}`], p?.preferred ?? 0, "A2/A9");
   });
   line("Kapatma potansiyeli", ex["C46"], t!.closingPotential);
   console.log("[excel] §5 Kurulum zamanı (Excel lead/hiç → CRM)");

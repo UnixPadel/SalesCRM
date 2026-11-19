@@ -48,6 +48,7 @@ export {
   type ListLeadsInput,
   type OutboundStageEvent,
 } from "./queries";
+export { ProductCatalog, type CatalogImportInput } from "./productCatalog";
 export { ReportQueries, type ReportInputDto, type TrackingReportInput, type TrackingReportResult } from "./reports";
 export {
   ContactQueries,
@@ -118,6 +119,7 @@ import { CheckWarning, SetCustomerStatus } from "./leadStatus";
 import { CreateLead } from "./createLead";
 import { CreateOrganization, PeopleQueries, UpdateLeadContact, UpdateOrganization } from "./organizations";
 import { ArchiveOrganization, MergePersons } from "./peopleAdmin";
+import { ProductCatalog } from "./productCatalog";
 import { LeadQueries } from "./queries";
 import { ReportQueries } from "./reports";
 import { TerritoryAdmin } from "./territories";
@@ -152,6 +154,8 @@ export interface SalesPipeline {
   territories: TerritoryAdmin;
   mergePersons: MergePersons;
   archiveOrganization: ArchiveOrganization;
+  /** Ürün listesi: herkes okur, yönetici ürün dosyasından günceller. */
+  productCatalog: ProductCatalog;
 }
 
 /** Modülün dışa açık yüzü: api katmanı ve diğer modüller bunu kullanır. */
@@ -183,5 +187,6 @@ export function createSalesPipeline(deps: UseCaseDeps): SalesPipeline {
     territories: new TerritoryAdmin(deps),
     mergePersons: new MergePersons(deps),
     archiveOrganization: new ArchiveOrganization(deps),
+    productCatalog: new ProductCatalog(deps),
   };
 }

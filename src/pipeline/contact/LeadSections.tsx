@@ -7,10 +7,10 @@ import { pipelineApi } from "../api";
 import { extraAnswerRows } from "../extraAnswersView";
 import { useErrorText, useNow, useReference } from "../hooks";
 import { contactApi } from "./contactApi";
-import { courtLine, dateText, daysAgo, productLine, roofArea, warningText } from "./trackingView";
+import { courtLine, dateText, daysAgo, productNamesOf, warningText } from "./trackingView";
 
 /**
- * Lead sayfasının Faz 7g bölümleri: Temas özeti (Excel H–M, Z–AB), Müşteri (N), Ürün tercihleri (P–Y), Form
+ * Lead sayfasının Faz 7g bölümleri: Temas özeti (Excel H–M, Z–AB), Müşteri (N), Ürünler (ürün listesinden), Form
  * cevapları (AD–AI), Veri uyarıları (AJ ve sarı hücreler), Kaynak detayı. Excel'in sütun grupları burada bloktur.
  */
 
@@ -171,13 +171,14 @@ export function CustomerStatusField({
   );
 }
 
-const COURTS = [
-  { key: "standard", code: "standard" },
-  { key: "panoramic", code: "panoramic" },
-  { key: "fullPanoramic", code: "full_panoramic" },
-] as const;
+const QTY_MAX = 29;
 
-/** Ürün tercihleri düzenleyicisi (Excel P–X sırası): ✔ + adet (1–29), Kapatma + genişlik × uzunluk. */
+/**
+ * Ürün seçme penceresi: ürün listesindeki her ürün bir satır; solda işaret kutusu, sağda − adet + düğmeleri. Kutu
+ * işaretlenince adet 1 olur, kaldırılınca ürün lead'den çıkar; adet 1–29. Liste 35+ ürün olduğu için üstte arama
+ * vardır; pencere açıldığında işaretli ürünler başta durur (tıklarken satırlar yer değiştirmez). Kullanımdan kalkmış
+ * ürün yalnız lead'de zaten varsa görünür.
+ */
 export function ProductPrefsForm({
   value,
   onChange,
@@ -185,90 +186,110 @@ export function ProductPrefsForm({
   value: ProductPrefsDto;
   onChange: (p: ProductPrefsDto) => void;
 }) {
-  const { t, lang } = useLang();
-  const [dims, setDims] = useState({
-    w: value.roof.widthM === null ? "" : String(value.roof.widthM).replace(".", lang === "tr" ? "," : "."),
-    l: value.roof.lengthM === null ? "" : String(value.roof.lengthM).replace(".", lang === "tr" ? "," : "."),
-  });
-  const parseDim = (s: string) => {
-    const n = Number(s.trim().replace(",", "."));
-    return s.trim() === "" || !Number.isFinite(n) || n <= 0 ? null : Math.round(n * 100) / 100;
-  };
-  const area = roofArea(value);
+  const { t } = useLang();
+  const { ref } = useReference();
+  const [q, setQ] = useState("");
+  // Açılıştaki işaretliler başta; sonra listedeki sıra. Sıra pencere açıkken sabit kalır.
+  const [firstIds] = useState(() => new Set(value.map((p) => p.productId)));
+  const catalog = ref?.products ?? [];
+  const rows = [
+    ...catalog.filter((p) => firstIds.has(p.id)),
+    ...value
+      .filter((p) => !catalog.some((c) => c.id === p.productId))
+      .map((p) => ({ id: p.productId, name: `#${p.productId}`, active: false })),
+    ...catalog.filter((p) => !firstIds.has(p.id) && p.active),
+  ];
+  const needle = q.trim().toLocaleLowerCase(localeOf("tr"));
+  const shown = needle ? rows.filter((p) => p.name.toLocaleLowerCase(localeOf("tr")).includes(needle)) : rows;
+  const qtyOf = (id: number) => value.find((p) => p.productId === id)?.qty ?? null;
+  const set = (id: number, qty: number | null) =>
+    onChange(
+      (qty === null
+        ? value.filter((p) => p.productId !== id)
+        : [...value.filter((p) => p.productId !== id), { productId: id, qty }]
+      ).sort((a, b) => a.productId - b.productId),
+    );
   return (
     <div className="pp">
-      {COURTS.map(({ key, code }) => {
-        const qty = value[key];
-        const name = t(`product.${code}`);
-        const set = (q: number | null) => onChange({ ...value, [key]: q });
-        return (
-          <div key={key} className="pp-row">
-            <label className="cd-check">
-              <input type="checkbox" checked={qty !== null} onChange={(e) => set(e.target.checked ? 1 : null)} />
-              {name}
-            </label>
-            {qty !== null && (
-              <span className="stepper">
-                <button type="button" aria-label={`${name} −`} disabled={qty <= 1} onClick={() => set(qty - 1)}>
+      <div className="pp-top">
+        <input
+          type="search"
+          className="pp-search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t("product.search")}
+          aria-label={t("product.search")}
+        />
+        <span className="muted" aria-live="polite">
+          {t("product.selected", { n: value.length })}
+        </span>
+      </div>
+      <ul className="pp-list" aria-label={t("product.title")}>
+        {shown.map((p) => {
+          const qty = qtyOf(p.id);
+          const on = qty !== null;
+          return (
+            <li key={p.id} className={"pp-row" + (on ? " on" : "")}>
+              <label className="cd-check">
+                <input type="checkbox" checked={on} onChange={(e) => set(p.id, e.target.checked ? 1 : null)} />
+                <span>
+                  {p.name}
+                  {!p.active && <small className="muted"> · {t("product.inactive")}</small>}
+                </span>
+              </label>
+              <span className="stepper" aria-disabled={!on}>
+                <button
+                  type="button"
+                  aria-label={t("product.dec", { name: p.name })}
+                  disabled={!on || qty <= 1}
+                  onClick={() => on && set(p.id, qty - 1)}
+                >
                   −
                 </button>
                 <input
                   inputMode="numeric"
-                  aria-label={t("product.qty", { name })}
-                  value={qty}
+                  aria-label={t("product.qty", { name: p.name })}
+                  value={qty ?? 1}
+                  disabled={!on}
                   onChange={(e) => {
                     const n = Math.round(Number(e.target.value));
-                    if (Number.isFinite(n)) set(Math.min(29, Math.max(1, n)));
+                    if (on && Number.isFinite(n) && e.target.value.trim() !== "") {
+                      set(p.id, Math.min(QTY_MAX, Math.max(1, n)));
+                    }
                   }}
                 />
-                <button type="button" aria-label={`${name} +`} disabled={qty >= 29} onClick={() => set(qty + 1)}>
+                <button
+                  type="button"
+                  aria-label={t("product.inc", { name: p.name })}
+                  disabled={!on || qty >= QTY_MAX}
+                  onClick={() => on && set(p.id, qty + 1)}
+                >
                   +
                 </button>
               </span>
-            )}
-          </div>
-        );
-      })}
-      <div className="pp-row">
-        <label className="cd-check">
-          <input
-            type="checkbox"
-            checked={value.roof.wanted}
-            onChange={(e) =>
-              onChange({
-                ...value,
-                roof: e.target.checked
-                  ? { ...value.roof, wanted: true }
-                  : { wanted: false, widthM: null, lengthM: null },
-              })
-            }
-          />
-          {t("product.roof")}
-        </label>
-        {value.roof.wanted && (
-          <span className="pp-dims">
-            {(["w", "l"] as const).map((k) => (
-              <label key={k} className="pp-dim">
-                <span className="sr-only">{k === "w" ? t("product.width") : t("product.length")}</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder={k === "w" ? t("product.width") : t("product.length")}
-                  value={dims[k]}
-                  onChange={(e) => {
-                    const next = { ...dims, [k]: e.target.value };
-                    setDims(next);
-                    onChange({ ...value, roof: { wanted: true, widthM: parseDim(next.w), lengthM: parseDim(next.l) } });
-                  }}
-                />
-                <span aria-hidden="true">m</span>
-              </label>
-            ))}
-          </span>
-        )}
-      </div>
-      {area !== null && <p className="field-h">{t("product.area", { area: area.toLocaleString(localeOf(lang)) })}</p>}
+            </li>
+          );
+        })}
+        {!shown.length && <li className="muted pp-empty">{t("product.noMatch")}</li>}
+      </ul>
     </div>
+  );
+}
+
+/** Lead'in ürünleri: her ürün ayrı satır, "2 × Standard Padel Court". */
+export function ProductList({ products }: { products: ProductPrefsDto }) {
+  const { t } = useLang();
+  const { ref } = useReference();
+  const name = productNamesOf(ref?.products);
+  if (!products.length) return <p className="muted">{t("product.none")}</p>;
+  return (
+    <ul className="pp-show">
+      {products.map((p) => (
+        <li key={p.productId}>
+          <span className="num">{p.qty}</span> × {name(p.productId)}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -284,14 +305,12 @@ export function ProductsPanel({
   ownerMayEdit?: boolean;
   onSaved: (l: LeadDto) => void;
 }) {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const { toast } = useCrm();
   const errText = useErrorText();
   const [draft, setDraft] = useState<ProductPrefsDto | null>(null);
   const [busy, setBusy] = useState(false);
-  const line = productLine(lead.products, t, lang);
   const courts = courtLine(lead, t);
-  const roofWarn = lead.warnings.find((w) => w.code === "roof_size_missing" && !w.checked);
   const save = async () => {
     if (!draft) return;
     setBusy(true);
@@ -330,11 +349,10 @@ export function ProductsPanel({
         </>
       ) : (
         <>
-          <p>{line || <span className="muted">{t("product.none")}</span>}</p>
-          {courts && <p className="muted">{courts}</p>}
-          {roofWarn && (
-            <p className="inline-warn">
-              <Icon name="warn" size={14} /> {t("warning.roof_size_missing")}
+          <ProductList products={lead.products} />
+          {courts && (
+            <p className="muted">
+              {t("lead.courtCount")}: {courts}
             </p>
           )}
           {lead.courtModel && <p className="muted">{t("product.legacyModel", { model: lead.courtModel })}</p>}

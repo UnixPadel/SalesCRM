@@ -10,7 +10,7 @@
  */
 import { fold } from "../modules/lead-intake/application";
 import type { LeadListItem } from "../modules/sales-pipeline/application";
-import { contactsFromRow, productsFromRow, statusFromExcel } from "./importExcel";
+import { contactsFromRow, LEGACY_PRODUCT_IDS, productsFromRow, statusFromExcel } from "./importExcel";
 import type { ExcelContactRow, ExcelLeadRow, ExcelSnapshot } from "./excelSnapshot";
 
 export const TIMELINE_LABELS: Record<string, string> = {
@@ -32,13 +32,12 @@ export interface RowFacts {
   standard: { pref: boolean; qty: number };
   panoramic: { pref: boolean; qty: number };
   fullPanoramic: { pref: boolean; qty: number };
-  roof: { pref: boolean; area: number };
+  roof: { pref: boolean };
   timeline: string | null;
   covered: boolean;
 }
 
 export function excelFacts(r: ExcelLeadRow): RowFacts {
-  const area = (r.roof.widthM ?? 0) * (r.roof.lengthM ?? 0);
   return {
     mail: r.mailSent,
     wa: r.waSent,
@@ -49,7 +48,7 @@ export function excelFacts(r: ExcelLeadRow): RowFacts {
     standard: { pref: r.standard.tick, qty: r.standard.qty ?? 0 },
     panoramic: { pref: r.panoramic.tick, qty: r.panoramic.qty ?? 0 },
     fullPanoramic: { pref: r.fullPanoramic.tick, qty: r.fullPanoramic.qty ?? 0 },
-    roof: { pref: r.roof.tick, area },
+    roof: { pref: r.roof.tick },
     timeline: TIMELINE_LABELS[fold(r.installTimeline)] ?? null,
     covered: fold(r.installSite) === COVERED,
   };
@@ -68,20 +67,15 @@ export function expectedCrmFacts(
   const wa = d.contacts.some((c) => c.type === "whatsapp");
   if (mail !== base.mail || wa !== base.wa) reasons.push(temas.length ? "A7" : "A1");
   const anyContact = d.contacts.length > 0;
-  const p = productsFromRow(r).products as {
-    standard: number | null;
-    panoramic: number | null;
-    fullPanoramic: number | null;
-    roof: { wanted: boolean; widthM: number | null; lengthM: number | null };
-  };
+  const prods = productsFromRow(r).products;
+  const q = (id: number): number | null => prods.find((x) => x.productId === id)?.qty ?? null;
   const court = (q: number | null, excel: { pref: boolean; qty: number }) => {
     const out = { pref: q !== null && q > 0, qty: q ?? 0 };
     if (out.pref !== excel.pref || out.qty !== excel.qty) reasons.push("A2");
     return out;
   };
-  const roofArea =
-    p.roof.widthM !== null && p.roof.lengthM !== null ? Math.round(p.roof.widthM * p.roof.lengthM * 100) / 100 : 0;
-  if (p.roof.wanted !== base.roof.pref) reasons.push("A9");
+  const roofWanted = q(LEGACY_PRODUCT_IDS.roof) !== null;
+  if (roofWanted !== base.roof.pref) reasons.push("A9");
   const facts: RowFacts = {
     mail,
     wa,
@@ -89,16 +83,21 @@ export function expectedCrmFacts(
     replied: d.firstReplyAt !== null,
     proposal: d.proposalAt !== null,
     buyer: statusFromExcel(r.status) === "buyer_ready",
-    standard: court(p.standard, base.standard),
-    panoramic: court(p.panoramic, base.panoramic),
-    fullPanoramic: court(p.fullPanoramic, base.fullPanoramic),
-    roof: { pref: p.roof.wanted, area: roofArea },
+    standard: court(q(LEGACY_PRODUCT_IDS.standard), base.standard),
+    panoramic: court(q(LEGACY_PRODUCT_IDS.panoramic), base.panoramic),
+    fullPanoramic: court(q(LEGACY_PRODUCT_IDS.fullPanoramic), base.fullPanoramic),
+    roof: { pref: roofWanted },
     timeline: base.timeline,
     covered: base.covered,
   };
   if (facts.replied !== base.replied || facts.proposal !== base.proposal) reasons.push("A7");
   return { facts, reasons: [...new Set(reasons)] };
 }
+
+const crmQty = (l: LeadListItem, id: number): { pref: boolean; qty: number } => {
+  const qty = l.products.find((x) => x.productId === id)?.qty ?? 0;
+  return { pref: qty > 0, qty };
+};
 
 /** CRM'deki gerçek olgular (liste öğesinden). */
 export function crmFacts(l: LeadListItem): RowFacts {
@@ -109,10 +108,10 @@ export function crmFacts(l: LeadListItem): RowFacts {
     replied: l.contact.replied,
     proposal: l.proposal.given,
     buyer: l.customerStatus === "buyer_ready",
-    standard: { pref: (l.products.standard ?? 0) > 0, qty: l.products.standard ?? 0 },
-    panoramic: { pref: (l.products.panoramic ?? 0) > 0, qty: l.products.panoramic ?? 0 },
-    fullPanoramic: { pref: (l.products.fullPanoramic ?? 0) > 0, qty: l.products.fullPanoramic ?? 0 },
-    roof: { pref: l.products.roof.wanted, area: l.roofAreaM2 ?? 0 },
+    standard: crmQty(l, LEGACY_PRODUCT_IDS.standard),
+    panoramic: crmQty(l, LEGACY_PRODUCT_IDS.panoramic),
+    fullPanoramic: crmQty(l, LEGACY_PRODUCT_IDS.fullPanoramic),
+    roof: { pref: crmQty(l, LEGACY_PRODUCT_IDS.roof).pref },
     timeline: l.installTimeline,
     covered: l.installSite === "covered_court",
   };
@@ -135,7 +134,6 @@ const flat = (f: RowFacts): Record<string, unknown> => ({
   fullPref: f.fullPanoramic.pref,
   fullQty: f.fullPanoramic.qty,
   roofPref: f.roof.pref,
-  roofArea: Math.round(f.roof.area * 100) / 100,
   timeline: f.timeline,
   covered: f.covered,
 });
@@ -192,7 +190,6 @@ export function excelSummary(snap: ExcelSnapshot): Record<string, number | strin
   out["C45"] = count((x) => x.roof.pref);
   out["D45"] = count((x) => x.roof.pref && x.proposal);
   out["F45"] = count((x) => x.roof.pref && x.buyer);
-  out["G45"] = Math.round(f.reduce((s, e) => s + e.x.roof.area, 0) * 100) / 100;
   out["C46"] = count((x) => x.covered);
   ["m0_3", "m3_6", "m6_12", "researching"].forEach((t, i) => {
     const row = 51 + i;

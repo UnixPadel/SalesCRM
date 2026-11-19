@@ -31,17 +31,11 @@ export interface CellSelector {
   excelOwner?: string | null | undefined;
   status?: string | undefined;
   timeline?: string | null | undefined;
-  product?: "standard" | "panoramic" | "full_panoramic" | "roof" | undefined;
+  /** Ürün listesindeki numara. */
+  product?: number | undefined;
   within?: "proposal" | "buyer" | undefined;
   closing?: boolean | undefined;
 }
-
-const PRODUCT_PARAM: Record<NonNullable<CellSelector["product"]>, string> = {
-  standard: "f_standard",
-  panoramic: "f_panoramic",
-  full_panoramic: "f_fullPanoramic",
-  roof: "f_roof",
-};
 
 export function drillDownParams(f: ReportFilters, s: CellSelector, label: string): URLSearchParams {
   const p = new URLSearchParams();
@@ -85,7 +79,7 @@ export function drillDownParams(f: ReportFilters, s: CellSelector, label: string
   }
   if (s.status) p.set("f_status", s.status);
   if (s.timeline !== undefined) p.set("f_timeline", s.timeline ?? "none");
-  if (s.product) p.set(PRODUCT_PARAM[s.product], "yes");
+  if (s.product !== undefined) p.set("f_products", String(s.product));
   if (s.within === "proposal") p.set("f_proposal", "yes");
   if (s.within === "buyer") p.set("f_status", "buyer_ready");
   if (s.closing) p.set("f_site", "covered_court");

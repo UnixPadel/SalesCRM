@@ -175,8 +175,14 @@ describe("importExcel", () => {
 describe("saf yardımcılar", () => {
   it("ürün kuralları ve AJ köken bilgisi", () => {
     expect(productsFromRow(row(9, { standard: { tick: true, qty: null } }))).toMatchObject({
-      products: { standard: 1 },
+      products: [{ productId: 21, qty: 1 }],
       issues: ["tick_without_qty"],
+      roofNote: null,
+    });
+    // Kapatma → 27 Padel Court Cover (1 adet) ve nota eski kayıt metni.
+    expect(productsFromRow(row(10, { roof: { tick: true, widthM: 20, lengthM: 10.5 } }))).toMatchObject({
+      products: [{ productId: 27, qty: 1 }],
+      roofNote: "Eski kayıt: kapatma istedi (çatı ölçüsü 20 × 10,5 m)",
     });
     expect(provenanceFromWarning("Telefonda ülke kodu yoktu, +90 eklendi")).toEqual({ dial_code_assumed: "+90" });
   });

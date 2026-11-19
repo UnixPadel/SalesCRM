@@ -126,33 +126,40 @@ describe("temas kaydı (Postgres)", () => {
     expect(new Set(seen).size).toBe(6);
   });
 
-  it("ürünler altı sütuna yazılır; scope ve campaign süzgeci SQL'de", async () => {
+  it("ürünler tek listede yazılır; scope ve campaign süzgeci SQL'de", async () => {
     const a = await lead({ extraAnswers: { excel_no: 4 }, campaign: { campaignName: "Bahar" } });
     await lead();
     unwrap(
       await sp.updateLeadFields.execute({
         leadId: a.id,
         fields: {
-          products: { standard: 2, roof: { wanted: true, widthM: 10.25, lengthM: 20 } },
+          products: [
+            { productId: 27, qty: 1 },
+            { productId: 21, qty: 2 },
+          ],
           installTimeline: "m0_3",
         },
         actor: ADMIN,
       }),
     );
     const got = await uow.run((r) => r.leads.findById(a.id));
-    expect(got?.products).toEqual({
-      standard: 2,
-      panoramic: null,
-      fullPanoramic: null,
-      roof: { wanted: true, widthM: 10.25, lengthM: 20 },
+    expect(got?.products).toEqual([
+      { productId: 21, qty: 2 },
+      { productId: 27, qty: 1 },
+    ]);
+    const unknown = await sp.updateLeadFields.execute({
+      leadId: a.id,
+      fields: { products: [{ productId: 79, qty: 1 }] },
+      actor: ADMIN,
     });
+    expect(!unknown.ok && unknown.error.code).toBe("product.unknown");
     expect((await sp.queries.list({ actor: ADMIN, scope: "excel" })).map((l) => l.id)).toEqual([a.id]);
     expect((await sp.queries.list({ actor: ADMIN, campaign: "Bahar" })).map((l) => l.id)).toEqual([a.id]);
     expect((await sp.queries.list({ actor: ADMIN, hot: true })).map((l) => l.id)).toEqual([a.id]);
-    unwrap(await sp.checkWarning.execute({ leadId: a.id, code: "roof_size_missing", checked: true, actor: ADMIN }));
+    unwrap(await sp.checkWarning.execute({ leadId: a.id, code: "import_review", checked: true, actor: ADMIN }));
     await uow.run((r) => r.leads.mergeExtraAnswers(a.id, { excel_owner: "Enes" }, clock.now()));
     const after = await uow.run((r) => r.leads.findById(a.id));
-    expect(after?.checkedWarnings).toEqual(["roof_size_missing"]);
+    expect(after?.checkedWarnings).toEqual(["import_review"]);
     expect(after?.extraAnswers).toEqual({ excel_no: 4, excel_owner: "Enes" });
   });
 });

@@ -1,6 +1,6 @@
 import { RuleError, err, ok, type Result } from "../../shared/kernel";
 import type { CourtCountBand, CustomerProfile, CustomerStatus, InstallSite, InstallTimeline } from "./leadProfile";
-import { EMPTY_PRODUCTS, type ProductPrefs } from "./products";
+import { emptyProducts, type ProductPrefs } from "./products";
 import type { StageCode } from "./stage";
 
 export const LEAD_SOURCES = ["meta_form", "google_form", "web_form", "manual", "import"] as const;
@@ -99,7 +99,7 @@ export interface Lead {
   organizationId: string | null;
   /** Satış takip alanları (Faz 7g, ADR-0014). Müşteri durumu aşamadan bağımsızdır (D1); null = "Durum girilmedi". */
   customerStatus: CustomerStatus | null;
-  /** Ürün tercihleri ve çatı ölçüsü (D4); `court_count` bunlardan yazılmaz. */
+  /** İstenen ürünler ve adetleri (ürün listesinden); formdan gelen kort sayısından bağımsızdır. */
   products: ProductPrefs;
   /** Form cevapları (D5): intake doldurur, yönetici düzeltir. */
   installSite: InstallSite | null;
@@ -132,7 +132,7 @@ export type LeadTrackingFields = Pick<
 /** Yeni lead'in satış takip alanları: hepsi boş. Her çağrı yeni nesne döner (paylaşılan dizi/nesne yok). */
 export const emptyTrackingFields = (): LeadTrackingFields => ({
   customerStatus: null,
-  products: { ...EMPTY_PRODUCTS, roof: { ...EMPTY_PRODUCTS.roof } },
+  products: emptyProducts(),
   installSite: null,
   installTimeline: null,
   customerProfile: null,

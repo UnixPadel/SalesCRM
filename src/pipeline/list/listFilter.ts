@@ -4,6 +4,7 @@
  * `campaign`, `q`); sütun süzgeçleri (sorumlu, ülke, kaynak, aşama ve `f_*`) yüklenen kümede uygulanır ki başlık
  * menüsü bütün değerleri sayabilsin (Excel gibi). Saf: React yok.
  */
+import { phoneText } from "../contact/trackingView";
 import type { LeadListDto } from "../../modules/sales-pipeline/api/dto";
 import { COLUMNS, columnById, type ColumnDef, type Ctx } from "./listColumns";
 
@@ -133,7 +134,15 @@ export function searchRows(rows: readonly LeadListDto[], q: string | null): Lead
   const s = (q ?? "").trim().toLocaleLowerCase("tr");
   if (!s) return [...rows];
   return rows.filter((l) =>
-    [l.fullName, l.email ?? "", l.phoneE164 ?? "", l.company, String(l.extraAnswers?.["excel_no"] ?? "")]
+    [
+      l.fullName,
+      l.email ?? "",
+      l.phoneE164 ?? "",
+      // Biçimli numara ("+90 532 123 45 67") da aranır: numara ekranda böyle yazılır.
+      phoneText(l.phoneE164),
+      l.company,
+      String(l.extraAnswers?.["excel_no"] ?? ""),
+    ]
       .join(" ")
       .toLocaleLowerCase("tr")
       .includes(s),

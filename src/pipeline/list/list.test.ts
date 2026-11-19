@@ -29,12 +29,7 @@ const lead = (i: number, over: Partial<LeadListDto> = {}): LeadListDto =>
     source: "import",
     createdAt: `2026-10-${String(10 + i).padStart(2, "0")}T06:00:00.000Z`,
     customerStatus: null,
-    products: {
-      standard: null,
-      panoramic: null,
-      fullPanoramic: null,
-      roof: { wanted: false, widthM: null, lengthM: null },
-    },
+    products: [],
     installSite: null,
     installTimeline: null,
     customerProfile: null,
@@ -72,7 +67,10 @@ const ROWS: LeadListDto[] = [
   lead(3, {
     customerStatus: "buyer_ready",
     proposal: { given: true, at: "2026-10-25T06:00:00Z", via: "stage" },
-    products: { standard: 2, panoramic: null, fullPanoramic: null, roof: { wanted: true, widthM: 10, lengthM: 20 } },
+    products: [
+      { productId: 21, qty: 2 },
+      { productId: 27, qty: 1 },
+    ],
   }),
   lead(4, {
     contact: { state: "legacy", count: 0, firstAt: null, lastAt: null, replied: false, channels: {} } as never,
@@ -88,6 +86,7 @@ const ctx: Ctx = {
   stageName: (c) => c,
   countryName: (c) => c,
   sourceName: (s) => s,
+  productName: (id) => ({ 21: "Standard Padel Court", 27: "Padel Court Cover" })[id] ?? `#${id}`,
   now: Date.parse("2026-11-10T09:00:00Z"),
 };
 const run = (qs: string) => {
@@ -106,7 +105,9 @@ describe("listFilter", () => {
     expect(run("owner=me")).toEqual(["l1", "l3", "l4"]);
     expect(run("country=de")).toEqual(["l4"]);
     expect(run("f_excelOwner=Enes")).toEqual(["l2"]);
-    expect(run("f_standard=yes&f_proposal=yes")).toEqual(["l3"]);
+    expect(run("f_products=21&f_proposal=yes")).toEqual(["l3"]);
+    expect(run("f_products=27")).toEqual(["l3"]);
+    expect(run("f_products=none")).toEqual(["l1", "l2", "l4"]);
   });
 
   it("metin ve arama: Excel No eşleşir; tarih aralığı İstanbul günüyle uçlar dahil", () => {
@@ -138,8 +139,8 @@ describe("listFilter", () => {
   });
 });
 
-describe("telefon no sütunu", () => {
-  it("numarayı okunur yazar; biçimli ya da bitişik yazımla süzülür; CSV'de yinelenmez", () => {
+describe("telefon sütunu", () => {
+  it("numarayı okunur yazar; hızlı arama biçimli ya da bitişik yazımla bulur; tek sütun", () => {
     expect(phoneText("+905321234567")).toBe("+90 532 123 45 67");
     expect(phoneText("+14155552671")).toBe("+1 415 555 2671");
     expect(phoneText("+4915112345678")).toBe("+49 151 123 456 78");
@@ -147,12 +148,14 @@ describe("telefon no sütunu", () => {
     expect(phoneText("0532 123")).toBe("0532 123");
     expect(phoneText(null)).toBe("");
     const rows = [lead(1, { phoneE164: "+905321234567" }), lead(2)];
-    const find = (text: string) =>
-      applyFilters(rows, clientFilters(new URLSearchParams({ f_phoneNo: text }), "u1"), ctx).map((l) => l.id);
+    const find = (text: string) => searchRows(rows, text).map((l) => l.id);
     expect(find("532 123")).toEqual(["l1"]);
     expect(find("5321234")).toEqual(["l1"]);
     expect(find("999")).toEqual([]);
-    expect(columnById.get("phoneNo")!.noCsv).toBe(true);
+    expect(columnById.has("phoneNo")).toBe(false);
+    expect(applyFilters(rows, clientFilters(new URLSearchParams("f_phone=no"), "u1"), ctx).map((l) => l.id)).toEqual([
+      "l2",
+    ]);
     expect(COLUMNS.filter((c) => !c.noCsv && c.csv(rows[0]!, ctx) === "+905321234567").map((c) => c.id)).toEqual([
       "phone",
     ]);
@@ -164,15 +167,8 @@ describe("sütun gizleme", () => {
     const cols = COLUMNS.filter((c) => c.group === "lead" && !c.hidden);
     const shape = (hidden: string[]) =>
       columnRuns(cols, hidden).map((r) => (r.kind === "col" ? r.col.id : `[${r.cols.map((c) => c.id).join("+")}]`));
-    expect(shape([])).toEqual(["createdAt", "name", "phoneNo", "country", "owner", "phone", "email"]);
-    expect(shape(["owner", "country", "email"])).toEqual([
-      "createdAt",
-      "name",
-      "phoneNo",
-      "[country+owner]",
-      "phone",
-      "[email]",
-    ]);
+    expect(shape([])).toEqual(["createdAt", "name", "phone", "country", "owner", "email"]);
+    expect(shape(["owner", "country", "email"])).toEqual(["createdAt", "name", "phone", "[country+owner+email]"]);
     expect(shape(["name", "createdAt", "bilinmeyen"])).toEqual(shape([]));
   });
 });
@@ -212,7 +208,8 @@ describe("drillDown", () => {
     expect(open({ metric: "buyers" })).toEqual(["l3"]);
     expect(open({ owner: null, excelOwner: "Enes" })).toEqual(["l2"]);
     expect(open({ timeline: "m0_3", metric: "neverReached" })).toEqual(["l2"]);
-    expect(open({ product: "roof", within: "proposal" })).toEqual(["l3"]);
+    expect(open({ product: 27, within: "proposal" })).toEqual(["l3"]);
+    expect(open({ product: 22 })).toEqual([]);
     expect(drillDownParams(F, {}, "").get("scope")).toBe("excel");
   });
 });

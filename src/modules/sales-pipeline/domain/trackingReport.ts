@@ -9,8 +9,7 @@ import {
   type CustomerStatus,
   type InstallTimeline,
 } from "./leadProfile";
-import { round2 } from "./numbers";
-import { COURT_PRODUCTS, courtTotal, productQty, roofAreaM2, type ProductCode } from "./products";
+import { productQty } from "./products";
 import { reachedStage } from "./reports";
 import type { StageCode } from "./stage";
 
@@ -57,9 +56,6 @@ export interface LeadTracking {
   /** Bütün uyarılar; izleyene göre süzme `visibleWarnings` ile DTO'da yapılır. */
   warnings: DataWarning[];
   hot: boolean;
-  /** Ürünlerden kort toplamı; ürün yoksa null (gösterim sırası §3.4). */
-  courtTotal: number | null;
-  roofAreaM2: number | null;
 }
 
 /** `rows` bu lead'in temas toplamıdır (başka lead'in satırları yok sayılır). */
@@ -73,7 +69,6 @@ export function leadTracking(
     rows.filter((r) => r.leadId === lead.id),
     lead.contactHistoryUnknown,
   );
-  const total = courtTotal(lead.products);
   return {
     contact,
     proposal: proposalFacts(
@@ -83,8 +78,6 @@ export function leadTracking(
     ),
     warnings: dataWarnings(lead, contact, timeZone),
     hot: isHotLead(lead),
-    courtTotal: total > 0 ? total : null,
-    roofAreaM2: roofAreaM2(lead.products),
   };
 }
 
@@ -130,17 +123,16 @@ export interface TrackingStatusRow {
 }
 
 export interface TrackingProductRow {
-  code: ProductCode;
-  /** Kort: adet > 0; Kapatma: `roof.wanted`. */
+  /** Ürün listesindeki numara; adı arayüz `/reference.products`'tan okur. */
+  productId: number;
+  /** Bu ürünü isteyen lead sayısı. */
   preferred: number;
   amongProposals: number;
   /** amongProposals / toplam teklif; teklif yoksa null. */
   shareOfProposals: number | null;
   amongBuyers: number;
-  /** Kortlarda Σ adet; Kapatma'da null. */
-  totalQty: number | null;
-  /** Kapatma'da Σ çatı alanı (ölçüsü eksik olan atlanır); kortlarda null. */
-  totalAreaM2: number | null;
+  /** Σ adet. */
+  totalQty: number;
 }
 
 export interface TrackingTimelineRow {
@@ -306,26 +298,23 @@ export function buildTrackingReport(i: {
         (a.excelOwner ?? "").localeCompare(b.excelOwner ?? "", "tr"),
     );
 
-  // Ürünler (§4): 3 kort + Kapatma.
+  // Ürünler (§4): yalnız en az bir lead'in istediği ürünler; çok istenenden aza, eşitlikte ürün numarası.
   const proposals = all.proposalGiven;
-  const productRow = (code: ProductCode, preferredOf: (l: Lead) => boolean): TrackingProductRow => {
-    const pref = items.filter((x) => preferredOf(x.lead));
-    const amongProposals = pref.filter((x) => x.t.proposal.given).length;
-    const isRoof = code === "roof";
-    return {
-      code,
-      preferred: pref.length,
-      amongProposals,
-      shareOfProposals: ratio(amongProposals, proposals),
-      amongBuyers: pref.filter((x) => x.lead.customerStatus === "buyer_ready").length,
-      totalQty: isRoof ? null : pref.reduce((s, x) => s + (productQty(x.lead.products, code) ?? 0), 0),
-      totalAreaM2: isRoof ? round2(pref.reduce((s, x) => s + (roofAreaM2(x.lead.products) ?? 0), 0)) : null,
-    };
-  };
-  const products: TrackingProductRow[] = [
-    ...COURT_PRODUCTS.map((code) => productRow(code, (l) => (productQty(l.products, code) ?? 0) > 0)),
-    productRow("roof", (l) => l.products.roof.wanted),
-  ];
+  const productIds = [...new Set(items.flatMap((x) => x.lead.products.map((p) => p.productId)))];
+  const products: TrackingProductRow[] = productIds
+    .map((productId): TrackingProductRow => {
+      const pref = items.filter((x) => (productQty(x.lead.products, productId) ?? 0) > 0);
+      const amongProposals = pref.filter((x) => x.t.proposal.given).length;
+      return {
+        productId,
+        preferred: pref.length,
+        amongProposals,
+        shareOfProposals: ratio(amongProposals, proposals),
+        amongBuyers: pref.filter((x) => x.lead.customerStatus === "buyer_ready").length,
+        totalQty: pref.reduce((sum, x) => sum + (productQty(x.lead.products, productId) ?? 0), 0),
+      };
+    })
+    .sort((a, b) => b.preferred - a.preferred || a.productId - b.productId);
 
   // Kurulum zamanı (§5): 4 kod sabit sırada, "Belirtilmemiş" yalnız lead > 0 ise.
   const byTimelineItems = groupBy(items, (x) => x.lead.installTimeline);

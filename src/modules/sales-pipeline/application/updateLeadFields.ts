@@ -1,5 +1,5 @@
 import { RuleError, err, type Result } from "../../shared/kernel";
-import { PROVENANCE_KEYS, WARNINGS_CLEARED_BY, courtCountConflict, parseLeadFields, type Lead } from "../domain";
+import { PROVENANCE_KEYS, WARNINGS_CLEARED_BY, checkCatalogRefs, parseLeadFields, type Lead } from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
 import { requireFieldAccess } from "./permissions";
 import { loadActionableLead } from "./visibility";
@@ -49,11 +49,10 @@ export class UpdateLeadFields {
           }),
         );
       }
-      // Faz 7g (§3.4): ürün adedi varken kort sayısı ayrıca yazılmaz; iki kaynak çelişmesin.
-      if (courtCountConflict(fields, lead.value.products)) {
-        return err(
-          new RuleError("court_count.derived", "Kort sayısı ürün adetlerinden gelir; ürünleri düzenleyin.", {}),
-        );
+      // Ürünler listede olmalı; kullanımdan kalkmış ürün yalnız lead'de zaten varsa kalır.
+      if (fields.products) {
+        const refs = checkCatalogRefs(fields.products, lead.value.products, await repos.products.list());
+        if (!refs.ok) return refs;
       }
       const now = clock.now();
       await repos.leads.updateFields(lead.value.id, fields, now);

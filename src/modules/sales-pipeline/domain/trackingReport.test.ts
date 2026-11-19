@@ -168,16 +168,12 @@ describe("leadTracking", () => {
     expect(t.proposal.given).toBe(false);
   });
 
-  it("kort toplamı (ürün yoksa null), çatı alanı, sıcak, uyarılar", () => {
-    const l = lead("l1", {
-      installTimeline: "m0_3",
-      country: null,
-      products: { standard: 2, panoramic: 1, fullPanoramic: null, roof: { wanted: true, widthM: 20, lengthM: 10 } },
-    });
+  it("sıcak ve uyarılar", () => {
+    const l = lead("l1", { installTimeline: "m0_3", country: null, products: [{ productId: 21, qty: 2 }] });
     const t = leadTracking(l, [], [], TZ);
-    expect(t).toMatchObject({ hot: true, courtTotal: 3, roofAreaM2: 200 });
+    expect(t).toMatchObject({ hot: true });
     expect(t.warnings.map((w) => w.code)).toEqual(["country_missing"]);
-    expect(leadTracking(lead("l2"), [], [], TZ)).toMatchObject({ hot: false, courtTotal: null, roofAreaM2: null });
+    expect(leadTracking(lead("l2"), [], [], TZ)).toMatchObject({ hot: false });
   });
 
   it("isHotUncontacted: sıcak ve hiç ulaşılmamış; eski kayıt ve temaslı değil; kapanmış lead sıcak değil [K-I8]", () => {
@@ -217,26 +213,8 @@ describe("buildTrackingReport: boş girdi", () => {
     expect(r.poolBreakdown).toEqual([]);
     expect(r.statusTotal).toEqual({ counts: Object.fromEntries(STATUS_KEYS.map((k) => [k, 0])), total: 0 });
     expect(r.statusByOwner.map((s) => s.ownerId)).toEqual(["u1", "u2", null]);
-    expect(r.products).toEqual([
-      ...["standard", "panoramic", "full_panoramic"].map((code) => ({
-        code,
-        preferred: 0,
-        amongProposals: 0,
-        shareOfProposals: null,
-        amongBuyers: 0,
-        totalQty: 0,
-        totalAreaM2: null,
-      })),
-      {
-        code: "roof",
-        preferred: 0,
-        amongProposals: 0,
-        shareOfProposals: null,
-        amongBuyers: 0,
-        totalQty: null,
-        totalAreaM2: 0,
-      },
-    ]);
+    // Ürün satırı yalnız istenen ürünler için: lead yoksa tablo boş.
+    expect(r.products).toEqual([]);
     expect(r.closingPotential).toBe(0);
     expect(r.byInstallTimeline.map((t) => [t.timeline, t.lead, t.neverRate])).toEqual([
       ["m0_3", 0, null],
@@ -373,58 +351,30 @@ describe("buildTrackingReport: satırlar, eski kayıt ve oranlar", () => {
     expect(r.poolBreakdown.reduce((s, p) => s + p.lead, 0)).toBe(r.byOwner.at(-1)!.lead);
   });
 
-  it("ürün satırları: teklif ve alıcı içinde, teklif payı, adet ve m² toplamı (ölçüsüz çatı atlanır)", () => {
-    const p = (over: Partial<Lead["products"]>) => ({ ...emptyTrackingFields().products, ...over });
+  it("ürün satırları: yalnız istenen ürünler, çoktan aza; teklif ve alıcı içinde, teklif payı, adet toplamı", () => {
     const items = [
-      item(lead("a", { currentStage: "PROPOSAL", products: p({ panoramic: 2 }) })),
-      item(lead("b", { currentStage: "PROPOSAL", customerStatus: "buyer_ready", products: p({ panoramic: 1 }) })),
-      item(lead("c", { currentStage: "PROPOSAL" })),
-      item(lead("d", { products: p({ standard: 4, roof: { wanted: true, widthM: 20, lengthM: 10 } }) })),
-      item(lead("e", { products: p({ roof: { wanted: true, widthM: 10.5, lengthM: 3.33 } }) })),
+      item(lead("a", { currentStage: "PROPOSAL", products: [{ productId: 22, qty: 2 }] })),
       item(
-        lead("f", { customerStatus: "buyer_ready", products: p({ roof: { wanted: true, widthM: null, lengthM: 5 } }) }),
+        lead("b", { currentStage: "PROPOSAL", customerStatus: "buyer_ready", products: [{ productId: 22, qty: 1 }] }),
       ),
+      item(lead("c", { currentStage: "PROPOSAL" })),
+      item(
+        lead("d", {
+          products: [
+            { productId: 21, qty: 4 },
+            { productId: 27, qty: 1 },
+          ],
+        }),
+      ),
+      item(lead("e", { products: [{ productId: 27, qty: 2 }] })),
+      item(lead("f", { customerStatus: "buyer_ready", products: [{ productId: 27, qty: 1 }] })),
     ];
     const r = buildTrackingReport({ items, teamIds: null, now: NOW, timeZone: TZ });
     expect(r.products).toEqual([
-      {
-        code: "standard",
-        preferred: 1,
-        amongProposals: 0,
-        shareOfProposals: 0,
-        amongBuyers: 0,
-        totalQty: 4,
-        totalAreaM2: null,
-      },
-      {
-        code: "panoramic",
-        preferred: 2,
-        amongProposals: 2,
-        shareOfProposals: 2 / 3,
-        amongBuyers: 1,
-        totalQty: 3,
-        totalAreaM2: null,
-      },
-      {
-        code: "full_panoramic",
-        preferred: 0,
-        amongProposals: 0,
-        shareOfProposals: 0,
-        amongBuyers: 0,
-        totalQty: 0,
-        totalAreaM2: null,
-      },
-      {
-        code: "roof",
-        preferred: 3,
-        amongProposals: 0,
-        shareOfProposals: 0,
-        amongBuyers: 1,
-        totalQty: null,
-        totalAreaM2: 234.97,
-      },
+      { productId: 27, preferred: 3, amongProposals: 0, shareOfProposals: 0, amongBuyers: 1, totalQty: 4 },
+      { productId: 22, preferred: 2, amongProposals: 2, shareOfProposals: 2 / 3, amongBuyers: 1, totalQty: 3 },
+      { productId: 21, preferred: 1, amongProposals: 0, shareOfProposals: 0, amongBuyers: 0, totalQty: 4 },
     ]);
-    expect(r.basics.buyers).toBe(2);
   });
 });
 
@@ -489,7 +439,7 @@ function excelProfile(remap: Record<string, string> = {}): TrackingItem[] {
         installSite: i < 52 ? "covered_court" : "no_site_yet",
         customerStatus: reply === "whatsapp" ? "interested" : null,
         // A2: Excel'de ✔'siz adet 2 → tercih sayılır.
-        products: i === 0 ? { ...emptyTrackingFields().products, standard: 2 } : emptyTrackingFields().products,
+        products: i === 0 ? [{ productId: 21, qty: 2 }] : [],
         createdAt,
       });
       const rows = contacted ? [contactRow(l.id, "email", "awaiting_reply", createdAt, { estimated: true })] : [];
@@ -605,14 +555,10 @@ describe("buildTrackingReport: §6.8 profili (160 lead) = Excel ÖZET RAPOR", ()
   });
 
   it("§4 ürünler (A2: Standard tercih eden 1, toplam adet 2 = Excel G42) ve kapatma potansiyeli 52", () => {
-    expect(r.products.map((p) => [p.code, p.preferred, p.amongProposals, p.shareOfProposals, p.amongBuyers])).toEqual([
-      ["standard", 1, 0, null, 0],
-      ["panoramic", 0, 0, null, 0],
-      ["full_panoramic", 0, 0, null, 0],
-      ["roof", 0, 0, null, 0],
-    ]);
-    expect(r.products.map((p) => p.totalQty)).toEqual([2, 0, 0, null]);
-    expect(r.products.at(-1)!.totalAreaM2).toBe(0);
+    expect(
+      r.products.map((p) => [p.productId, p.preferred, p.amongProposals, p.shareOfProposals, p.amongBuyers]),
+    ).toEqual([[21, 1, 0, null, 0]]);
+    expect(r.products.map((p) => p.totalQty)).toEqual([2]);
     expect(r.closingPotential).toBe(52);
   });
 

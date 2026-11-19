@@ -28,7 +28,7 @@ export const excelHeader = (t: Ctx["t"]): string[] => [...EXCEL_COLUMNS.map((c) 
 export type CellValue = string | number | Date;
 
 const DATE_COLS: readonly string[] = ["createdAt", "last", "first"];
-const NUMBER_COLS: readonly string[] = ["standard", "panoramic", "fullPanoramic", "count", "warn"];
+const NUMBER_COLS: readonly string[] = ["count", "warn"];
 
 /** Tarih ve sayı sütunları Excel'de gerçek tarih ve sayı olur (sıralanır, toplanır); diğerleri metin. */
 function cellValue(col: ColumnDef, text: string): CellValue {
@@ -154,6 +154,8 @@ export interface ParseCtx {
     customerProfiles: readonly string[];
     courtCountBands: readonly string[];
     productQtyMax: number;
+    /** Ürün listesi (kullanımdan kalkanlar dahil). */
+    products: readonly { id: number; name: string; active: boolean }[];
   };
   /** Dışa aktarım anındaki hücre metinleri (kimlik → satır); dosyada gizli sayfa yoksa null. */
   baseline: ReadonlyMap<string, readonly string[]> | null;
@@ -212,25 +214,34 @@ function countryCode(text: string, c: Ctx): string | null {
   return null;
 }
 
-type Court = "standard" | "panoramic" | "fullPanoramic";
-const products = (patch: LeadPatch, l: LeadListDto): ProductPrefsDto =>
-  (patch.fields["products"] as ProductPrefsDto | undefined) ?? { ...l.products, roof: { ...l.products.roof } };
-
-const qty = (k: Court) =>
-  edit<number | null>({
-    part: "fields",
-    parse: (text, p) => {
-      if (!text || text === "0") return good(null);
-      const n = Number(text);
-      return Number.isInteger(n) && n >= 1 && n <= p.ref.productQtyMax
-        ? good(n)
-        : bad("xl.bad.qty", { max: p.ref.productQtyMax });
-    },
-    current: (l) => l.products[k] ?? null,
-    set: (patch, v, l) => {
-      patch.fields["products"] = { ...products(patch, l), [k]: v };
-    },
-  });
+/**
+ * Ürünler hücresi: "2 Standard Padel Court; 1 Padel Court Cover". Ürünler noktalı virgül ya da satır sonuyla ayrılır;
+ * adet yazılmazsa 1 sayılır ("2 x Ad" ve "2 × Ad" de olur). Ad ürün listesindekiyle aynı olmalı (büyük/küçük harf ve
+ * fazla boşluk önemsiz). Kullanımdan kalkmış ürün yalnız lead'de zaten varsa kalabilir.
+ */
+function parseProducts(text: string, p: ParseCtx, l: LeadListDto): Parsed<ProductPrefsDto> {
+  if (!text || text === "—") return good([]);
+  const byName = new Map(p.ref.products.map((x) => [fold(x.name), x]));
+  const out: ProductPrefsDto = [];
+  for (const raw of text.split(/[;\n]/)) {
+    const item = raw.trim();
+    if (!item) continue;
+    const m = /^(\d+)\s*(?:[x×*]\s*)?(.+)$/i.exec(item);
+    const qty = m ? Number(m[1]) : 1;
+    const name = (m ? m[2]! : item).trim();
+    const hit = byName.get(fold(name));
+    if (!hit) return bad("xl.bad.product", { name });
+    if (!hit.active && !l.products.some((x) => x.productId === hit.id)) {
+      return bad("xl.bad.productInactive", { name: hit.name });
+    }
+    if (!Number.isInteger(qty) || qty < 1 || qty > p.ref.productQtyMax) {
+      return bad("xl.bad.qty", { max: p.ref.productQtyMax });
+    }
+    if (out.some((x) => x.productId === hit.id)) return bad("xl.bad.productTwice", { name: hit.name });
+    out.push({ productId: hit.id, qty });
+  }
+  return good(out.sort((a, b) => a.productId - b.productId));
+}
 
 const answer = (
   field: "installSite" | "installTimeline" | "customerProfile" | "courtCountBand",
@@ -246,8 +257,6 @@ const answer = (
     },
     show: (v, p) => (v ? p.ctx.t(`${key}.${v}`) : ""),
   });
-
-const size = (s: string): number => Math.round(Number(s.replace(",", ".")) * 100) / 100;
 
 /** İçe alınan sütunlar: programda elle girilen bilgiler. */
 const EDITS: Record<string, Edit<unknown>> = {
@@ -314,28 +323,14 @@ const EDITS: Record<string, Edit<unknown>> = {
     },
     show: (v, p) => (v ? p.ctx.t(`customerStatus.${v}`) : ""),
   }),
-  standard: qty("standard"),
-  panoramic: qty("panoramic"),
-  fullPanoramic: qty("fullPanoramic"),
-  roof: edit<ProductPrefsDto["roof"]>({
+  products: edit<ProductPrefsDto>({
     part: "fields",
-    parse: (text, p) => {
-      const none = { wanted: false, widthM: null, lengthM: null };
-      if (!text || text === "✘" || text === "—" || fold(text) === fold(p.ctx.t("common.no"))) return good(none);
-      if (text === "✔" || fold(text) === fold(p.ctx.t("common.yes"))) return good({ ...none, wanted: true });
-      const m = /^(\d+(?:[.,]\d+)?)\s*(?:m\s*)?[x×*]\s*(\d+(?:[.,]\d+)?)/i.exec(text);
-      if (!m) return bad("xl.bad.roof");
-      const [widthM, lengthM] = [size(m[1]!), size(m[2]!)];
-      return widthM > 0 && lengthM > 0 ? good({ wanted: true, widthM, lengthM }) : bad("xl.bad.roof");
+    parse: parseProducts,
+    current: (l) => l.products,
+    set: (patch, v) => {
+      patch.fields["products"] = v;
     },
-    current: (l) => ({
-      wanted: l.products.roof.wanted,
-      widthM: l.products.roof.wanted ? l.products.roof.widthM : null,
-      lengthM: l.products.roof.wanted ? l.products.roof.lengthM : null,
-    }),
-    set: (patch, v, l) => {
-      patch.fields["products"] = { ...products(patch, l), roof: v };
-    },
+    show: (v, p) => v.map((x) => `${x.qty} ${p.ctx.productName(x.productId)}`).join("; "),
   }),
   note: edit<string>({
     part: "fields",

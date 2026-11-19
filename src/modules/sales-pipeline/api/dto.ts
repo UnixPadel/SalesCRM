@@ -75,12 +75,38 @@ export type CustomerProfileDto =
   "investor" | "club_operator" | "private_home" | "public_facility" | "hospitality_residential" | "distributor";
 export type CourtCountBandDto = "1" | "2_3" | "4_6" | "7_plus";
 
-/** Ürün tercihleri: adet 1–29 ya da null (tercih yok); çatı ölçüsü metre, 2 ondalık. */
-export interface ProductPrefsDto {
-  standard: number | null;
-  panoramic: number | null;
-  fullPanoramic: number | null;
-  roof: { wanted: boolean; widthM: number | null; lengthM: number | null };
+/** Lead'in istediği ürün: ürün listesindeki numara ve adet (1–29). */
+export interface LeadProductDto {
+  productId: number;
+  qty: number;
+}
+
+/** Lead'in ürünleri, ürün numarasına göre sıralı; boş dizi = ürün girilmemiş. */
+export type ProductPrefsDto = LeadProductDto[];
+
+/** Ürün listesindeki ürün (yönetim → Ürün listesi; `/reference.products`). */
+export interface CatalogProductDto {
+  id: number;
+  name: string;
+  /** false = kullanımdan kalktı: eski lead'lerde görünür, yeni lead'e eklenmez. */
+  active: boolean;
+}
+
+/** POST /products/import: dosyadan okunan satırlar; `skip` listeye alınmayacak yeni ürün numaraları. */
+export interface CatalogImportBody {
+  rows: { id: number; name: string }[];
+  skip?: number[];
+  /** true (varsayılan): yalnız planı döndürür; false: uygular. */
+  dryRun?: boolean;
+}
+
+export interface CatalogImportResultDto {
+  added: { id: number; name: string }[];
+  renamed: { id: number; from: string; to: string }[];
+  deactivated: { id: number; name: string }[];
+  reactivated: { id: number; name: string }[];
+  unchanged: number;
+  applied: boolean;
 }
 
 export type OrganizationTypeDto = "club" | "investor" | "distributor" | "contractor" | "other";

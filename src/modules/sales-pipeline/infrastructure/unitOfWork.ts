@@ -9,6 +9,7 @@ import {
   pgLostReasonSource,
   pgOutboxWriter,
   pgPersonRepository,
+  pgProductCatalogRepository,
   pgStageEventRepository,
   pgTerritoryRuleSource,
 } from "./repositories";
@@ -24,6 +25,7 @@ export function repositoriesFor(q: Queryable, ids: IdGenerator): Repositories {
     outbox: pgOutboxWriter(q, ids),
     territories: pgTerritoryRuleSource(q),
     lostReasons: pgLostReasonSource(q),
+    products: pgProductCatalogRepository(q),
   };
 }
 

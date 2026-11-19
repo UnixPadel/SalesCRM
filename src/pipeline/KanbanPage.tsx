@@ -9,7 +9,7 @@ import { useCrm } from "../state/CrmContext";
 import { ACTIVITY_ICON, dueState } from "./activityBits";
 import { STAGE_TONE } from "./bits";
 import { pipelineApi } from "./api";
-import { courtLine, daysAgo, openWarnings, productLine } from "./contact/trackingView";
+import { courtLine, daysAgo, openWarnings, productLine, productNamesOf } from "./contact/trackingView";
 import { useLogContact } from "./contact/useLogContact";
 import {
   EMPTY_FILTER,
@@ -287,7 +287,7 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
                       <div className="card-name">{l.fullName}</div>
                       {(() => {
                         const sub =
-                          productLine(l.products, t, lang, true) ||
+                          productLine(l.products, productNamesOf(ref?.products), 2) ||
                           [courtLine(l, t), l.productInterest].filter(Boolean).join(" · ") ||
                           l.courtModel;
                         return sub ? <div className="card-sub">{sub}</div> : null;

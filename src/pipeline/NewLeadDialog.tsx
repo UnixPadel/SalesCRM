@@ -41,12 +41,7 @@ export function NewLeadDialog({ onClose }: { onClose: () => void }) {
     assignedUserId: "auto",
     isTest: false,
   });
-  const [products, setProducts] = useState<ProductPrefsDto>({
-    standard: null,
-    panoramic: null,
-    fullPanoramic: null,
-    roof: { wanted: false, widthM: null, lengthM: null },
-  });
+  const [products, setProducts] = useState<ProductPrefsDto>([]);
   const { ref } = useReference();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<{ field: string; text: string } | null>(null);

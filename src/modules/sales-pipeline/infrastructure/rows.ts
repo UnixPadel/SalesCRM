@@ -53,12 +53,8 @@ export interface LeadRow extends Record<string, unknown> {
   organization_id: string | null;
   /** Faz 7g (migration 0012). numeric sütunlar iki sürücüde de metin gelir; smallint sayı. */
   customer_status: string | null;
-  qty_standard: number | string | null;
-  qty_panoramic: number | string | null;
-  qty_full_panoramic: number | string | null;
-  roof_wanted: boolean;
-  roof_width_m: number | string | null;
-  roof_length_m: number | string | null;
+  /** Migration 0017: [{productId, qty}] (sürücüye göre nesne ya da metin gelir). */
+  products: { productId: number | string; qty: number | string }[] | string | null;
   install_site: string | null;
   install_timeline: string | null;
   customer_profile: string | null;
@@ -72,7 +68,6 @@ export interface LeadRow extends Record<string, unknown> {
 
 const date = (v: Date | string): Date => (v instanceof Date ? v : new Date(v));
 const json = <T>(v: T | string): T => (typeof v === "string" ? (JSON.parse(v) as T) : v);
-const num = (v: number | string | null): number | null => (v === null ? null : Number(v));
 
 /** text[]: sürücü dizi döndürür; dönmezse Postgres dizi metni ("{a,b}") ayrıştırılır (kodlar tırnaksız). */
 function textArray(v: string[] | string | null): string[] {
@@ -114,12 +109,9 @@ export function leadFromRow(r: LeadRow): Lead {
     expectedCloseDate: r.expected_close_date,
     organizationId: r.organization_id,
     customerStatus: r.customer_status as CustomerStatus | null,
-    products: {
-      standard: num(r.qty_standard),
-      panoramic: num(r.qty_panoramic),
-      fullPanoramic: num(r.qty_full_panoramic),
-      roof: { wanted: r.roof_wanted, widthM: num(r.roof_width_m), lengthM: num(r.roof_length_m) },
-    },
+    products: (r.products === null ? [] : json(r.products))
+      .map((p) => ({ productId: Number(p.productId), qty: Number(p.qty) }))
+      .sort((a, b) => a.productId - b.productId),
     installSite: r.install_site as InstallSite | null,
     installTimeline: r.install_timeline as InstallTimeline | null,
     customerProfile: r.customer_profile as CustomerProfile | null,

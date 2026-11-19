@@ -11,7 +11,7 @@ import {
   type InstallSite,
   type InstallTimeline,
 } from "./leadProfile";
-import { hasAnyProduct, parseProductPrefs, type ProductPrefs } from "./products";
+import { parseProductPrefs, type ProductPrefs } from "./products";
 import { STAGE_CODES, type StageCode } from "./stage";
 
 /**
@@ -33,7 +33,7 @@ export interface LeadFields {
   organizationId: string | null;
   /** Faz 7g: lead ülkesi (ISO-2); provenance temizliği uygulama katmanında. */
   country: string | null;
-  /** Ürün tercihleri ve çatı ölçüsü (D4). */
+  /** İstenen ürünler ve adetleri (ürün listesinden). */
   products: ProductPrefs;
   /** Form cevapları (D5): intake doldurur, yönetici düzeltir. */
   installSite: InstallSite | null;
@@ -219,13 +219,6 @@ export function parseLeadFieldsLenient(raw: Record<string, unknown>): {
     else dropped.push({ key, raw: value });
   }
   return { fields, dropped };
-}
-
-/** Ürün adedi varken kort sayısı ayrıca yazılmaz (§3.4, `court_count.derived`). */
-export function courtCountConflict(fields: Partial<LeadFields>, current: ProductPrefs): boolean {
-  if (!("courtCount" in fields)) return false;
-  const products = fields.products ?? current;
-  return hasAnyProduct({ ...products, roof: { wanted: false, widthM: null, lengthM: null } });
 }
 
 const snake = (s: string) => s.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase());

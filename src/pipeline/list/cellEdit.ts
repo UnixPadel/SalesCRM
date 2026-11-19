@@ -10,7 +10,6 @@ import type {
   ReferenceDto,
   StageCodeDto,
 } from "../../modules/sales-pipeline/api/dto";
-import { otherReply } from "./listColumns";
 
 export type CellForm = "note" | "products" | "contact" | "plan" | "warnings";
 
@@ -64,8 +63,6 @@ export const isTerminalLead = (l: Pick<LeadListDto, "currentStage">): boolean =>
 export function cellAction(colId: string, l: LeadListDto, p: CellPerms): CellAction | null {
   const act = (a: CellAction | null) => (p.canAct ? a : null);
   const admin = (a: CellAction | null) => (p.admin ? a : null);
-  const ch = l.contact.channels;
-  const reply = (type: ActivityTypeDto) => log({ type, outcome: "reply_received", pickChannel: true });
   switch (colId) {
     case "mail":
       return act(log({ type: "email", pickChannel: true }));
@@ -73,12 +70,6 @@ export function cellAction(colId: string, l: LeadListDto, p: CellPerms): CellAct
       return act(log({ type: "whatsapp", pickChannel: true }));
     case "other":
       return act(log({ type: "call", pickChannel: true }));
-    case "mailReply":
-      return act(ch.email?.firstReplyAt ? null : reply("email"));
-    case "waReply":
-      return act(ch.whatsapp?.firstReplyAt ? null : reply("whatsapp"));
-    case "otherReply":
-      return act(otherReply(l) ? null : reply("call"));
     case "proposal":
       return act(l.proposal.given ? null : log({ outcome: "proposal_sent", pickChannel: true }));
     case "last":
@@ -95,10 +86,7 @@ export function cellAction(colId: string, l: LeadListDto, p: CellPerms): CellAct
       return act(isTerminalLead(l) ? null : PICK);
     case "note":
       return act(form("note"));
-    case "standard":
-    case "panoramic":
-    case "fullPanoramic":
-    case "roof":
+    case "products":
       return p.canEditProducts ? form("products") : null;
     case "owner":
     case "country":
@@ -107,10 +95,8 @@ export function cellAction(colId: string, l: LeadListDto, p: CellPerms): CellAct
     case "profile":
     case "band":
       return admin(PICK);
-    case "phoneNo":
-      return admin(form("contact"));
     case "phone":
-      return admin(l.phoneE164 ? null : form("contact"));
+      return admin(form("contact"));
     case "email":
       return admin(l.email ? null : form("contact"));
     case "warn":

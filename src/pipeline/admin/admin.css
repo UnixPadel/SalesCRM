@@ -277,3 +277,26 @@ tr.is-archived td {
   color: var(--text-2);
   font-size: var(--t-sm);
 }
+
+/* Ürün listesi: dosyadan güncelleme önizlemesi. */
+.cat-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  max-block-size: min(60vh, 520px);
+  overflow-y: auto;
+}
+.cat-preview h3 {
+  margin: 0 0 var(--s-1);
+  font-size: var(--t-md, 15px);
+}
+.cat-preview ul {
+  margin: 0;
+  padding-inline-start: var(--s-4);
+}
+.cat-preview li + li {
+  margin-block-start: 2px;
+}
+.cat-preview .cd-check {
+  display: inline-flex;
+}

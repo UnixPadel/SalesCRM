@@ -5,14 +5,13 @@
  */
 import { localeOf } from "../../i18n/lang";
 import type { LeadListDto } from "../../modules/sales-pipeline/api/dto";
-import { courtLine, phoneText, productLine, roofArea, type T } from "../contact/trackingView";
+import { phoneText, productLine, type ProductNames, type T } from "../contact/trackingView";
 
-export type GroupId = "lead" | "reach" | "reply" | "customer" | "proposal" | "products" | "follow" | "form" | "check";
+export type GroupId = "lead" | "reach" | "customer" | "proposal" | "products" | "follow" | "form" | "check";
 
 export const GROUPS: { id: GroupId; label: string; adminOnly?: boolean }[] = [
   { id: "lead", label: "list.group.lead" },
   { id: "reach", label: "list.group.reach" },
-  { id: "reply", label: "list.group.reply" },
   { id: "customer", label: "list.group.customer" },
   { id: "proposal", label: "list.group.proposal" },
   { id: "products", label: "list.group.products" },
@@ -32,6 +31,8 @@ export interface Ctx {
   stageName: (code: string) => string;
   countryName: (code: string) => string;
   sourceName: (source: string) => string;
+  /** Ürün listesi: numara → ad (`/reference.products`). */
+  productName: ProductNames;
   now: number;
 }
 
@@ -95,8 +96,16 @@ export const otherReply = (l: LeadListDto) =>
   OTHER.map((k) => l.contact.channels[k]?.firstReplyAt ?? null)
     .filter((x): x is string => !!x)
     .sort()[0] ?? null;
-const reach = (l: LeadListDto, k: "email" | "whatsapp") =>
-  l.contact.state === "legacy" && !channelSent(l, k) ? LEGACY : yn(channelSent(l, k));
+const REPLIED = "replied";
+/** Kanal hücresinin değer anahtarları: gönderildi mi (eski kayıtta bilinmiyor) ve dönüş alındı mı. */
+const reachValues = (sent: boolean, replied: boolean, l: LeadListDto): string[] => [
+  l.contact.state === "legacy" && !sent ? LEGACY : yn(sent),
+  ...(replied ? [REPLIED] : []),
+];
+const reachLabel = (v: string, c: Ctx) => (v === REPLIED ? `✔ ${c.t("list.replyReceived")}` : ynLabel(v, c));
+/** Excel hücresi: ✔/✘, dönüş varsa tarihiyle ("✔ · dönüş 12.03.2026"). */
+const reachCsv = (sent: boolean, replyAt: string | null, c: Ctx) =>
+  tick(sent) + (replyAt ? ` · ${c.t("list.reply")} ${ddmm(replyAt, c)}` : "");
 const excelNo = (l: LeadListDto) => String(l.extraAnswers?.["excel_no"] ?? "");
 const excelOwner = (l: LeadListDto) =>
   typeof l.extraAnswers?.["excel_owner"] === "string" ? String(l.extraAnswers["excel_owner"]) : "";
@@ -124,16 +133,18 @@ export const COLUMNS: ColumnDef[] = [
     csv: (l) => l.fullName,
   },
   {
-    // Numaranın kendisi, adın hemen yanında. Arama bağlantıları "Telefon" sütununda kalır; Dışa aktarımda numara oradan çıkar.
-    id: "phoneNo",
+    // Numara ve arama/WhatsApp bağlantıları tek hücrede, adın hemen yanında.
+    id: "phone",
     group: "lead",
-    label: "list.col.phoneNo",
-    param: "f_phoneNo",
-    kind: "text",
+    label: "list.col.phone",
+    param: "f_phone",
+    kind: "values",
+    values: (l) => [yn(!!l.phoneE164)],
+    valueLabel: (v, c) => (v === YES ? c.t("list.has") : c.t("list.hasNot")),
+    order: [YES, NO],
     text: (l) => (l.phoneE164 ? `${l.phoneE164} ${phoneText(l.phoneE164)}` : ""),
     sort: (l) => l.phoneE164 ?? "~",
     csv: (l) => l.phoneE164 ?? "",
-    noCsv: true,
   },
   {
     id: "excelNo",
@@ -193,18 +204,6 @@ export const COLUMNS: ColumnDef[] = [
     csv: (l, c) => c.sourceName(l.source),
   },
   {
-    id: "phone",
-    group: "lead",
-    label: "list.col.phone",
-    param: "f_phone",
-    kind: "values",
-    values: (l) => [yn(!!l.phoneE164)],
-    valueLabel: (v, c) => (v === YES ? c.t("list.has") : c.t("list.hasNot")),
-    order: [YES, NO],
-    sort: (l) => l.phoneE164 ?? "~",
-    csv: (l) => l.phoneE164 ?? "",
-  },
-  {
     id: "email",
     group: "lead",
     label: "list.col.email",
@@ -222,11 +221,11 @@ export const COLUMNS: ColumnDef[] = [
     label: "list.col.mail",
     param: "f_mail",
     kind: "values",
-    values: (l) => [reach(l, "email")],
-    valueLabel: ynLabel,
-    order: [YES, NO, LEGACY],
-    sort: (l) => Number(channelSent(l, "email")),
-    csv: (l) => tick(channelSent(l, "email")),
+    values: (l) => reachValues(channelSent(l, "email"), !!l.contact.channels.email?.firstReplyAt, l),
+    valueLabel: reachLabel,
+    order: [YES, REPLIED, NO, LEGACY],
+    sort: (l) => (l.contact.channels.email?.count ?? 0) + (l.contact.channels.email?.firstReplyAt ? 0.5 : 0),
+    csv: (l, c) => reachCsv(channelSent(l, "email"), l.contact.channels.email?.firstReplyAt ?? null, c),
   },
   {
     id: "wa",
@@ -234,11 +233,11 @@ export const COLUMNS: ColumnDef[] = [
     label: "list.col.wa",
     param: "f_wa",
     kind: "values",
-    values: (l) => [reach(l, "whatsapp")],
-    valueLabel: ynLabel,
-    order: [YES, NO, LEGACY],
-    sort: (l) => Number(channelSent(l, "whatsapp")),
-    csv: (l) => tick(channelSent(l, "whatsapp")),
+    values: (l) => reachValues(channelSent(l, "whatsapp"), !!l.contact.channels.whatsapp?.firstReplyAt, l),
+    valueLabel: reachLabel,
+    order: [YES, REPLIED, NO, LEGACY],
+    sort: (l) => (l.contact.channels.whatsapp?.count ?? 0) + (l.contact.channels.whatsapp?.firstReplyAt ? 0.5 : 0),
+    csv: (l, c) => reachCsv(channelSent(l, "whatsapp"), l.contact.channels.whatsapp?.firstReplyAt ?? null, c),
   },
   {
     id: "other",
@@ -246,47 +245,11 @@ export const COLUMNS: ColumnDef[] = [
     label: "list.col.other",
     param: "f_other",
     kind: "values",
-    values: (l) => [yn(otherCount(l) > 0)],
-    valueLabel: ynLabel,
-    order: [YES, NO],
-    sort: (l) => otherCount(l),
-    csv: (l) => tick(otherCount(l) > 0),
-  },
-  {
-    id: "mailReply",
-    group: "reply",
-    label: "list.col.mailReply",
-    param: "f_mailReply",
-    kind: "values",
-    values: (l) => [yn(!!l.contact.channels.email?.firstReplyAt)],
-    valueLabel: ynLabel,
-    order: [YES, NO],
-    sort: (l) => l.contact.channels.email?.firstReplyAt ?? "",
-    csv: (l, c) => evet(!!l.contact.channels.email?.firstReplyAt, c),
-  },
-  {
-    id: "waReply",
-    group: "reply",
-    label: "list.col.waReply",
-    param: "f_waReply",
-    kind: "values",
-    values: (l) => [yn(!!l.contact.channels.whatsapp?.firstReplyAt)],
-    valueLabel: ynLabel,
-    order: [YES, NO],
-    sort: (l) => l.contact.channels.whatsapp?.firstReplyAt ?? "",
-    csv: (l, c) => evet(!!l.contact.channels.whatsapp?.firstReplyAt, c),
-  },
-  {
-    id: "otherReply",
-    group: "reply",
-    label: "list.col.otherReply",
-    param: "f_otherReply",
-    kind: "values",
-    values: (l) => [yn(!!otherReply(l))],
-    valueLabel: ynLabel,
-    order: [YES, NO],
-    sort: (l) => otherReply(l) ?? "",
-    csv: (l, c) => evet(!!otherReply(l), c),
+    values: (l) => reachValues(otherCount(l) > 0, !!otherReply(l), l),
+    valueLabel: reachLabel,
+    order: [YES, REPLIED, NO, LEGACY],
+    sort: (l) => otherCount(l) + (otherReply(l) ? 0.5 : 0),
+    csv: (l, c) => reachCsv(otherCount(l) > 0, otherReply(l), c),
   },
   {
     id: "status",
@@ -324,36 +287,17 @@ export const COLUMNS: ColumnDef[] = [
     sort: (l) => l.proposal.at ?? (l.proposal.given ? "0" : ""),
     csv: (l, c) => evet(l.proposal.given, c),
   },
-  ...(["standard", "panoramic", "fullPanoramic"] as const).map((k): ColumnDef => ({
-    id: k,
-    group: "products",
-    label: `product.${k === "fullPanoramic" ? "full_panoramic" : k}`,
-    param: `f_${k}`,
-    kind: "values",
-    values: (l) => [yn((l.products[k] ?? 0) > 0)],
-    valueLabel: ynLabel,
-    order: [YES, NO],
-    sort: (l) => l.products[k] ?? 0,
-    csv: (l) => (l.products[k] ? String(l.products[k]) : ""),
-  })),
   {
-    id: "roof",
+    // Yalnız girilmiş ürünler; formdan gelen kort sayısı "Kort sayısı" sütunundadır.
+    id: "products",
     group: "products",
-    label: "product.roof",
-    param: "f_roof",
+    label: "list.col.products",
+    param: "f_products",
     kind: "values",
-    values: (l) => [yn(l.products.roof.wanted)],
-    valueLabel: ynLabel,
-    order: [YES, NO],
-    sort: (l) => roofArea(l.products) ?? (l.products.roof.wanted ? 0 : -1),
-    csv: (l) => {
-      const a = roofArea(l.products);
-      return !l.products.roof.wanted
-        ? ""
-        : a === null
-          ? "✔"
-          : `${l.products.roof.widthM} x ${l.products.roof.lengthM} m = ${a} m2`;
-    },
+    values: (l) => (l.products.length ? l.products.map((p) => String(p.productId)) : [NONE]),
+    valueLabel: (v, c) => (v === NONE ? c.t("product.none") : c.productName(Number(v))),
+    sort: (l) => l.products.reduce((n, p) => n + p.qty, 0),
+    csv: (l, c) => l.products.map((p) => `${p.qty} ${c.productName(p.productId)}`).join("; "),
   },
   {
     id: "last",
@@ -523,7 +467,7 @@ export function columnRuns(cols: readonly ColumnDef[], hidden: readonly string[]
   return out;
 }
 
-/** Katlı grubun özet metni ("Ulaşıldı", "2 Panoramic · Kapatma 200 m²", "3 ay içinde · Tam kapalı"). */
+/** Katlı grubun özet metni ("Ulaşıldı", "2 Panoramic Padel Court · 1 Padel Court Cover", "3 ay içinde · Tam kapalı"). */
 export function groupSummary(g: GroupId, l: LeadListDto, c: Ctx): string {
   switch (g) {
     case "reach":
@@ -532,10 +476,8 @@ export function groupSummary(g: GroupId, l: LeadListDto, c: Ctx): string {
         : l.contact.state === "legacy"
           ? c.t("summary.legacyShort")
           : c.t("summary.never");
-    case "reply":
-      return l.contact.replied ? `✔ ${c.t("list.replied")}` : "—";
     case "products":
-      return productLine(l.products, c.t, c.lang, true) || courtLine(l, c.t) || "—";
+      return productLine(l.products, c.productName, 2) || "—";
     case "form":
       return (
         [

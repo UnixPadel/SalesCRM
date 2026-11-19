@@ -13,6 +13,9 @@ import type {
   StageMappingsDto,
 } from "../../modules/integration-settings/api/dto";
 import type {
+  CatalogImportBody,
+  CatalogImportResultDto,
+  CatalogProductDto,
   MergePersonResultDto,
   OrganizationDto,
   PoolApplyResultDto,
@@ -71,6 +74,9 @@ export const adminApi = {
     call<TerritoryRuleDto>("PUT", `/territories/${enc(countryCode)}`, body),
   removeTerritory: (countryCode: string) => call<void>("DELETE", `/territories/${enc(countryCode)}`),
   applyToPool: (dryRun: boolean) => call<PoolApplyResultDto>("POST", "/territories/apply-to-pool", { dryRun }),
+
+  products: () => call<CatalogProductDto[]>("GET", "/products"),
+  importProducts: (body: CatalogImportBody) => call<CatalogImportResultDto>("POST", "/products/import", body),
 
   mergePerson: (targetId: string, sourceId: string) =>
     call<MergePersonResultDto>("POST", `/persons/${enc(targetId)}/merge`, { sourceId }),

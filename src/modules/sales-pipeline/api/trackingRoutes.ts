@@ -13,7 +13,6 @@ import {
   CONTACT_CHANNELS,
   CONTACT_RULES,
   COURT_COUNT_BANDS,
-  COURT_PRODUCTS,
   CUSTOMER_PROFILES,
   CUSTOMER_STATUSES,
   CUSTOMER_STATUS_STYLE,
@@ -31,6 +30,7 @@ import {
   isLeadSource,
   isStageCode,
   timelineHeat,
+  type CatalogProduct,
   type LeadSource,
   type StageCode,
 } from "../domain";
@@ -91,7 +91,11 @@ export function parseLeadFilter(
 }
 
 /** /reference'ın Faz 7g listeleri. */
-export function trackingReference(policy: { repsEditProducts: boolean }, timeZone?: string): TrackingReferenceDto {
+export function trackingReference(
+  policy: { repsEditProducts: boolean },
+  timeZone?: string,
+  products: readonly CatalogProduct[] = [],
+): TrackingReferenceDto {
   return {
     activityTypes: [...ACTIVITY_TYPES],
     contactChannels: [...CONTACT_CHANNELS],
@@ -115,10 +119,7 @@ export function trackingReference(policy: { repsEditProducts: boolean }, timeZon
     installTimelines: INSTALL_TIMELINES.map((code) => ({ code, heat: timelineHeat(code) ?? "cold" })),
     customerProfiles: [...CUSTOMER_PROFILES],
     courtCountBands: [...COURT_COUNT_BANDS],
-    products: [
-      ...COURT_PRODUCTS.map((code) => ({ code, kind: "court" as const })),
-      { code: "roof", kind: "roof" as const },
-    ],
+    products: products.map((p) => ({ id: p.id, name: p.name, active: p.active })),
     productQtyMax: PRODUCT_QTY_MAX,
     warningCodes: WARNING_CODES.map((code) => ({
       code,

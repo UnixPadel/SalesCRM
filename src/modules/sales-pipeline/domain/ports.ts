@@ -6,6 +6,7 @@ import type { DomainEvent } from "./events";
 import type { Lead, LeadAttribution, LeadConsent, LeadSource, Person, StageEvent } from "./lead";
 import type { LeadFields } from "./opportunity";
 import type { Organization, OrganizationFields, OrganizationType } from "./organization";
+import type { CatalogImportPlan, CatalogProduct, CatalogRow } from "./products";
 import type { StageCode } from "./stage";
 
 /** Portlar (Genel plan kural 2): uygulamalar infrastructure katmanında, testler sahte uygulamayla. */
@@ -158,6 +159,17 @@ export interface LostReasonSource {
   activeCodes(): Promise<string[]>;
 }
 
+/** Ürün listesi (yönetimdeki "Ürün listesi" sayfası). */
+export interface ProductCatalogRepository {
+  /** Bütün ürünler (kullanımdan kalkanlar dahil), dosyadaki sırayla. */
+  list(): Promise<CatalogProduct[]>;
+  /**
+   * Planı uygular: eklenenler ve adı değişenler yazılır, kalkanlar pasif, geri gelenler aktif olur. `order` dosyadaki
+   * ürün numaraları sırasıdır (sıra numarası buradan).
+   */
+  apply(plan: CatalogImportPlan, order: readonly CatalogRow[], at: Date): Promise<void>;
+}
+
 export interface ActivityRepository {
   findById(id: string): Promise<Activity | undefined>;
   listByLead(leadId: string): Promise<Activity[]>;
@@ -230,6 +242,7 @@ export interface Repositories {
   outbox: OutboxWriter;
   territories: TerritoryRuleSource;
   lostReasons: LostReasonSource;
+  products: ProductCatalogRepository;
 }
 
 /** Tek transaction: fn içindeki tüm yazmalar birlikte ya da hiç. */

@@ -4,6 +4,7 @@ import { localeOf, useLang } from "../../i18n";
 import type { OwnerRowDto, TrackingCountsDto, TrackingReportDto } from "../../modules/sales-pipeline/api/dto";
 import { useCrm } from "../../state/CrmContext";
 import { contactApi } from "../contact/contactApi";
+import { productNamesOf } from "../contact/trackingView";
 import { useReference, useTeamNames } from "../hooks";
 import { downloadCsv, toCsv } from "../list/csv";
 import { drillDownHref, type CellSelector, type Metric, type ReportFilters } from "./drillDown";
@@ -19,6 +20,7 @@ export function SummaryReport() {
   const { t, lang } = useLang();
   const { isAdmin } = useCrm();
   const { ref } = useReference();
+  const productName = productNamesOf(ref?.products);
   const { team, nameOf } = useTeamNames();
 
   const [scope, setScope] = useState<"all" | "excel">(() => {
@@ -492,15 +494,15 @@ export function SummaryReport() {
                 </thead>
                 <tbody>
                   {report.products.map((p) => {
-                    const name = t(`product.${p.code}`);
+                    const name = productName(p.productId);
                     return (
-                      <tr key={p.code}>
+                      <tr key={p.productId}>
                         <th scope="row">{name}</th>
-                        <td className="num">{n(p.preferred, { product: p.code }, name)}</td>
+                        <td className="num">{n(p.preferred, { product: p.productId }, name)}</td>
                         <td className="num">
                           {n(
                             p.amongProposals,
-                            { product: p.code, within: "proposal" },
+                            { product: p.productId, within: "proposal" },
                             `${name} · ${t("reports.summary.col.inProposals")}`,
                           )}
                         </td>
@@ -508,18 +510,21 @@ export function SummaryReport() {
                         <td className="num">
                           {n(
                             p.amongBuyers,
-                            { product: p.code, within: "buyer" },
+                            { product: p.productId, within: "buyer" },
                             `${name} · ${t("reports.summary.col.inBuyers")}`,
                           )}
                         </td>
-                        <td className="num">
-                          {p.code === "roof"
-                            ? `${(p.totalAreaM2 ?? 0).toLocaleString(localeOf(lang))} m²`
-                            : (p.totalQty ?? 0)}
-                        </td>
+                        <td className="num">{p.totalQty}</td>
                       </tr>
                     );
                   })}
+                  {!report.products.length && (
+                    <tr>
+                      <td colSpan={6} className="muted">
+                        {t("reports.summary.noProducts")}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

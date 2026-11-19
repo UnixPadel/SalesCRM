@@ -4,38 +4,30 @@
  */
 import { translate } from "../../i18n/dict";
 import { isLang, localeOf } from "../../i18n/lang";
-import type { DataWarningDto, LeadListDto, ProductPrefsDto } from "../../modules/sales-pipeline/api/dto";
+import type { DataWarningDto, LeadListDto, LeadProductDto } from "../../modules/sales-pipeline/api/dto";
 
 export type T = (key: string, vars?: Record<string, string | number>) => string;
 
-const num = (n: number, lang: string) => n.toLocaleString(localeOf(lang), { maximumFractionDigits: 2 });
+/** Ürün listesi: numara → ad. Listede yoksa (silinmiş/bilinmeyen) "#numara". */
+export type ProductNames = (id: number) => string;
 
-export function roofArea(p: ProductPrefsDto): number | null {
-  return p.roof.widthM !== null && p.roof.lengthM !== null
-    ? Math.round(p.roof.widthM * p.roof.lengthM * 100) / 100
-    : null;
+export const productNamesOf =
+  (catalog: readonly { id: number; name: string }[] | undefined): ProductNames =>
+  (id) =>
+    catalog?.find((p) => p.id === id)?.name ?? `#${id}`;
+
+/**
+ * Lead'in ürünleri tek satırda: "2 Standard Padel Court · 1 Padel Court Cover". `max` verilirse ilk `max` ürün yazılır,
+ * kalanlar "+3" olur. Ürün yoksa "".
+ */
+export function productLine(p: readonly LeadProductDto[], name: ProductNames, max?: number): string {
+  const parts = p.map((x) => `${x.qty} ${name(x.productId)}`);
+  if (max === undefined || parts.length <= max) return parts.join(" · ");
+  return `${parts.slice(0, max).join(" · ")} +${parts.length - max}`;
 }
 
-/** "2 Panoramic · Kapatma 20 × 10 m (200 m²)"; "×" adet için kullanılmaz [U-M3]. Boşsa "". */
-export function productLine(p: ProductPrefsDto, t: T, lang = "tr", short = false): string {
-  const parts: string[] = [];
-  if (p.standard) parts.push(`${p.standard} ${t("product.standard")}`);
-  if (p.panoramic) parts.push(`${p.panoramic} ${t("product.panoramic")}`);
-  if (p.fullPanoramic) parts.push(`${p.fullPanoramic} ${t("product.full_panoramic")}`);
-  if (p.roof.wanted) {
-    const area = roofArea(p);
-    // "Kapatma (çatı)" → "Kapatma" (ürün özetinde kısa ad).
-    const name = t("product.roof").split(" (")[0]!;
-    if (area === null) parts.push(t("product.roofNoSize"));
-    else if (short) parts.push(`${name} ${num(area, lang)} m²`);
-    else parts.push(`${name} ${num(p.roof.widthM!, lang)} × ${num(p.roof.lengthM!, lang)} m (${num(area, lang)} m²)`);
-  }
-  return parts.join(" · ");
-}
-
-/** Kort satırı (§3.4): ürünlerden > formdaki kesin sayı > bant. */
-export function courtLine(lead: Pick<LeadListDto, "courtTotal" | "courtCount" | "courtCountBand">, t: T): string {
-  if (lead.courtTotal && lead.courtTotal > 0) return t("product.courtsFromProducts", { n: lead.courtTotal });
+/** Formdan gelen kort sayısı (ürünlerden bağımsız): kesin sayı > bant. */
+export function courtLine(lead: Pick<LeadListDto, "courtCount" | "courtCountBand">, t: T): string {
   if (lead.courtCount !== null) return t("product.courtsExact", { n: lead.courtCount });
   if (lead.courtCountBand) return t("product.courtsBand", { band: t(`answer.band.${lead.courtCountBand}`) });
   return "";

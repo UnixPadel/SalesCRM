@@ -105,12 +105,8 @@ describe("dataWarnings", () => {
     expect(codes(l, NONE)).toEqual([]);
   });
 
-  it("roof_size_missing: Kapatma seçili ve ölçülerden biri boş", () => {
-    const roof = (widthM: number | null, lengthM: number | null) =>
-      lead({ products: { ...emptyTrackingFields().products, roof: { wanted: true, widthM, lengthM } } });
-    expect(codes(roof(null, null))).toEqual(["roof_size_missing"]);
-    expect(codes(roof(20, null))).toEqual(["roof_size_missing"]);
-    expect(codes(roof(20, 10))).toEqual([]);
+  it("ürünler uyarı üretmez (çatı ölçüsü uyarısı kalktı)", () => {
+    expect(codes(lead({ products: [{ productId: 27, qty: 1 }] }))).toEqual([]);
   });
 
   it("import_review: import_issues boş değilse, parametre kod listesi", () => {
@@ -141,7 +137,7 @@ describe("dataWarnings", () => {
       only(lead({ customerStatus: "not_interested", currentStage: "CONTACTED" }), "status_stage_conflict"),
     ).toEqual({
       code: "status_stage_conflict",
-      severity: "info",
+      severity: "warn",
       checked: false,
       params: { status: "not_interested", stage: "CONTACTED" },
     });
@@ -176,9 +172,9 @@ describe("visibleWarnings ve openWarnings", () => {
     lead({
       phoneE164: GB_MOBILE,
       country: "TR",
-      products: { ...emptyTrackingFields().products, roof: { wanted: true, widthM: null, lengthM: null } },
+      customerStatus: "not_interested",
       extraAnswers: { import_issues: ["excel_warning"], dial_code_assumed: "+44" },
-      checkedWarnings: ["roof_size_missing"],
+      checkedWarnings: ["status_stage_conflict"],
     }),
     NONE,
     TZ,
@@ -188,13 +184,13 @@ describe("visibleWarnings ve openWarnings", () => {
     expect(visibleWarnings(all, true)).toBe(all);
     expect(all.map((w) => w.code)).toEqual([
       "phone_country_mismatch",
-      "roof_size_missing",
       "import_review",
       "dial_code_assumed",
+      "status_stage_conflict",
     ]);
   });
 
-  it("satışçı yalnız telefon ve çatı uyarılarını, kontrol edilmemişse görür [U-I18]", () => {
+  it("satışçı yalnız telefon uyarılarını, kontrol edilmemişse görür [U-I18]", () => {
     expect(visibleWarnings(all, false).map((w) => w.code)).toEqual(["phone_country_mismatch"]);
   });
 
@@ -205,7 +201,7 @@ describe("visibleWarnings ve openWarnings", () => {
 
 describe("uyarı sabitleri", () => {
   it("kod listesi, önem ve satışçı görünürlüğü tutarlı", () => {
-    expect(WARNING_CODES).toHaveLength(10);
+    expect(WARNING_CODES).toHaveLength(9);
     expect(Object.keys(WARNING_SEVERITY).sort()).toEqual([...WARNING_CODES].sort());
     expect(REP_VISIBLE_WARNINGS.every((c) => WARNING_CODES.includes(c))).toBe(true);
     for (const c of WARNING_CODES) expect(isWarningCode(c)).toBe(true);

@@ -26,7 +26,6 @@ import {
   type ActivityType,
   type CustomerStatus,
   type Lead,
-  type ProductPrefs,
   type StageCode,
 } from "../modules/sales-pipeline/domain";
 import { PgUnitOfWork } from "../modules/sales-pipeline/infrastructure";
@@ -114,8 +113,35 @@ export const statusFromExcel = (raw: string): CustomerStatus | null | "unknown" 
 
 const MIN_DAY = "2024-01-01";
 
-/** Excel satırının ürünleri ve sorunları (iş emri §6.3, P–X). */
-export function productsFromRow(r: ExcelLeadRow): { products: unknown; issues: string[]; any: boolean } {
+/**
+ * Eski SATIŞ TAKİP sütunlarının ürün listesindeki karşılıkları (migration 0017 ile aynı eşleme): Standard → 21,
+ * Panoramic → 22, Full Panoramic → 25, Kapatma → 27 Padel Court Cover (1 adet).
+ */
+export const LEGACY_PRODUCT_IDS = { standard: 21, panoramic: 22, fullPanoramic: 25, roof: 27 } as const;
+
+/** Ölçü metni: "20", "10,5" (Türkçe ondalık). */
+const meters = (n: number): string => String(Math.round(n * 100) / 100).replace(".", ",");
+
+/** Kapatma işaretli eski kaydın notu (migration 0017 ile aynı metin). */
+export function roofNote(widthM: number | null, lengthM: number | null): string {
+  const size =
+    widthM !== null && lengthM !== null
+      ? ` (çatı ölçüsü ${meters(widthM)} × ${meters(lengthM)} m)`
+      : widthM !== null
+        ? ` (çatı genişliği ${meters(widthM)} m)`
+        : lengthM !== null
+          ? ` (çatı uzunluğu ${meters(lengthM)} m)`
+          : "";
+  return `Eski kayıt: kapatma istedi${size}`;
+}
+
+/** Excel satırının ürünleri ve sorunları (iş emri §6.3, P–X); Kapatma için nota eklenecek metin `roofNote`. */
+export function productsFromRow(r: ExcelLeadRow): {
+  products: { productId: number; qty: number }[];
+  issues: string[];
+  any: boolean;
+  roofNote: string | null;
+} {
   const issues: string[] = [];
   const qty = (c: { tick: boolean; qty: number | null }): number | null => {
     const q = c.qty !== null && c.qty > 0 ? Math.round(c.qty) : null;
@@ -129,19 +155,22 @@ export function productsFromRow(r: ExcelLeadRow): { products: unknown; issues: s
   const w = r.roof.widthM !== null && r.roof.widthM > 0 ? r.roof.widthM : null;
   const l = r.roof.lengthM !== null && r.roof.lengthM > 0 ? r.roof.lengthM : null;
   if (!r.roof.tick && (w !== null || l !== null)) issues.push("roof_dims_without_tick");
-  const products = {
-    standard: qty(r.standard),
-    panoramic: qty(r.panoramic),
-    fullPanoramic: qty(r.fullPanoramic),
-    roof: { wanted: r.roof.tick || w !== null || l !== null, widthM: w, lengthM: l },
-  };
-  const any =
-    products.standard !== null ||
-    products.panoramic !== null ||
-    products.fullPanoramic !== null ||
-    products.roof.wanted;
-  return { products, issues: [...new Set(issues)], any };
+  const roof = r.roof.tick || w !== null || l !== null;
+  const products = (
+    [
+      [LEGACY_PRODUCT_IDS.standard, qty(r.standard)],
+      [LEGACY_PRODUCT_IDS.panoramic, qty(r.panoramic)],
+      [LEGACY_PRODUCT_IDS.fullPanoramic, qty(r.fullPanoramic)],
+      [LEGACY_PRODUCT_IDS.roof, roof ? 1 : null],
+    ] as [number, number | null][]
+  )
+    .filter((x): x is [number, number] => x[1] !== null)
+    .map(([productId, n]) => ({ productId, qty: n }));
+  return { products, issues: [...new Set(issues)], any: products.length > 0, roofNote: roof ? roofNote(w, l) : null };
 }
+
+const withNote = (notes: string, note: string | null): string =>
+  !note ? notes : notes.trim() ? `${notes}\n${note}` : note;
 
 /** AJ metninden köken bilgisi (iş emri §6.3). */
 export function provenanceFromWarning(text: string): Record<string, string> {
@@ -488,7 +517,7 @@ export async function importExcel(db: Db, snap: ExcelSnapshot, opts: ImportExcel
         email,
         phone: r.phone || null,
         country: parseExcelCountry(r.country),
-        notes: r.notes,
+        notes: withNote(r.notes, prod.roofNote),
         campaign: { campaignName: r.campaign || null },
         customerStatus: statusR === "unknown" ? null : statusR,
         ...(prod.any ? { products: prod.products } : {}),
@@ -538,9 +567,11 @@ export async function importExcel(db: Db, snap: ExcelSnapshot, opts: ImportExcel
       }
       if (prod.any && !hasAnyProduct(l.products)) {
         const p = parseProductPrefs(prod.products);
-        if (p.ok && !samePrefs(p.value, l.products)) fill["products"] = p.value;
+        if (p.ok) fill["products"] = p.value;
+        if (prod.roofNote && !l.notes.includes(prod.roofNote))
+          fill["notes"] = withNote(l.notes || r.notes, prod.roofNote);
       }
-      if (!l.notes && r.notes) fill["notes"] = r.notes;
+      if (!l.notes && r.notes && !("notes" in fill)) fill["notes"] = r.notes;
       if (Object.keys(fill).length) {
         const u = await sp.updateLeadFields.execute({ leadId: l.id, fields: fill, actor: IMPORT_ACTOR });
         if (u.ok) change();
@@ -738,8 +769,4 @@ export async function importExcel(db: Db, snap: ExcelSnapshot, opts: ImportExcel
     }
   }
   return report;
-}
-
-function samePrefs(a: ProductPrefs, b: ProductPrefs): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
 }

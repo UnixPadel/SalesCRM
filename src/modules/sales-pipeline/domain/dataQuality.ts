@@ -15,7 +15,6 @@ export type WarningCode =
   | "phone_unreadable"
   | "country_missing"
   | "contact_before_lead"
-  | "roof_size_missing"
   | "import_review"
   | "country_from_phone"
   | "dial_code_assumed"
@@ -27,7 +26,6 @@ export const WARNING_CODES: readonly WarningCode[] = [
   "phone_unreadable",
   "country_missing",
   "contact_before_lead",
-  "roof_size_missing",
   "import_review",
   "country_from_phone",
   "dial_code_assumed",
@@ -45,19 +43,15 @@ export const WARNING_SEVERITY: Readonly<Record<WarningCode, WarningSeverity>> = 
   phone_unreadable: "warn",
   country_missing: "warn",
   contact_before_lead: "warn",
-  roof_size_missing: "warn",
   import_review: "warn",
   country_from_phone: "info",
   dial_code_assumed: "info",
-  status_stage_conflict: "info",
+  // Müşteri durumu aşamayla çelişiyor: Uyarılar sütununda sayılır (yönetici düzeltir ya da "Kontrol edildi" der).
+  status_stage_conflict: "warn",
 };
 
-/** Satışçının işini etkileyen üç uyarı; bilginin yanında satır içi görünür [U-I18]. */
-export const REP_VISIBLE_WARNINGS: readonly WarningCode[] = [
-  "phone_country_mismatch",
-  "phone_invalid",
-  "roof_size_missing",
-];
+/** Satışçının işini etkileyen uyarılar; bilginin yanında satır içi görünür [U-I18]. */
+export const REP_VISIBLE_WARNINGS: readonly WarningCode[] = ["phone_country_mismatch", "phone_invalid"];
 
 /** İçe aktarma sorunları (`extraAnswers.import_issues`; `import_review` uyarısının parametresi) [K-I9]. */
 export const IMPORT_ISSUE_CODES = [
@@ -126,8 +120,6 @@ export function dataWarnings(lead: Lead, contact: ContactSummary, timeZone: stri
   if (contact.firstAt && calendarDay(contact.firstAt, timeZone) < calendarDay(lead.createdAt, timeZone)) {
     found.push({ code: "contact_before_lead" });
   }
-  const roof = lead.products.roof;
-  if (roof.wanted && (roof.widthM === null || roof.lengthM === null)) found.push({ code: "roof_size_missing" });
   const issues = importIssues(extra.import_issues);
   if (issues.length) found.push({ code: "import_review", params: { issues: issues.join(",") } });
   if (extra.country_source === "phone") found.push({ code: "country_from_phone" });
@@ -151,7 +143,7 @@ export function dataWarnings(lead: Lead, contact: ContactSummary, timeZone: stri
     });
 }
 
-/** Yönetici bütün uyarıları görür; satışçı yalnız işini etkileyen ve kontrol edilmemiş üçünü [U-I18]. */
+/** Yönetici bütün uyarıları görür; satışçı yalnız işini etkileyen ve kontrol edilmemiş olanları [U-I18]. */
 export const visibleWarnings = (all: DataWarning[], isAdmin: boolean): DataWarning[] =>
   isAdmin ? all : all.filter((w) => REP_VISIBLE_WARNINGS.includes(w.code) && !w.checked);
 

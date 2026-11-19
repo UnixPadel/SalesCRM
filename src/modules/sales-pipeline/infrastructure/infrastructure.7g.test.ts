@@ -18,6 +18,7 @@ import {
   INSTALL_TIMELINES,
   NO_CONTACT_FIELDS,
   emptyTrackingFields,
+  planCatalogImport,
   type Activity,
   type ContactLog,
   type Lead,
@@ -105,16 +106,14 @@ const activity = (leadId: string, over: Partial<Activity> = {}): Activity => ({
 });
 
 describe("Faz 7g: lead satış takip sütunları", () => {
-  it("ürünler (numeric ölçü sayı olarak), form cevapları, reklam yüzeyi, uyarı listesi gidiş-dönüş", async () => {
+  it("ürünler, form cevapları, reklam yüzeyi, uyarı listesi gidiş-dönüş", async () => {
     const lead = await uow.run(async (r) => {
       const l = baseLead(uuidGenerator.next(), await personId(r, 1), {
         customerStatus: "collecting_prices",
-        products: {
-          standard: 2,
-          panoramic: null,
-          fullPanoramic: 29,
-          roof: { wanted: true, widthM: 10.5, lengthM: 20 },
-        },
+        products: [
+          { productId: 21, qty: 2 },
+          { productId: 27, qty: 29 },
+        ],
         installSite: "covered_court",
         installTimeline: "m0_3",
         customerProfile: "club_operator",
@@ -128,23 +127,20 @@ describe("Faz 7g: lead satış takip sütunları", () => {
     });
     const back = await uow.run((r) => r.leads.findById(lead.id));
     expect(back).toEqual(lead);
-    expect(typeof back!.products.roof.widthM).toBe("number");
-    expect(typeof back!.products.standard).toBe("number");
+    expect(typeof back!.products[0]!.qty).toBe("number");
+    const updated = [{ productId: 22, qty: 3 }];
+    await uow.run((r) => r.leads.updateFields(lead.id, { products: updated }, T0));
+    expect((await uow.run((r) => r.leads.findById(lead.id)))!.products).toEqual(updated);
   });
 
-  it("boş alanlar: tercih yok, Kapatma yok, uyarı listesi boş dizi", async () => {
+  it("boş alanlar: ürün yok, uyarı listesi boş dizi", async () => {
     const lead = await uow.run(async (r) => {
       const l = baseLead(uuidGenerator.next(), await personId(r, 2));
       await r.leads.insert(l);
       return l;
     });
     const back = (await uow.run((r) => r.leads.findById(lead.id)))!;
-    expect(back.products).toEqual({
-      standard: null,
-      panoramic: null,
-      fullPanoramic: null,
-      roof: { wanted: false, widthM: null, lengthM: null },
-    });
+    expect(back.products).toEqual([]);
     expect(back).toMatchObject({
       customerStatus: null,
       installSite: null,
@@ -192,35 +188,27 @@ describe("Faz 7g: lead satış takip sütunları", () => {
     for (const a of written.acts) expect(await uow.run((r) => r.activities.findById(a.id))).toEqual(a);
   });
 
-  it("DB kısıtı: Kapatma işaretsiz ölçü ve aralık dışı adet reddedilir", async () => {
-    await expect(
-      uow.run(async (r) =>
-        r.leads.insert(
-          baseLead(uuidGenerator.next(), await personId(r, 3), {
-            products: {
-              standard: null,
-              panoramic: null,
-              fullPanoramic: null,
-              roof: { wanted: false, widthM: 5, lengthM: null },
-            },
-          }),
-        ),
-      ),
-    ).rejects.toThrow(/leads_roof_dims_need_roof/);
-    await expect(
-      uow.run(async (r) =>
-        r.leads.insert(
-          baseLead(uuidGenerator.next(), await personId(r, 4), {
-            products: {
-              standard: 30,
-              panoramic: null,
-              fullPanoramic: null,
-              roof: { wanted: false, widthM: null, lengthM: null },
-            },
-          }),
-        ),
-      ),
-    ).rejects.toThrow(/leads_qty_standard_check/);
+  it("ürün listesi: dosyadaki 35 ürün yüklü; plan uygulanır (eklenen, adı değişen, kalkan, sıra)", async () => {
+    const list = await uow.run((r) => r.products.list());
+    expect(list).toHaveLength(35);
+    expect(list.slice(0, 2).map((p) => [p.id, p.name, p.active])).toEqual([
+      [21, "Standard Padel Court", true],
+      [22, "Panoramic Padel Court", true],
+    ]);
+    expect(list.find((p) => p.id === 79)).toBeUndefined();
+    expect(list.find((p) => p.id === 28)!.name).toBe("MobilFOLD Court");
+    expect(list.find((p) => p.id === 63)!.name).toBe("Mobile FOLD Padbol");
+    const rows = [
+      { id: 90, name: "Yeni Ürün" },
+      ...list.filter((p) => p.id !== 41).map((p) => ({ id: p.id, name: p.id === 22 ? "Panoramic Court" : p.name })),
+    ];
+    const plan = planCatalogImport(list, rows);
+    await uow.run((r) => r.products.apply(plan, rows, T0));
+    const after = await uow.run((r) => r.products.list());
+    expect(after[0]).toMatchObject({ id: 90, name: "Yeni Ürün", active: true });
+    expect(after.find((p) => p.id === 22)!.name).toBe("Panoramic Court");
+    expect(after.find((p) => p.id === 41)!.active).toBe(false);
+    expect(after.at(-1)!.id).toBe(41);
   });
 });
 

@@ -313,27 +313,64 @@
   flex-direction: column;
   gap: var(--s-2);
 }
-.pp-row {
+.pp-top {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.pp-search {
+  flex: 1 1 220px;
+  min-block-size: var(--hit);
+}
+.pp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-block-size: min(420px, 55vh);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+}
+.pp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--s-3);
+  padding: var(--s-1) var(--s-2);
+  border-block-end: 1px solid var(--border);
+}
+.pp-row:last-child {
+  border-block-end: 0;
+}
+.pp-row.on {
+  background: var(--brand-weak);
 }
 .pp-row .cd-check {
-  min-inline-size: 180px;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+.pp-empty {
+  padding: var(--s-3);
 }
 .stepper {
   display: inline-flex;
+  flex: none;
   align-items: stretch;
   border: 1px solid var(--border-strong);
   border-radius: var(--r-2);
   overflow: hidden;
+}
+.stepper[aria-disabled="true"] {
+  opacity: 0.45;
 }
 .stepper button {
   inline-size: var(--hit);
   min-block-size: var(--hit);
   border: 0;
   background: var(--surface-2);
+  color: inherit;
   font-size: var(--t-lg);
   cursor: pointer;
 }
@@ -346,20 +383,15 @@
   border: 0;
   text-align: center;
   font-variant-numeric: tabular-nums;
+  background: transparent;
+  color: inherit;
 }
-.pp-dims {
-  display: inline-flex;
-  gap: var(--s-2);
-  flex-wrap: wrap;
+.pp-show {
+  margin: 0;
+  padding-inline-start: var(--s-4);
 }
-.pp-dim {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-}
-.pp-dim input {
-  inline-size: 96px;
-  min-block-size: var(--hit);
+.pp-show li + li {
+  margin-block-start: var(--s-1);
 }
 .form-actions {
   display: flex;
@@ -717,7 +749,50 @@
   min-block-size: 0;
   block-size: calc(100% - 4px);
 }
-/* Telefon no: metin seçilebilir kalsın diye yalnız kalem tıklanır. */
+/* Telefon: numara üstte (seçilebilir kalsın diye yalnız kalem tıklanır), altında arama ve WhatsApp bağlantıları. */
+.ll-phone {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ll-phone .num {
+  white-space: nowrap;
+}
+/* Kanal hücresi: gönderim işareti, altında dönüş. */
+.ll-reach {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ll-reply {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--t-sm);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.ll-products-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  max-inline-size: 320px;
+}
+.ll-products {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ll-more {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--brand-weak);
+  color: var(--brand-ink);
+  font-size: var(--t-sm);
+  font-weight: 700;
+}
 .ll-with-pen {
   display: inline-flex;
   align-items: center;

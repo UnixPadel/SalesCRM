@@ -7,6 +7,7 @@ import { pipelineApi } from "../pipeline/api";
 import { useReference, useTodayCount } from "../pipeline/hooks";
 import { useCrm, type Theme } from "../state/CrmContext";
 import { LangMenu } from "./LangMenu";
+import { WhatsNewDialog, useWhatsNew } from "./WhatsNew";
 import { Avatar, Button, Icon } from "./ui";
 
 const THEMES: { key: Theme; icon: string }[] = [
@@ -27,6 +28,8 @@ interface Opt {
 export function Header({ route, onNewLead }: { route: Route; onNewLead: () => void }) {
   const { user, isAdmin, isViewer, isMarketing, theme, setTheme, logout } = useCrm();
   const { t } = useLang();
+  // "Neler yeni": yeni güncelleme notu varsa açılışta bir kez; menüden her zaman.
+  const whatsNew = useWhatsNew();
 
   // Faz 6a: "Bugün" rozeti yeni aktivite ucundan (gecikmiş + bugün).
   const dueCount = useTodayCount();
@@ -95,8 +98,10 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
           theme={theme}
           onTheme={setTheme}
           onLogout={logout}
+          onWhatsNew={whatsNew.show}
         />
       </div>
+      {whatsNew.open && <WhatsNewDialog onClose={whatsNew.close} />}
     </header>
   );
 }
@@ -110,6 +115,7 @@ function UserMenu({
   theme,
   onTheme,
   onLogout,
+  onWhatsNew,
 }: {
   name: string;
   email: string;
@@ -119,6 +125,7 @@ function UserMenu({
   theme: Theme;
   onTheme: (t: Theme) => void;
   onLogout: () => void;
+  onWhatsNew: () => void;
 }) {
   const { t } = useLang();
   const ref = useRef<HTMLDetailsElement>(null);
@@ -164,6 +171,15 @@ function UserMenu({
           <span className="muted">{t("theme.next", { name: t(`theme.${next.key}`) })}</span>
         </button>
         <LangMenu />
+        <button
+          className="menu-item"
+          onClick={() => {
+            if (ref.current) ref.current.open = false;
+            onWhatsNew();
+          }}
+        >
+          <Icon name="star" /> {t("whatsNew.menu")}
+        </button>
         <button className="menu-item danger" onClick={onLogout}>
           <Icon name="logout" /> {t("auth.logout")}
         </button>

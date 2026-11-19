@@ -10,7 +10,16 @@ import { StageTag } from "../bits";
 import { contactApi } from "../contact/contactApi";
 import { ContactLinks } from "../contact/ContactQuickBar";
 import { ANSWER_LIST, CustomerStatusTag } from "../contact/LeadSections";
-import { dateText, daysAgo, openWarnings, phoneText, roofArea, sourceText, warningText } from "../contact/trackingView";
+import {
+  dateText,
+  daysAgo,
+  openWarnings,
+  phoneText,
+  productLine,
+  productNamesOf,
+  sourceText,
+  warningText,
+} from "../contact/trackingView";
 import { ageTone, useErrorText, useNow, useReference, useTeamNames } from "../hooks";
 import { CellEditors, type CellEditorsApi } from "./CellEditors";
 import { ColumnFilterPopover } from "./ColumnFilterPopover";
@@ -27,6 +36,7 @@ import {
   PINNED_COLUMNS,
   columnRuns,
   groupSummary,
+  otherReply,
   type ColumnDef,
   type Ctx,
   type GroupId,
@@ -91,7 +101,8 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
   const [rows, setRows] = useState<LeadListDto[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [collapsed, setCollapsed] = useState<GroupId[]>(() =>
-    read<GroupId[]>(COLLAPSE_KEY, window.innerWidth < 768 ? ["reply", "customer", "proposal", "products", "form"] : []),
+    // Dar ekranda bazı gruplar katlı başlar; Form cevapları her ekranda açık gelir.
+    read<GroupId[]>(COLLAPSE_KEY, window.innerWidth < 768 ? ["customer", "proposal", "products"] : []),
   );
   const [hiddenCols, setHiddenCols] = useState<string[]>(() => read<string[]>(HIDDEN_KEY, []));
   const [search, setSearch] = useState(params.get("q") ?? "");
@@ -180,6 +191,7 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
       },
       countryName: (c: string) => countryName(c, l),
       sourceName: (s: string) => translate(l, `source.${s}`),
+      productName: productNamesOf(ref?.products),
       now,
     }),
     [fmtDay, nameOf, ref, now],
@@ -357,6 +369,19 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
       );
     const short = (iso: string) =>
       new Date(iso).toLocaleDateString(localeOf(lang), { day: "2-digit", month: "2-digit" });
+    // Kanal hücresi: gönderim işareti, altında dönüş alındıysa "✔ dönüş 12.03" (tahminiyse ≈).
+    const reachCell = (sent: ReactNode, replyAt: string | null, estimated: boolean) =>
+      replyAt ? (
+        <span className="ll-reach">
+          {sent}
+          <span className="ll-reply">
+            <Icon name="check" size={12} /> {t("list.reply")} {estimated ? "≈ " : ""}
+            {short(replyAt)}
+          </span>
+        </span>
+      ) : (
+        sent
+      );
     const perms = cellPerms(l, who);
     const action = cellAction(c.id, l, perms);
     const column = t(c.label);
@@ -435,25 +460,35 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
             )}
           </span>
         );
-      case "phoneNo": {
+      case "phone": {
+        // Boş hücrede yönetici numarayı ekler. Doluysa numara (seçilip kopyalanabilir), arama ve WhatsApp bağlantıları;
+        // yönetici yanındaki kalemle düzeltir.
         if (!l.phoneE164) return editable("—");
-        const num = <span className="num">{phoneText(l.phoneE164)}</span>;
-        // Numara seçilip kopyalanabilsin diye hücrenin tamamı değil, yanındaki kalem tıklanır.
-        return action?.kind === "form" ? (
-          <span className="ll-with-pen">
-            {num}
-            <button
-              type="button"
-              className="ll-pen"
-              title={t("lead.editContact")}
-              aria-label={`${t("lead.editContact")}: ${l.fullName}`}
-              onClick={() => runAction(action, l)}
-            >
-              <Icon name="edit" size={14} />
-            </button>
+        return (
+          <span className="ll-phone">
+            <span className="ll-with-pen">
+              <span className="num">{phoneText(l.phoneE164)}</span>
+              {action?.kind === "form" && (
+                <button
+                  type="button"
+                  className="ll-pen"
+                  title={t("lead.editContact")}
+                  aria-label={`${t("lead.editContact")}: ${l.fullName}`}
+                  onClick={() => runAction(action, l)}
+                >
+                  <Icon name="edit" size={14} />
+                </button>
+              )}
+            </span>
+            <ContactLinks
+              compact
+              phone={l.phoneE164}
+              email={null}
+              canLog={perms.canAct}
+              onQuick={(type, outcome) => editors.current?.quick(l.id, type, outcome)}
+              onDetails={(type, outcome) => editors.current?.log({ leadId: l.id, leadName: l.fullName, type, outcome })}
+            />
           </span>
-        ) : (
-          num
         );
       }
       case "excelNo":
@@ -508,15 +543,14 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
         return String(l.extraAnswers?.["excel_owner"] ?? "");
       case "source":
         return sourceText(l, t, t(`source.${l.source}`));
-      case "phone":
       case "email":
         // Boş hücrede yönetici bilgiyi ekler; doluysa bağlantılar ve hızlı kayıt çubuğu çalışır.
         if (action) return editable("—");
         return (
           <ContactLinks
             compact
-            phone={c.id === "phone" ? l.phoneE164 : null}
-            email={c.id === "email" ? l.email : null}
+            phone={null}
+            email={l.email}
             canLog={perms.canAct}
             onQuick={(type, outcome) => editors.current?.quick(l.id, type, outcome)}
             onDetails={(type, outcome) => editors.current?.log({ leadId: l.id, leadName: l.fullName, type, outcome })}
@@ -530,31 +564,28 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
           return editable(<span className="muted">{legacy}</span>, legacy);
         }
         const n = ch[k]?.count ?? 0;
+        const r = ch[k]?.firstReplyAt ?? null;
         return editable(
-          yes(n > 0, n > 1 ? `${n}` : undefined),
-          n > 1 ? `${t("common.yes")} (${n})` : t(n ? "common.yes" : "common.no"),
+          reachCell(yes(n > 0, n > 1 ? `${n}` : undefined), r, !!ch[k]?.firstReplyEstimated),
+          (n > 1 ? `${t("common.yes")} (${n})` : t(n ? "common.yes" : "common.no")) +
+            (r ? ` · ${t("list.reply")} ${short(r)}` : ""),
         );
       }
       case "other": {
         const parts = (["call", "meeting", "site_visit", "proposal_sent", "other"] as const)
           .filter((x) => ch[x])
           .map((x) => `${t(`activity.type.${x}`)} ${ch[x]!.count}`);
+        // Geçmişi bilinmeyen eski kayıtta "yok" denemez: Mail ve WhatsApp gibi "Kayıt yok (eski)".
+        if (!parts.length && l.contact.state === "legacy") {
+          const legacy = t("summary.legacyShort");
+          return editable(<span className="muted">{legacy}</span>, legacy);
+        }
+        const r = otherReply(l);
         // "Diğer kanal" en sık telefondur; Toplantı ve Diğer diyalogda yanında durur.
-        return editable(yes(parts.length > 0, parts.join(" · ")), parts.length ? parts.join(" · ") : t("common.no"));
-      }
-      case "mailReply":
-      case "waReply": {
-        const f = ch[c.id === "mailReply" ? "email" : "whatsapp"];
         return editable(
-          f?.firstReplyAt ? yes(true, `${f.firstReplyEstimated ? "≈ " : ""}${short(f.firstReplyAt)}`) : "—",
+          reachCell(yes(parts.length > 0, parts.join(" · ")), r, false),
+          (parts.length ? parts.join(" · ") : t("common.no")) + (r ? ` · ${t("list.reply")} ${short(r)}` : ""),
         );
-      }
-      case "otherReply": {
-        const r = (["call", "meeting", "site_visit", "proposal_sent", "other"] as const)
-          .map((x) => ch[x]?.firstReplyAt)
-          .filter((x): x is string => !!x)
-          .sort()[0];
-        return editable(r ? yes(true, short(r)) : "—");
       }
       case "status":
         return pick(
@@ -581,19 +612,20 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
         );
       case "proposal":
         return editable(l.proposal.given ? yes(true, l.proposal.at ? short(l.proposal.at) : undefined) : yes(false));
-      case "standard":
-      case "panoramic":
-      case "fullPanoramic":
-        return editable(l.products[c.id] ? <span className="num">{l.products[c.id]}</span> : "—");
-      case "roof": {
-        if (!l.products.roof.wanted) return editable("—");
-        const a = roofArea(l.products);
+      case "products": {
+        // İlk iki ürün yazılır, fazlası "+3" etiketiyle; tamamı ipucunda.
+        const all = productLine(l.products, ctx.productName);
+        const more = l.products.length - 2;
         return editable(
-          a === null ? (
-            <span className="inline-warn">✔ {t("product.roofNoSize")}</span>
+          l.products.length ? (
+            <span className="ll-products-cell" title={all}>
+              <span className="ll-products">{productLine(l.products.slice(0, 2), ctx.productName)}</span>
+              {more > 0 && <span className="ll-more">+{more}</span>}
+            </span>
           ) : (
-            `${l.products.roof.widthM} × ${l.products.roof.lengthM} m · ${a.toLocaleString(localeOf(lang))} m²`
+            "—"
           ),
+          all || "—",
         );
       }
       case "last":
@@ -965,6 +997,7 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
             customerProfiles: ref.customerProfiles,
             courtCountBands: ref.courtCountBands,
             productQtyMax: ref.productQtyMax,
+            products: ref.products,
           }}
           onClose={() => setImporting(false)}
           onApplied={load}

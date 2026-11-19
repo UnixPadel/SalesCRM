@@ -50,25 +50,30 @@ export const CONTACT_DICT = {
     "Aşama bu kayıttan sonra yeniden değişti; aşama geri alınmadı.",
     "The stage changed again after this entry; the stage was not undone.",
   ],
-  "err.court_count.derived": [
-    "Kort sayısı ürün adetlerinden gelir; ürünleri düzenleyin.",
-    "The court count comes from product quantities; edit the products.",
-  ],
   "err.history.range": ["Tarih aralığı geçersiz.", "The date range is invalid."],
   "err.report.range": ["Tarih aralığı geçersiz.", "The date range is invalid."],
-  "err.product.invalid": ["Ürün tercihleri okunamadı.", "Product preferences could not be read."],
+  "err.product.invalid": ["Ürünler okunamadı.", "Products could not be read."],
   "err.product.qty_range": ["Adet 1 ile 29 arasında tam sayı olmalı.", "Quantity must be a whole number from 1 to 29."],
-  "err.product.roof_size": [
-    "Çatı ölçüsü 0'dan büyük ve en fazla 999,99 m olmalı.",
-    "Roof size must be greater than 0 and at most 999.99 m.",
+  "err.product.duplicate": ["Aynı ürün iki kez girilmiş.", "The same product was entered twice."],
+  "err.product.unknown": ["Bu ürün ürün listesinde yok.", "This product is not in the product list."],
+  "err.product.inactive": [
+    "Bu ürün kullanımdan kalktı; yeni lead'e eklenemez.",
+    "This product is discontinued and cannot be added to a lead.",
   ],
-  "err.product.roof_dims_without_roof": [
-    "Çatı ölçüsü için Kapatma'yı işaretleyin.",
-    "Tick Cover (roof) to enter a roof size.",
+  "err.catalog.empty": ["Dosyada ürün bulunamadı.", "No products were found in the file."],
+  "err.catalog.bad_id": ["Dosyada geçersiz bir ürün numarası var.", "The file has an invalid product number."],
+  "err.catalog.bad_name": [
+    "Dosyada adı boş ya da çok uzun bir ürün var.",
+    "The file has a product with an empty or too long name.",
   ],
+  "err.catalog.duplicate_id": [
+    "Dosyada aynı ürün numarası iki kez var.",
+    "The file has the same product number twice.",
+  ],
+  "err.catalog.duplicate_name": ["Dosyada aynı ürün adı iki kez var.", "The file has the same product name twice."],
   "err.lead.products_owner_only": [
-    "Ürün tercihlerini lead'in sorumlusu girer; önce lead'i üstlenin.",
-    "The lead's owner enters product preferences; take the lead first.",
+    "Ürünleri lead'in sorumlusu girer; önce lead'i üstlenin.",
+    "The lead's owner enters the products; take the lead first.",
   ],
   "err.lead.install_site": ["Kurulum yeri listede yok.", "Install site is not in the list."],
   "err.lead.install_timeline": ["Kurulum zamanı listede yok.", "Install timeline is not in the list."],
@@ -156,31 +161,28 @@ export const CONTACT_DICT = {
   "hot.label": ["Sıcak · 3 ay", "Hot · 3 months"],
   "hot.short": ["Sıcak", "Hot"],
 
-  // ---- Ürünler (Excel "Tercih edilen ürünler").
-  "product.title": ["Ürün tercihleri", "Product preferences"],
-  "product.standard": ["Standard", "Standard"],
-  "product.panoramic": ["Panoramic", "Panoramic"],
-  "product.full_panoramic": ["Full Panoramic", "Full Panoramic"],
-  "product.roof": ["Kapatma (çatı)", "Cover (roof)"],
+  // ---- Ürünler (yönetimdeki ürün listesinden; hepsi adetle).
+  "product.title": ["Ürünler", "Products"],
+  "product.search": ["Ürün ara", "Search products"],
+  "product.selected": ["{n} ürün seçili", "{n, plural, one {# product} other {# products}} selected"],
+  "product.inactive": ["kullanımdan kalktı", "discontinued"],
+  "product.dec": ["{name} adedini azalt", "Decrease {name} quantity"],
+  "product.inc": ["{name} adedini artır", "Increase {name} quantity"],
+  "product.noMatch": ["Eşleşen ürün yok", "No matching products"],
   "product.qty": ["{name} adedi", "{name} quantity"],
-  "product.width": ["Genişlik", "Width"],
-  "product.length": ["Uzunluk", "Length"],
-  "product.area": ["Çatı alanı: {area} m²", "Roof area: {area} m²"],
-  "product.none": ["Ürün tercihi girilmedi", "No product preferences entered"],
+  "product.none": ["Ürün girilmedi", "No products entered"],
   "product.ownerOnly": [
-    "Ürün tercihlerini lead'in sorumlusu girer; havuzdaki lead'i önce üstlenin.",
-    "The lead's owner enters product preferences; take a pool lead first.",
+    "Ürünleri lead'in sorumlusu girer; havuzdaki lead'i önce üstlenin.",
+    "The lead's owner enters the products; take a pool lead first.",
   ],
   "product.adminOnly": [
     "Ürün bilgilerini yönetici günceller; müşterinin söylediğini temas notuna yazın.",
     "An admin updates products; write what the customer said in the contact note.",
   ],
-  "product.courtsFromProducts": ["Toplam kort: {n} (ürünlerden)", "Total courts: {n} (from products)"],
   "product.courtsExact": ["{n} kort", "{n, plural, one {# court} other {# courts}}"],
   "product.courtsBand": ["{band} (form)", "{band} (form)"],
   "product.legacyModel": ["Eski model bilgisi: {model}", "Legacy model: {model}"],
-  "product.roofNoSize": ["Kapatma · ölçü yok", "Cover · no size"],
-  "product.saved": ["Ürün tercihleri kaydedildi", "Product preferences saved"],
+  "product.saved": ["Ürünler kaydedildi", "Products saved"],
 
   // ---- Temas özeti (Excel H–M, Z, AA, AB).
   "summary.title": ["Temas özeti", "Contact summary"],
@@ -302,10 +304,6 @@ export const CONTACT_DICT = {
   ],
   "warning.country_missing": ["Ülke girilmemiş", "Country is missing"],
   "warning.contact_before_lead": ["İlk temas, lead tarihinden önce", "First contact is before the lead date"],
-  "warning.roof_size_missing": [
-    "Kapatma seçili ama çatı ölçüsü eksik; müşteriden ölçüyü isteyin.",
-    "Cover is selected but the roof size is missing; ask the customer for it.",
-  ],
   "warning.import_review": ["İçe aktarmada kontrol gerekiyor: {issues}", "Import needs review: {issues}"],
   "warning.country_from_phone": [
     "Ülke formda yoktu; telefon kodundan atandı",

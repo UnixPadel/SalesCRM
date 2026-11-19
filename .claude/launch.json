@@ -14,6 +14,12 @@
       "port": 5173
     },
     {
+      "name": "crm-urun-deneme",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev.mjs", "--dev-login=test1234", "--set=PGLITE_DIR=server/data/pglite-urun-deneme"],
+      "port": 5173
+    },
+    {
       "name": "crm-webhook-smoke",
       "runtimeExecutable": "node",
       "runtimeArgs": [

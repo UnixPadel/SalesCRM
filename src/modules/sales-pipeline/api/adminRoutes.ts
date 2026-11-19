@@ -2,6 +2,9 @@ import type { Request, Response, Router } from "express";
 import type { RuleError, Result } from "../../shared/kernel";
 import type { Actor, SalesPipeline } from "../application";
 import type {
+  CatalogImportBody,
+  CatalogImportResultDto,
+  CatalogProductDto,
   MergePersonBody,
   MergePersonResultDto,
   OrganizationDto,
@@ -74,6 +77,27 @@ export function registerAdminRoutes(r: Router, deps: AdminRouteDeps): void {
     const result = await pipeline.territories.applyToPool({ actor: a, dryRun: b.dryRun !== false });
     if (!result.ok) return sendError(res, result.error);
     res.json(<PoolApplyResultDto>result.value);
+  });
+
+  // Ürün listesi: herkes okur; dosyadan güncelleme yalnız yönetici (önce `dryRun: true` ile plan gösterilir).
+  r.get("/products", async (req, res) => {
+    if (!actor(req, res, false)) return;
+    const list = await pipeline.productCatalog.list();
+    res.json(list.map((p): CatalogProductDto => ({ id: p.id, name: p.name, active: p.active })));
+  });
+
+  r.post("/products/import", async (req, res) => {
+    const a = actor(req, res, true);
+    if (!a) return;
+    const b = (req.body ?? {}) as Partial<CatalogImportBody>;
+    const result = await pipeline.productCatalog.import({
+      actor: a,
+      rows: Array.isArray(b.rows) ? b.rows : [],
+      skip: Array.isArray(b.skip) ? b.skip.map(Number) : [],
+      dryRun: b.dryRun !== false,
+    });
+    if (!result.ok) return sendError(res, result.error);
+    res.json(<CatalogImportResultDto>result.value);
   });
 
   r.post("/persons/:id/merge", async (req, res) => {

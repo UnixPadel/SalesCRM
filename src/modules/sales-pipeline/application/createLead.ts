@@ -5,7 +5,7 @@ import {
   EMPTY_CAMPAIGN,
   PlatformLeadId,
   emptyTrackingFields,
-  hasAnyProduct,
+  checkCatalogRefs,
   hasAttribution,
   isAdSource,
   isCustomerStatus,
@@ -172,14 +172,7 @@ export class CreateLead {
     // Faz 7g: satışçı oluştururken fırsat alanı, ürün ya da form cevabı veremez (7e ile tutarlı).
     if (input.actor && !input.actor.isAdmin) {
       const given = REP_FORBIDDEN_CREATE.filter((k) => !isBlank(input[k]));
-      const products = input.products as Parameters<typeof hasAnyProduct>[0] | undefined;
-      if (
-        products &&
-        typeof products === "object" &&
-        hasAnyProduct({ ...products, roof: products.roof ?? { wanted: false, widthM: null, lengthM: null } })
-      ) {
-        given.push("products" as never);
-      }
+      if (Array.isArray(input.products) && input.products.length > 0) given.push("products" as never);
       // Sorumlu alanını api katmanı yalnız yöneticiden geçirir; burada yalnız alanlar denetlenir.
       if (given.length) {
         return err(
@@ -225,6 +218,15 @@ export class CreateLead {
       const fieldsR = parseLeadFields(rawFields);
       if (!fieldsR.ok) return fieldsR;
       fields = fieldsR.value;
+    }
+    if (fields.products?.length) {
+      const catalog = await this.deps.uow.run((r) => r.products.list());
+      const refs = checkCatalogRefs(fields.products, [], catalog);
+      if (!refs.ok) {
+        if (input.parseMode !== "lenient") return refs;
+        dropped.push({ key: "products", raw: JSON.stringify(fields.products) });
+        delete fields.products;
+      }
     }
     if (fields.organizationId) {
       const org = await this.deps.uow.run((r) => r.organizations.findById(fields.organizationId!));
@@ -428,7 +430,7 @@ export class CreateLead {
     for (const k of ["installSite", "installTimeline", "customerProfile", "courtCountBand", "adSurface"] as const) {
       if (lead[k] === null && a.fields[k] != null) (fill as Record<string, unknown>)[k] = a.fields[k];
     }
-    if (lead.courtCount === null && a.fields.courtCount != null && !hasAnyProduct(lead.products)) {
+    if (lead.courtCount === null && a.fields.courtCount != null) {
       fill.courtCount = a.fields.courtCount;
     }
     if (Object.keys(fill).length) await repos.leads.updateFields(lead.id, fill, now);

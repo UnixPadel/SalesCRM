@@ -158,32 +158,41 @@ describe("Özet rapor", () => {
 });
 
 describe("Alanlar ve oluşturma (S5)", () => {
-  it("ürün varken courtCount reddi; satışçıya ürün alanı admin_only, policy açıkken izinli", async () => {
+  it("ürünler listeden; kort sayısı ürünlerden bağımsız; satışçıya ürün alanı admin_only, policy açıkken izinli", async () => {
     const a = await lead();
     unwrap(
       await sp.updateLeadFields.execute({
         leadId: a.id,
-        fields: { products: { panoramic: 2, roof: { wanted: true, widthM: "20,5", lengthM: 10 } } },
+        fields: { products: [{ productId: 22, qty: 2 }] },
         actor: ADMIN,
       }),
     );
-    expect(h.uow.state.leads[0]?.products).toEqual({
-      standard: null,
-      panoramic: 2,
-      fullPanoramic: null,
-      roof: { wanted: true, widthM: 20.5, lengthM: 10 },
+    expect(h.uow.state.leads[0]?.products).toEqual([{ productId: 22, qty: 2 }]);
+    // Formdan gelen kort sayısı ürün olsa da yazılır (ayrı bilgi).
+    unwrap(await sp.updateLeadFields.execute({ leadId: a.id, fields: { courtCount: 3 }, actor: ADMIN }));
+    expect(h.uow.state.leads[0]?.courtCount).toBe(3);
+    // Kullanımdan kalkmış ürün (41) yeni eklenemez; listede olmayan ürün reddedilir.
+    const inactive = await sp.updateLeadFields.execute({
+      leadId: a.id,
+      fields: { products: [{ productId: 41, qty: 1 }] },
+      actor: ADMIN,
     });
-    const conflict = await sp.updateLeadFields.execute({ leadId: a.id, fields: { courtCount: 3 }, actor: ADMIN });
-    expect(!conflict.ok && conflict.error.code).toBe("court_count.derived");
+    expect(!inactive.ok && inactive.error.code).toBe("product.inactive");
     const repTry = await sp.updateLeadFields.execute({
       leadId: a.id,
-      fields: { products: { standard: 1 } },
+      fields: { products: [{ productId: 21, qty: 1 }] },
       actor: REP,
     });
     expect(!repTry.ok && repTry.error.code).toBe("admin_only");
     const open = createSalesPipeline({ ...h, policy: { repsEditProducts: true } });
     expect(
-      (await open.updateLeadFields.execute({ leadId: a.id, fields: { products: { standard: 1 } }, actor: REP })).ok,
+      (
+        await open.updateLeadFields.execute({
+          leadId: a.id,
+          fields: { products: [{ productId: 21, qty: 1 }] },
+          actor: REP,
+        })
+      ).ok,
     ).toBe(true);
   });
 
@@ -192,7 +201,10 @@ describe("Alanlar ve oluşturma (S5)", () => {
     const mine = await lead();
     const pool = await lead({ assignedUserId: null });
     const other = await lead({ assignedUserId: "rep-2" });
-    const products = { standard: 2, roof: { wanted: true, widthM: 10, lengthM: 20 } };
+    const products = [
+      { productId: 21, qty: 2 },
+      { productId: 27, qty: 1 },
+    ];
     expect((await sp2.updateLeadFields.execute({ leadId: mine.id, fields: { products }, actor: REP })).ok).toBe(true);
     const poolTry = await sp2.updateLeadFields.execute({ leadId: pool.id, fields: { products }, actor: REP });
     expect(!poolTry.ok && poolTry.error.code).toBe("lead.products_owner_only");

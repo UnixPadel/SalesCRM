@@ -48,8 +48,6 @@ export interface LeadTrackingDto {
   proposal: ProposalFactsDto;
   warnings: DataWarningDto[];
   hot: boolean;
-  courtTotal: number | null;
-  roofAreaM2: number | null;
 }
 
 export interface TrackingCountsDto {
@@ -104,14 +102,14 @@ export interface TrackingReportDto {
   poolBreakdown: (TrackingCountsDto & { excelOwner: string | null })[];
   statusByOwner: { ownerId: string | null; counts: Record<StatusKeyDto, number>; total: number }[];
   statusTotal: { counts: Record<StatusKeyDto, number>; total: number };
+  /** Yalnız en az bir lead'in istediği ürünler; ad `/reference.products`'tan. */
   products: {
-    code: "standard" | "panoramic" | "full_panoramic" | "roof";
+    productId: number;
     preferred: number;
     amongProposals: number;
     shareOfProposals: number | null;
     amongBuyers: number;
-    totalQty: number | null;
-    totalAreaM2: number | null;
+    totalQty: number;
   }[];
   closingPotential: number;
   byInstallTimeline: {
@@ -151,7 +149,8 @@ export interface TrackingReferenceDto {
   installTimelines: { code: string; heat: string }[];
   customerProfiles: string[];
   courtCountBands: string[];
-  products: { code: string; kind: "court" | "roof" }[];
+  /** Ürün listesi (kullanımdan kalkanlar dahil), dosyadaki sırayla. */
+  products: { id: number; name: string; active: boolean }[];
   productQtyMax: number;
   warningCodes: { code: string; severity: "warn" | "info"; repVisible: boolean }[];
   importIssueCodes: string[];

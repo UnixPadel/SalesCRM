@@ -7,6 +7,7 @@ import { aggregateContacts, feedbackIdentity, filterValues } from "../domain";
 import type {
   Activity,
   ActivityRepository,
+  CatalogProduct,
   ContactLog,
   ContactLogRepository,
   DomainEvent,
@@ -23,6 +24,7 @@ import type {
   Person,
   PersonRepository,
   PlatformRegistry,
+  ProductCatalogRepository,
   Repositories,
   StageCode,
   StageEvent,
@@ -55,6 +57,8 @@ export interface MemoryState {
   outbox: OutboxRow[];
   territories: TerritoryRule[];
   lostReasons: string[];
+  /** Ürün listesi. */
+  catalog: CatalogProduct[];
   /** Test: bu aşama kodunda olay eklemesi veritabanı hatasıyla patlar (transaction testi). */
   poisonStage?: StageCode;
 }
@@ -71,7 +75,17 @@ export const emptyState = (): MemoryState => ({
   outbox: [],
   territories: [],
   lostReasons: ["price_too_high", "competitor", "no_response", "unqualified"],
+  catalog: TEST_CATALOG.map((p) => ({ ...p })),
 });
+
+/** Testlerin ürün listesi (gerçek listeden birkaç ürün; 41 kullanımdan kalkmış). */
+export const TEST_CATALOG: readonly CatalogProduct[] = [
+  { id: 21, name: "Standard Padel Court", active: true, sortOrder: 1 },
+  { id: 22, name: "Panoramic Padel Court", active: true, sortOrder: 2 },
+  { id: 25, name: "Full Panoramic Court", active: true, sortOrder: 5 },
+  { id: 27, name: "Padel Court Cover", active: true, sortOrder: 7 },
+  { id: 41, name: "Roof Cover", active: false, sortOrder: 21 },
+];
 
 function reposFor(s: MemoryState): Repositories {
   const leads: LeadRepository = {
@@ -526,7 +540,34 @@ function reposFor(s: MemoryState): Repositories {
     },
   };
   const lostReasons: LostReasonSource = { activeCodes: async () => [...s.lostReasons] };
-  return { leads, persons, organizations, stageEvents, activities, contactLogs, outbox, territories, lostReasons };
+  const products: ProductCatalogRepository = {
+    list: async () => [...s.catalog].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id).map((p) => ({ ...p })),
+    apply: async (plan, order) => {
+      const byId = new Map(s.catalog.map((p) => [p.id, p]));
+      for (const r of plan.renamed) byId.get(r.id)!.name = r.to;
+      for (const r of plan.deactivated) byId.get(r.id)!.active = false;
+      for (const r of plan.reactivated) byId.get(r.id)!.active = true;
+      for (const r of plan.added) {
+        const p = { id: r.id, name: r.name, active: true, sortOrder: 0 };
+        s.catalog.push(p);
+        byId.set(r.id, p);
+      }
+      const pos = new Map(order.map((r, i) => [r.id, i + 1]));
+      for (const p of s.catalog) p.sortOrder = pos.get(p.id) ?? order.length + p.id;
+    },
+  };
+  return {
+    leads,
+    persons,
+    organizations,
+    stageEvents,
+    activities,
+    contactLogs,
+    outbox,
+    territories,
+    lostReasons,
+    products,
+  };
 }
 
 export class InMemoryUnitOfWork implements UnitOfWork {

@@ -82,10 +82,11 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
 
   r.get("/reference", async (req, res) => {
     if (!actor(req, res, false)) return;
-    const [stages, lostReasons, rates] = await Promise.all([
+    const [stages, lostReasons, rates, products] = await Promise.all([
       readStageDefinitions(deps.db),
       readLostReasons(deps.db),
       deps.eurRatesSource ? deps.eurRatesSource() : Promise.resolve(deps.eurRates ?? DEFAULT_EUR_RATES),
+      pipeline.productCatalog.list(),
     ]);
     const body: ReferenceDto = {
       stages: stages.map((s) => ({
@@ -101,7 +102,7 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
       currencies: CURRENCIES,
       undoWindowMinutes: deps.undoWindowMinutes,
       eurRates: { ...rates },
-      ...trackingReference(deps.policy ?? { repsEditProducts: false }, deps.timeZone),
+      ...trackingReference(deps.policy ?? { repsEditProducts: false }, deps.timeZone, products),
     };
     res.json(body);
   });

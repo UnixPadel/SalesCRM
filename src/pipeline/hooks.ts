@@ -31,6 +31,11 @@ export function useErrorText() {
 
 let referenceCache: ReferenceDto | null = null;
 
+/** Referans listeleri değişti (ör. ürün listesi güncellendi): sonraki açılan ekran yeniden okur. */
+export function refreshReference(): void {
+  referenceCache = null;
+}
+
 /** Aşama sözlüğü, kayıp nedenleri, sorular, para birimleri: bir kez yüklenir, oturum boyunca kalır. */
 export function useReference() {
   const [ref, setRef] = useState<ReferenceDto | null>(referenceCache);

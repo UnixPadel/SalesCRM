@@ -1,135 +1,145 @@
 import { describe, expect, it } from "vitest";
 import {
-  courtTotal,
-  EMPTY_PRODUCTS,
+  checkCatalogRefs,
+  emptyProducts,
   hasAnyProduct,
+  parseCatalogRows,
   parseProductPrefs,
+  planCatalogImport,
+  productNameKey,
   productQty,
-  productSummary,
-  roofAreaM2,
-  type ProductPrefs,
+  type CatalogProduct,
 } from "./products";
-
-const prefs = (over: Partial<ProductPrefs> = {}): ProductPrefs => ({
-  ...EMPTY_PRODUCTS,
-  roof: { ...EMPTY_PRODUCTS.roof },
-  ...over,
-});
 
 const code = (raw: unknown) => {
   const r = parseProductPrefs(raw);
   return r.ok ? "ok" : r.error.code;
 };
 
+const catalog: CatalogProduct[] = [
+  { id: 21, name: "Standard Padel Court", active: true, sortOrder: 1 },
+  { id: 22, name: "Panoramic Padel Court", active: true, sortOrder: 2 },
+  { id: 27, name: "Padel Court Cover", active: true, sortOrder: 7 },
+  { id: 41, name: "Roof Cover", active: false, sortOrder: 21 },
+];
+
 describe("parseProductPrefs", () => {
-  it("tam girdi", () => {
-    const r = parseProductPrefs({
-      standard: 1,
-      panoramic: 2,
-      fullPanoramic: 29,
-      roof: { wanted: true, widthM: 20, lengthM: 10 },
-    });
-    expect(r.ok && r.value).toEqual({
-      standard: 1,
-      panoramic: 2,
-      fullPanoramic: 29,
-      roof: { wanted: true, widthM: 20, lengthM: 10 },
-    });
+  it("ürün numarası + adet; numaraya göre sıralı döner", () => {
+    const r = parseProductPrefs([
+      { productId: 27, qty: 1 },
+      { productId: 21, qty: 2 },
+    ]);
+    expect(r.ok && r.value).toEqual([
+      { productId: 21, qty: 2 },
+      { productId: 27, qty: 1 },
+    ]);
   });
 
-  it("değiştirme anlamı: eksik anahtar null/false; null girdi hepsini temizler", () => {
-    expect(parseProductPrefs({ panoramic: 2 })).toEqual({
-      ok: true,
-      value: prefs({ panoramic: 2 }),
-    });
-    expect(parseProductPrefs({})).toEqual({ ok: true, value: prefs() });
-    expect(parseProductPrefs(null)).toEqual({ ok: true, value: prefs() });
-    expect(parseProductPrefs({ roof: null })).toEqual({ ok: true, value: prefs() });
-    expect(parseProductPrefs({ roof: { wanted: true } })).toEqual({
-      ok: true,
-      value: prefs({ roof: { wanted: true, widthM: null, lengthM: null } }),
-    });
+  it("null ve boş dizi hepsini temizler", () => {
+    expect(parseProductPrefs(null)).toEqual({ ok: true, value: [] });
+    expect(parseProductPrefs([])).toEqual({ ok: true, value: [] });
   });
 
-  it("dönen nesne paylaşılmaz (EMPTY_PRODUCTS donmuş kalır)", () => {
-    const r = parseProductPrefs(null);
-    expect(r.ok && r.value).not.toBe(EMPTY_PRODUCTS);
-    expect(r.ok && r.value.roof).not.toBe(EMPTY_PRODUCTS.roof);
-    expect(Object.isFrozen(EMPTY_PRODUCTS)).toBe(true);
+  it("metin sayılar kabul edilir", () => {
+    const r = parseProductPrefs([{ productId: "22", qty: "3" }]);
+    expect(r.ok && r.value).toEqual([{ productId: 22, qty: 3 }]);
   });
 
-  it.each([0, 30, -1, 1.5, Number.NaN, "abc", "2.5", true, {}])("adet %j → product.qty_range", (v) => {
-    expect(code({ standard: v })).toBe("product.qty_range");
+  it("adet 1–29 tam sayı", () => {
+    expect(code([{ productId: 21, qty: 0 }])).toBe("product.qty_range");
+    expect(code([{ productId: 21, qty: 30 }])).toBe("product.qty_range");
+    expect(code([{ productId: 21, qty: 1.5 }])).toBe("product.qty_range");
+    expect(code([{ productId: 21, qty: 29 }])).toBe("ok");
   });
 
-  it("adet: metin rakam kabul, boş metin null", () => {
-    expect(parseProductPrefs({ standard: " 3 ", panoramic: "" })).toEqual({ ok: true, value: prefs({ standard: 3 }) });
+  it("geçersiz biçim, numara ve tekrar reddedilir", () => {
+    expect(code({ standard: 1 })).toBe("product.invalid");
+    expect(code([{ productId: 0, qty: 1 }])).toBe("product.invalid");
+    expect(code([1])).toBe("product.invalid");
+    expect(
+      code([
+        { productId: 21, qty: 1 },
+        { productId: 21, qty: 2 },
+      ]),
+    ).toBe("product.duplicate");
   });
-
-  it("hata ayrıntısı ürün kodunu taşır", () => {
-    const r = parseProductPrefs({ fullPanoramic: 40 });
-    expect(!r.ok && r.error.details).toEqual({ product: "full_panoramic", value: 40 });
-  });
-
-  it("ölçü: sayı, '10,5' ve '10.5'; 2 ondalığa yuvarlanır", () => {
-    const r = parseProductPrefs({ roof: { wanted: true, widthM: "10,5", lengthM: 7.256 } });
-    expect(r.ok && r.value.roof).toEqual({ wanted: true, widthM: 10.5, lengthM: 7.26 });
-    const s = parseProductPrefs({ roof: { wanted: true, widthM: "10.25", lengthM: " 999,99 " } });
-    expect(s.ok && s.value.roof).toEqual({ wanted: true, widthM: 10.25, lengthM: 999.99 });
-  });
-
-  it.each([0, -2, 0.004, 1000, 999.996, "abc", "1,000,5", "-3", Number.POSITIVE_INFINITY, true])(
-    "ölçü %j → product.roof_size",
-    (v) => {
-      expect(code({ roof: { wanted: true, widthM: v } })).toBe("product.roof_size");
-      expect(code({ roof: { wanted: true, lengthM: v } })).toBe("product.roof_size");
-    },
-  );
-
-  it("Kapatma işaretsizken ölçü → product.roof_dims_without_roof", () => {
-    expect(code({ roof: { wanted: false, widthM: 20 } })).toBe("product.roof_dims_without_roof");
-    expect(code({ roof: { lengthM: 10 } })).toBe("product.roof_dims_without_roof");
-    expect(code({ roof: { wanted: false, widthM: "", lengthM: null } })).toBe("ok");
-  });
-
-  it.each([[[]], ["2 Panoramic"], [5], [{ roof: "evet" }], [{ roof: [] }], [{ roof: { wanted: "true" } }]])(
-    "biçimsiz girdi %j → product.invalid",
-    (raw) => {
-      expect(code(raw)).toBe("product.invalid");
-    },
-  );
 });
 
-describe("türetilen ürün değerleri", () => {
-  it("courtTotal, productQty, hasAnyProduct", () => {
-    const p = prefs({ standard: 2, fullPanoramic: 1 });
-    expect(courtTotal(p)).toBe(3);
-    expect(productQty(p, "standard")).toBe(2);
-    expect(productQty(p, "panoramic")).toBeNull();
-    expect(productQty(p, "full_panoramic")).toBe(1);
+describe("yardımcılar", () => {
+  it("hasAnyProduct / productQty", () => {
+    expect(hasAnyProduct(emptyProducts())).toBe(false);
+    const p = [{ productId: 22, qty: 4 }];
     expect(hasAnyProduct(p)).toBe(true);
-    expect(hasAnyProduct(prefs())).toBe(false);
-    expect(hasAnyProduct(prefs({ roof: { wanted: true, widthM: null, lengthM: null } }))).toBe(true);
-    expect(courtTotal(prefs())).toBe(0);
+    expect(productQty(p, 22)).toBe(4);
+    expect(productQty(p, 21)).toBeNull();
   });
 
-  it("roofAreaM2: iki ölçü de doluysa 2 ondalık; eksikse null", () => {
-    expect(roofAreaM2(prefs({ roof: { wanted: true, widthM: 20, lengthM: 10 } }))).toBe(200);
-    expect(roofAreaM2(prefs({ roof: { wanted: true, widthM: 10.33, lengthM: 3.33 } }))).toBe(34.4);
-    expect(roofAreaM2(prefs({ roof: { wanted: true, widthM: 20, lengthM: null } }))).toBeNull();
+  it("productNameKey: büyük/küçük harf ve fazla boşluk yok sayılır", () => {
+    expect(productNameKey("  Padel   Court COVER ")).toBe(productNameKey("padel court cover"));
+  });
+});
+
+describe("checkCatalogRefs", () => {
+  it("listede olmayan ürün reddedilir", () => {
+    const r = checkCatalogRefs([{ productId: 99, qty: 1 }], [], catalog);
+    expect(!r.ok && r.error.code).toBe("product.unknown");
   });
 
-  it("productSummary Excel sırasıyla; adetsiz ürün yok; Kapatma ölçüsüz de görünür", () => {
+  it("kullanımdan kalkan ürün yeni eklenemez, lead'de zaten varsa kalır", () => {
+    const next = [{ productId: 41, qty: 2 }];
+    const r = checkCatalogRefs(next, [], catalog);
+    expect(!r.ok && r.error.code).toBe("product.inactive");
+    expect(checkCatalogRefs(next, [{ productId: 41, qty: 1 }], catalog).ok).toBe(true);
+  });
+});
+
+describe("ürün dosyası", () => {
+  it("parseCatalogRows: numara ve ad doğrulanır, adlar temizlenir", () => {
+    const r = parseCatalogRows([
+      { id: "21", name: " Standard  Padel Court " },
+      { id: 22, name: "Panoramic Padel Court" },
+    ]);
+    expect(r.ok && r.value).toEqual([
+      { id: 21, name: "Standard Padel Court" },
+      { id: 22, name: "Panoramic Padel Court" },
+    ]);
+    const bad = (rows: { id: unknown; name: unknown }[]) => {
+      const x = parseCatalogRows(rows);
+      return x.ok ? "ok" : x.error.code;
+    };
+    expect(bad([])).toBe("catalog.empty");
+    expect(bad([{ id: "x", name: "A" }])).toBe("catalog.bad_id");
+    expect(bad([{ id: 1, name: " " }])).toBe("catalog.bad_name");
     expect(
-      productSummary(prefs({ panoramic: 2, standard: 1, roof: { wanted: true, widthM: 20, lengthM: 10 } })),
-    ).toEqual([
-      { code: "standard", qty: 1 },
-      { code: "panoramic", qty: 2 },
-      { code: "roof", widthM: 20, lengthM: 10, areaM2: 200 },
-    ]);
-    expect(productSummary(prefs({ roof: { wanted: true, widthM: null, lengthM: 8 } }))).toEqual([
-      { code: "roof", lengthM: 8, areaM2: null },
-    ]);
-    expect(productSummary(prefs())).toEqual([]);
+      bad([
+        { id: 1, name: "A" },
+        { id: 1, name: "B" },
+      ]),
+    ).toBe("catalog.duplicate_id");
+    expect(
+      bad([
+        { id: 1, name: "A" },
+        { id: 2, name: "a" },
+      ]),
+    ).toBe("catalog.duplicate_name");
+  });
+
+  it("planCatalogImport: eklenen, adı değişen, kalkan, geri gelen; atlanan yeni ürün eklenmez", () => {
+    const plan = planCatalogImport(
+      catalog,
+      [
+        { id: 21, name: "Standard Padel Court" },
+        { id: 22, name: "Panoramic Court" },
+        { id: 41, name: "Roof Cover" },
+        { id: 79, name: "de" },
+        { id: 90, name: "Yeni Ürün" },
+      ],
+      [79],
+    );
+    expect(plan.added).toEqual([{ id: 90, name: "Yeni Ürün" }]);
+    expect(plan.renamed).toEqual([{ id: 22, from: "Panoramic Padel Court", to: "Panoramic Court" }]);
+    expect(plan.deactivated).toEqual([{ id: 27, name: "Padel Court Cover" }]);
+    expect(plan.reactivated).toEqual([{ id: 41, name: "Roof Cover" }]);
+    expect(plan.unchanged).toBe(1);
   });
 });

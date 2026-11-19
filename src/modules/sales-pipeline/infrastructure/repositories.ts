@@ -9,6 +9,7 @@ import type {
   PersonListFilter,
   LostReasonSource,
   OutboxWriter,
+  ProductCatalogRepository,
   Person,
   PersonRepository,
   StageCode,
@@ -34,8 +35,9 @@ const LEAD_COLS =
   "id, source, platform_lead_id, form_id, person_id, full_name, email, phone_e164, country, city, company, product_interest, " +
   "campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name, assigned_user_id, current_stage, is_test, notes, extra_answers, " +
   "court_count, court_model, expected_close_date, organization_id, " +
-  // Faz 7g (migration 0012): müşteri durumu, ürünler, form cevapları, reklam yüzeyi, kontrol edilen uyarılar, eski kayıt.
-  "customer_status, qty_standard, qty_panoramic, qty_full_panoramic, roof_wanted, roof_width_m, roof_length_m, " +
+  // Faz 7g (migration 0012): müşteri durumu, form cevapları, reklam yüzeyi, kontrol edilen uyarılar, eski kayıt.
+  // Ürünler (migration 0017): `products` jsonb; eski qty_*/roof_* sütunları yalnız yedek, okunmaz ve yazılmaz.
+  "customer_status, products, " +
   "install_site, install_timeline, customer_profile, court_count_band, ad_surface, checked_warnings, contact_history_unknown, " +
   "created_at, updated_at";
 /** Okurken tarih sütunu metin olarak gelir (rows.ts: LeadRow.expected_close_date). */
@@ -159,12 +161,7 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
         l.expectedCloseDate,
         l.organizationId,
         l.customerStatus,
-        l.products.standard,
-        l.products.panoramic,
-        l.products.fullPanoramic,
-        l.products.roof.wanted,
-        l.products.roof.widthM,
-        l.products.roof.lengthM,
+        JSON.stringify(l.products),
         l.installSite,
         l.installTimeline,
         l.customerProfile,
@@ -206,20 +203,9 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
         params.push(fields[key] ?? null);
         sets.push(`${FIELD_COLUMN[key]} = $${params.length}`);
       }
-      // Ürünler altı sütuna açılır (Faz 7g, D4).
       if (fields.products) {
-        const pr = fields.products;
-        for (const [col, v] of [
-          ["qty_standard", pr.standard],
-          ["qty_panoramic", pr.panoramic],
-          ["qty_full_panoramic", pr.fullPanoramic],
-          ["roof_wanted", pr.roof.wanted],
-          ["roof_width_m", pr.roof.widthM],
-          ["roof_length_m", pr.roof.lengthM],
-        ] as const) {
-          params.push(v);
-          sets.push(`${col} = $${params.length}`);
-        }
+        params.push(JSON.stringify(fields.products));
+        sets.push(`products = $${params.length}::jsonb`);
       }
       if (!sets.length) return;
       await q.query(`UPDATE leads SET ${sets.join(", ")}, updated_at = $2 WHERE id = $1`, params);
@@ -533,6 +519,58 @@ export function pgTerritoryRuleSource(q: Queryable): TerritoryRuleSource {
         [countryCode.toUpperCase()],
       );
       return rows.length > 0;
+    },
+  };
+}
+
+interface ProductRow extends Record<string, unknown> {
+  id: number | string;
+  name: string;
+  active: boolean;
+  sort_order: number | string;
+}
+
+export function pgProductCatalogRepository(q: Queryable): ProductCatalogRepository {
+  return {
+    async list() {
+      return (
+        await q.query<ProductRow>("SELECT id, name, active, sort_order FROM products ORDER BY sort_order, id")
+      ).map((r) => ({ id: Number(r.id), name: r.name, active: r.active, sortOrder: Number(r.sort_order) }));
+    },
+    async apply(plan, order, at) {
+      // Adı değişenler önce geçici ada alınır: iki ürünün adı yer değiştirirse tekil ad kuralı takılmasın.
+      for (const r of plan.renamed) {
+        await q.query("UPDATE products SET name = $2, updated_at = $3 WHERE id = $1", [r.id, `#${r.id}#${r.to}`, at]);
+      }
+      for (const r of plan.renamed) {
+        await q.query("UPDATE products SET name = $2, updated_at = $3 WHERE id = $1", [r.id, r.to, at]);
+      }
+      if (plan.deactivated.length) {
+        await q.query("UPDATE products SET active = false, updated_at = $2 WHERE id = ANY($1::int[])", [
+          plan.deactivated.map((r) => r.id),
+          at,
+        ]);
+      }
+      if (plan.reactivated.length) {
+        await q.query("UPDATE products SET active = true, updated_at = $2 WHERE id = ANY($1::int[])", [
+          plan.reactivated.map((r) => r.id),
+          at,
+        ]);
+      }
+      // Sıra dosyadaki sıradır; dosyada olmayan (kalkan) ürünler sona iner.
+      const added = new Set(plan.added.map((r) => r.id));
+      for (const [i, r] of order.entries()) {
+        if (added.has(r.id)) {
+          await q.query(
+            "INSERT INTO products (id, name, active, sort_order, created_at, updated_at) VALUES ($1, $2, true, $3, $4, $4)",
+            [r.id, r.name, i + 1, at],
+          );
+        } else {
+          await q.query("UPDATE products SET sort_order = $2 WHERE id = $1", [r.id, i + 1]);
+        }
+      }
+      const inFile = order.map((r) => r.id);
+      await q.query("UPDATE products SET sort_order = $2 + id WHERE NOT (id = ANY($1::int[]))", [inFile, order.length]);
     },
   };
 }

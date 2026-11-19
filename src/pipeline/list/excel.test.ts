@@ -28,12 +28,7 @@ const lead = (i: number, over: Partial<LeadListDto> = {}): LeadListDto =>
     createdAt: `2026-10-${String(10 + i).padStart(2, "0")}T06:00:00.000Z`,
     updatedAt: "2026-10-20T06:00:00.000Z",
     customerStatus: null,
-    products: {
-      standard: null,
-      panoramic: null,
-      fullPanoramic: null,
-      roof: { wanted: false, widthM: null, lengthM: null },
-    },
+    products: [],
     installSite: null,
     installTimeline: null,
     customerProfile: null,
@@ -50,6 +45,12 @@ const lead = (i: number, over: Partial<LeadListDto> = {}): LeadListDto =>
   }) as unknown as LeadListDto;
 
 const NAMES: Record<string, string> = { u1: "Ayşe Yılmaz", u2: "Enes Kaya" };
+const CATALOG = [
+  { id: 21, name: "Standard Padel Court", active: true },
+  { id: 22, name: "Panoramic Padel Court", active: true },
+  { id: 27, name: "Padel Court Cover", active: true },
+  { id: 41, name: "Roof Cover", active: false },
+];
 const COUNTRIES: Record<string, string> = { TR: "Türkiye", DE: "Almanya" };
 const ctx: Ctx = {
   t: (k) => k,
@@ -59,6 +60,7 @@ const ctx: Ctx = {
   stageName: (c) => c,
   countryName: (c) => COUNTRIES[c] ?? c,
   sourceName: (s) => s,
+  productName: (id) => CATALOG.find((x) => x.id === id)?.name ?? `#${id}`,
   now: Date.parse("2026-11-10T09:00:00Z"),
 };
 const p: ParseCtx = {
@@ -74,6 +76,7 @@ const p: ParseCtx = {
     customerProfiles: ["investor"],
     courtCountBands: ["1", "2_3"],
     productQtyMax: 29,
+    products: CATALOG,
   },
   baseline: null,
   exportedAt: Date.parse("2026-11-01T09:00:00Z"),
@@ -90,22 +93,19 @@ const row = (l: LeadListDto, edits: Record<string, string> = {}, n = 2) => {
 const leadsOf = (...ls: LeadListDto[]) => new Map(ls.map((l) => [l.id, l]));
 
 describe("Excel düzeni", () => {
-  it("liste sütunları sırayla, sonda CRM kimliği; ekrandaki yinelenen telefon sütunu yok", () => {
+  it("liste sütunları sırayla, sonda CRM kimliği; telefon tek sütun, ürünler tek sütun", () => {
     expect(header).toHaveLength(EXCEL_COLUMNS.length + 1);
     expect(header[header.length - 1]).toBe("xl.col.id");
-    expect(EXCEL_COLUMNS.map((c) => c.id).slice(0, 4)).toEqual(["createdAt", "name", "excelNo", "country"]);
-    expect(EXCEL_COLUMNS.some((c) => c.id === "phoneNo")).toBe(false);
+    expect(EXCEL_COLUMNS.map((c) => c.id).slice(0, 5)).toEqual(["createdAt", "name", "phone", "excelNo", "country"]);
+    expect(EXCEL_COLUMNS.filter((c) => c.group === "products").map((c) => c.id)).toEqual(["products"]);
     expect(EXCEL_COLUMNS.filter((c) => isEditable(c.id)).map((c) => c.id)).toEqual([
       "name",
+      "phone",
       "country",
       "owner",
-      "phone",
       "email",
       "status",
-      "standard",
-      "panoramic",
-      "fullPanoramic",
-      "roof",
+      "products",
       "note",
       "site",
       "timeline",
@@ -152,8 +152,12 @@ describe("Excel içe aktarım planı", () => {
     const a = lead(1, {
       customerStatus: "interested",
       notes: "Fiyat bekliyor\r\nSalı aranacak",
-      products: { standard: 2, panoramic: null, fullPanoramic: null, roof: { wanted: true, widthM: 10, lengthM: 20 } },
+      products: [
+        { productId: 21, qty: 2 },
+        { productId: 27, qty: 1 },
+      ],
     });
+    expect(row(a).cells[at("products")]).toBe("2 Standard Padel Court; 1 Padel Court Cover");
     const plan = planImport([row(a), row(lead(2), {}, 3)], leadsOf(a, lead(2)), p);
     expect(plan).toMatchObject({ leads: [], changeCount: 0, invalid: [], noId: 0, unknown: 0, duplicate: 0 });
   });
@@ -167,8 +171,7 @@ describe("Excel içe aktarım planı", () => {
           country: "Almanya",
           owner: "enes kaya",
           status: "customerStatus.buyer_ready",
-          panoramic: "3",
-          roof: "12,5 x 20",
+          products: "3 panoramic padel court;padel court cover",
           note: "Teklif istedi",
           timeline: "answer.timeline.m3_6",
         }),
@@ -177,19 +180,17 @@ describe("Excel içe aktarım planı", () => {
       p,
     );
     expect(plan.invalid).toEqual([]);
-    expect(plan.changeCount).toBe(8);
+    expect(plan.changeCount).toBe(7);
     expect(plan.leads[0]!.patch).toEqual({
       contact: { fullName: "Lead Bir" },
       fields: {
         country: "DE",
         notes: "Teklif istedi",
         installTimeline: "m3_6",
-        products: {
-          standard: null,
-          panoramic: 3,
-          fullPanoramic: null,
-          roof: { wanted: true, widthM: 12.5, lengthM: 20 },
-        },
+        products: [
+          { productId: 22, qty: 3 },
+          { productId: 27, qty: 1 },
+        ],
       },
       status: "buyer_ready",
       owner: "u2",
@@ -245,8 +246,7 @@ describe("Excel içe aktarım planı", () => {
             name: "",
             owner: "Bilinmeyen Kişi",
             status: "Sıcak",
-            standard: "40",
-            roof: "büyük",
+            products: "40 Standard Padel Court",
             country: "Atlantis",
             note: "ok",
           },
@@ -261,8 +261,7 @@ describe("Excel içe aktarım planı", () => {
       [7, "list.col.country", "xl.bad.country"],
       [7, "list.col.owner", "xl.bad.owner"],
       [7, "list.col.status", "xl.bad.option"],
-      [7, "product.standard", "xl.bad.qty"],
-      [7, "product.roof", "xl.bad.roof"],
+      [7, "list.col.products", "xl.bad.qty"],
     ]);
     expect(plan.invalid.find((x) => x.reason === "xl.bad.qty")!.vars).toEqual({ max: 29 });
     expect(plan.leads[0]!.patch).toEqual({ contact: {}, fields: { notes: "ok" } });
@@ -318,12 +317,7 @@ describe("Excel içe aktarım planı", () => {
 describe("Excel dosyası gidiş-dönüşü", () => {
   const a = lead(1, {
     notes: "=1+1 formül değil, nottur",
-    products: {
-      standard: 2,
-      panoramic: null,
-      fullPanoramic: null,
-      roof: { wanted: false, widthM: null, lengthM: null },
-    },
+    products: [{ productId: 21, qty: 2 }],
     contact: {
       state: "contacted",
       count: 3,
@@ -352,7 +346,7 @@ describe("Excel dosyası gidiş-dönüşü", () => {
     expect(sheet.rows.map((r) => r.n)).toEqual([2, 3]);
     // Tarih ve sayı hücreleri Excel'de gerçek tarih/sayıdır; okurken dışa aktarımdaki metne döner.
     expect(sheet.rows[0]!.cells[at("createdAt")]).toBe("11.10.2026");
-    expect(sheet.rows[0]!.cells[at("standard")]).toBe("2");
+    expect(sheet.rows[0]!.cells[at("products")]).toBe("2 Standard Padel Court");
     expect(sheet.rows[0]!.cells[at("count")]).toBe("3");
     expect(sheet.rows[0]!.cells[at("note")]).toBe("=1+1 formül değil, nottur");
     expect(sheet.rows[0]!.cells[at("phone")]).toBe("+905321234567");

@@ -77,13 +77,8 @@ describe("cellAction", () => {
     expect(cellAction("other", lead(), REP)).toMatchObject({ preset: { type: "call" } });
   });
 
-  it("dönüş hücreleri 'Dönüş alındı' ile açılır; dönüş varsa pasif", () => {
-    expect(cellAction("mailReply", lead(), REP)).toMatchObject({
-      preset: { type: "email", outcome: "reply_received" },
-    });
-    expect(cellAction("waReply", withChannels({ whatsapp: replied }), REP)).toBeNull();
-    expect(cellAction("otherReply", lead(), REP)).toMatchObject({ preset: { type: "call" } });
-    expect(cellAction("otherReply", withChannels({ meeting: replied }), REP)).toBeNull();
+  it("ayrı dönüş sütunu yok: dönüş kanal hücresinde, temas kaydıyla girilir", () => {
+    for (const id of ["mailReply", "waReply", "otherReply"]) expect(cellAction(id, lead(), REP), id).toBeNull();
   });
 
   it("teklif: kanal dayatmadan 'Teklif gönderildi'; verilmişse pasif", () => {
@@ -121,16 +116,17 @@ describe("cellAction", () => {
   });
 
   it("yönetici alanları satışçıya kapalı", () => {
-    for (const id of ["owner", "country", "site", "timeline", "profile", "band", "phoneNo"]) {
+    for (const id of ["owner", "country", "site", "timeline", "profile", "band", "phone"]) {
       expect(cellAction(id, lead(), REP), id).toBeNull();
       expect(cellAction(id, lead(), ADMIN), id).not.toBeNull();
     }
   });
 
-  it("telefon ve e-posta: yönetici yalnız boşken ekler, doluysa bağlantılar kalır", () => {
+  it("telefon: yönetici boşken ekler, doluyken kalemle düzeltir; e-posta yalnız boşken", () => {
     expect(cellAction("email", lead(), ADMIN)).toEqual({ kind: "form", form: "contact" });
     expect(cellAction("email", lead({ email: "a@example.com" }), ADMIN)).toBeNull();
-    expect(cellAction("phone", lead({ phoneE164: "+905550000000" }), ADMIN)).toBeNull();
+    expect(cellAction("phone", lead(), ADMIN)).toEqual({ kind: "form", form: "contact" });
+    expect(cellAction("phone", lead({ phoneE164: "+905550000000" }), ADMIN)).toEqual({ kind: "form", form: "contact" });
   });
 
   it("uyarılar: yalnız yönetici ve uyarı varsa", () => {
@@ -144,8 +140,8 @@ describe("cellAction", () => {
     const pool = lead({ assignedUserId: null });
     const perms: CellPerms = cellPerms(pool, who());
     expect(perms.canAct).toBe(true);
-    expect(cellAction("standard", pool, perms)).toBeNull();
-    expect(cellAction("roof", lead(), REP)).toEqual({ kind: "form", form: "products" });
+    expect(cellAction("products", pool, perms)).toBeNull();
+    expect(cellAction("products", lead(), REP)).toEqual({ kind: "form", form: "products" });
   });
 });
 

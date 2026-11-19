@@ -8,16 +8,17 @@ import { adminApi } from "./adminApi";
 import { AdminWriteCtx, LoadError, useAdminCanWrite, useLoad } from "./bits";
 import { HealthTab } from "./HealthTab";
 import { MappingsTab } from "./MappingsTab";
+import { ProductsTab } from "./ProductsTab";
 import { SettingsTab } from "./SettingsTab";
 import { TerritoriesTab } from "./TerritoriesTab";
 
 /**
- * Yönetim paneli (Faz 7, `#/admin`): Sağlık · Eşlemeler · Ayarlar · Bölgeler. `admin` rolü görür ve değiştirir;
+ * Yönetim paneli (Faz 7, `#/admin`): Sağlık · Eşlemeler · Ayarlar · Bölgeler · Ürün listesi. `admin` rolü görür ve değiştirir;
  * pazarlama rolü salt okunur görür (değişiklik düğmeleri gizli, alanlar kilitli; sunucu da yazmayı 403 ile reddeder).
  * Satışçı ve görüntüleyici bu adresi yazarsa "yetki yok" sayfası görür. Sekme URL'de tutulur.
  */
 
-const TABS = ["health", "mappings", "settings", "territories"] as const;
+const TABS = ["health", "mappings", "settings", "territories", "products"] as const;
 type Tab = (typeof TABS)[number];
 const isTab = (v: string | null): v is Tab => (TABS as readonly string[]).includes(v ?? "");
 
@@ -84,6 +85,8 @@ function AdminTabs({ tab }: { tab: Tab }) {
           <HealthTab />
         ) : tab === "territories" ? (
           <TerritoriesTab />
+        ) : tab === "products" ? (
+          <ProductsTab />
         ) : needsProviders && !data ? (
           error ? (
             <LoadError message={errText(error)} onRetry={() => void reload()} />
