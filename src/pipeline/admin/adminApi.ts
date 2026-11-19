@@ -18,6 +18,7 @@ import type {
   CatalogProductDto,
   MergePersonResultDto,
   OrganizationDto,
+  NonSalesReassignResultDto,
   PoolApplyResultDto,
   TerritoriesDto,
   TerritoryBody,
@@ -74,6 +75,8 @@ export const adminApi = {
     call<TerritoryRuleDto>("PUT", `/territories/${enc(countryCode)}`, body),
   removeTerritory: (countryCode: string) => call<void>("DELETE", `/territories/${enc(countryCode)}`),
   applyToPool: (dryRun: boolean) => call<PoolApplyResultDto>("POST", "/territories/apply-to-pool", { dryRun }),
+  reassignNonSales: (dryRun: boolean) =>
+    call<NonSalesReassignResultDto>("POST", "/territories/reassign-non-sales", { dryRun }),
 
   products: () => call<CatalogProductDto[]>("GET", "/products"),
   importProducts: (body: CatalogImportBody) => call<CatalogImportResultDto>("POST", "/products/import", body),

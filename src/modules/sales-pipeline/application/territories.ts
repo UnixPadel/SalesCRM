@@ -7,7 +7,13 @@
  * Görünürlük değişmez: satışçı bütün havuzu görmeye devam eder.
  */
 import { RuleError, err, ok, type Result } from "../../shared/kernel";
-import { isTerminal, parseTerritoryRule, planPoolAssignment, type TerritoryRule } from "../domain";
+import {
+  isTerminal,
+  parseTerritoryRule,
+  planNonSalesReassignment,
+  planPoolAssignment,
+  type TerritoryRule,
+} from "../domain";
 import { requireAdmin } from "./permissions";
 import type { Actor, UseCaseDeps } from "./types";
 
@@ -32,6 +38,24 @@ export interface PoolApplyResult {
   total: number;
   byUser: { userId: string; count: number }[];
 }
+
+export interface NonSalesReassignResult {
+  dryRun: boolean;
+  /** Aktarılan (kuru çalıştırmada: aktarılacak) lead sayısı. */
+  total: number;
+  /** Lead'lerin gideceği satışçılar. */
+  byUser: { userId: string; count: number }[];
+  /** Lead'lerin alınacağı, satışçı olmayan sorumlular (aktarılan + yerinde kalan). */
+  fromUsers: { userId: string; count: number }[];
+  /** Ülkesinde uygun kural olmadığı için yerinde kalanlar, ülkeye göre (ülkesi yoksa null). */
+  noRule: { countryCode: string | null; count: number }[];
+}
+
+const countBy = <K>(keys: readonly K[]): [K, number][] => {
+  const m = new Map<K, number>();
+  for (const k of keys) m.set(k, (m.get(k) ?? 0) + 1);
+  return [...m].sort((a, b) => b[1] - a[1]);
+};
 
 export class TerritoryAdmin {
   constructor(private readonly deps: UseCaseDeps) {}
@@ -120,6 +144,54 @@ export class TerritoryAdmin {
     });
     if (!input.dryRun) {
       this.deps.logger.info("bölge kuralları havuza uygulandı", {
+        total: result.total,
+        byUser: result.byUser,
+        actorUserId: input.actor.userId,
+      });
+    }
+    return ok(result);
+  }
+
+  /**
+   * Sorumlusu aktif satış kullanıcısı olmayan lead'leri ülkelerinin kural sahibine aktarır (yalnız yönetici). Önce
+   * kuru çalıştırma sonucu gösterilir; uygulama tek transaction'dır ve lead başına bildirim göndermez. Ekip dizini
+   * okunamıyorsa kimin satışçı olduğu bilinemez: işlem yapılmaz.
+   */
+  async reassignNonSales(input: { actor: Actor; dryRun: boolean }): Promise<Result<NonSalesReassignResult, RuleError>> {
+    const allowed = requireAdmin(input.actor, "territory");
+    if (!allowed.ok) return allowed;
+    const active = (await this.deps.team?.activeSalesUserIds()) ?? null;
+    if (!active) {
+      return err(
+        new RuleError(
+          "territory.directory_unavailable",
+          "Kullanıcı tablosu okunamadı; kimin satışçı olduğu bilinemiyor.",
+        ),
+      );
+    }
+    const result = await this.deps.uow.run(async (repos): Promise<NonSalesReassignResult> => {
+      const [rules, leads] = await Promise.all([repos.territories.all(), repos.leads.list({ includeTest: true })]);
+      const plan = planNonSalesReassignment(leads, rules, new Set(active));
+      const now = this.deps.clock.now();
+      if (!input.dryRun) {
+        for (const m of plan.moves) await repos.leads.updateAssignee(m.leadId, m.toUserId, now);
+      }
+      return {
+        dryRun: input.dryRun,
+        total: plan.moves.length,
+        byUser: countBy(plan.moves.map((m) => m.toUserId)).map(([userId, count]) => ({ userId, count })),
+        fromUsers: countBy([...plan.moves, ...plan.noRule].map((m) => m.fromUserId)).map(([userId, count]) => ({
+          userId,
+          count,
+        })),
+        noRule: countBy(plan.noRule.map((m) => m.countryCode)).map(([countryCode, count]) => ({
+          countryCode,
+          count,
+        })),
+      };
+    });
+    if (!input.dryRun) {
+      this.deps.logger.info("satışçı olmayanların lead'leri aktarıldı", {
         total: result.total,
         byUser: result.byUser,
         actorUserId: input.actor.userId,

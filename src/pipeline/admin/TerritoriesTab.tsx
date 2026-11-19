@@ -2,7 +2,11 @@ import { useCallback, useMemo, useState } from "react";
 import { Button, Empty, Modal, Skeleton, StatusTag } from "../../components/ui";
 import { countryName } from "../../domain/constants";
 import { useLang } from "../../i18n";
-import type { PoolApplyResultDto, TerritoriesDto } from "../../modules/sales-pipeline/api/dto";
+import type {
+  NonSalesReassignResultDto,
+  PoolApplyResultDto,
+  TerritoriesDto,
+} from "../../modules/sales-pipeline/api/dto";
 import { useCrm } from "../../state/CrmContext";
 import { useErrorText, useTeamNames } from "../hooks";
 import { adminApi } from "./adminApi";
@@ -59,6 +63,8 @@ export function TerritoriesTab() {
   const [busy, setBusy] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Rule | null>(null);
   const [applying, setApplying] = useState<PoolApplyResultDto | "loading" | null>(null);
+  // Sorumlusu satışçı olmayan lead'leri kural sahibine aktarma: önce önizleme, sonra onay.
+  const [moving, setMoving] = useState<NonSalesReassignResultDto | "loading" | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [newCode, setNewCode] = useState("");
 
@@ -114,6 +120,29 @@ export function TerritoriesTab() {
     }
   };
 
+  const openMove = async () => {
+    setMoving("loading");
+    try {
+      setMoving(await adminApi.reassignNonSales(true));
+    } catch (e) {
+      setMoving(null);
+      toast(errText(e), { bad: true });
+    }
+  };
+  const confirmMove = async () => {
+    setBusy("move");
+    try {
+      const done = await adminApi.reassignNonSales(false);
+      setMoving(null);
+      await reload();
+      toast(t("terr.move.done", { n: done.total }));
+    } catch (e) {
+      toast(errText(e), { bad: true });
+    } finally {
+      setBusy(null);
+    }
+  };
+
   if (!data) {
     return error ? <LoadError message={errText(error)} onRetry={() => void reload()} /> : <Skeleton h={240} />;
   }
@@ -144,6 +173,9 @@ export function TerritoriesTab() {
             disabled={!data.rules.length}
           >
             {t("terr.apply")}
+          </Button>
+          <Button icon="move" loading={moving === "loading"} onClick={() => void openMove()}>
+            {t("terr.move")}
           </Button>
         </Write>
       </SectionHead>
@@ -365,6 +397,66 @@ export function TerritoriesTab() {
         >
           {t("terr.removeConfirm", { country: countryLabel(removing.countryCode) })}
         </ConfirmDialog>
+      )}
+
+      {moving && moving !== "loading" && (
+        <Modal
+          title={t("terr.move.title")}
+          onClose={() => setMoving(null)}
+          width={520}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setMoving(null)} disabled={busy === "move"}>
+                {t("admin.cancel")}
+              </Button>
+              {moving.total > 0 && (
+                <Button variant="pri" loading={busy === "move"} onClick={() => void confirmMove()}>
+                  {t("terr.move.confirm", { n: moving.total })}
+                </Button>
+              )}
+            </>
+          }
+        >
+          {moving.fromUsers.length === 0 ? (
+            <p className="adm-confirm">{t("terr.move.none")}</p>
+          ) : (
+            <>
+              <p className="adm-confirm">{t("terr.move.summary", { n: moving.total })}</p>
+              <b>{t("terr.move.from")}</b>
+              <ul className="adm-facts">
+                {moving.fromUsers.map((u) => (
+                  <li key={u.userId}>{t("terr.apply.row", { name: nameOf(u.userId), n: u.count })}</li>
+                ))}
+              </ul>
+              {moving.byUser.length > 0 && (
+                <>
+                  <b>{t("terr.move.to")}</b>
+                  <ul className="adm-facts">
+                    {moving.byUser.map((u) => (
+                      <li key={u.userId}>{t("terr.apply.row", { name: nameOf(u.userId), n: u.count })}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {moving.noRule.length > 0 && (
+                <>
+                  <b>{t("terr.move.noRule")}</b>
+                  <ul className="adm-facts">
+                    {moving.noRule.map((c) => (
+                      <li key={c.countryCode ?? "-"}>
+                        {t("terr.apply.row", {
+                          name: c.countryCode ? countryLabel(c.countryCode) : t("terr.move.noCountry"),
+                          n: c.count,
+                        })}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="field-h">{t("terr.move.noRuleHelp")}</p>
+                </>
+              )}
+            </>
+          )}
+        </Modal>
       )}
 
       {applying && applying !== "loading" && (

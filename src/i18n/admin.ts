@@ -328,6 +328,30 @@ export const ADMIN_DICT = {
   "terr.apply.confirm": ["{n} lead'i ata", "Assign {n, plural, one {# lead} other {# leads}}"],
   "terr.apply.done": ["{n} lead atandı", "{n, plural, one {# lead} other {# leads}} assigned"],
   "terr.apply.row": ["{name}: {n} lead", "{name}: {n, plural, one {# lead} other {# leads}}"],
+  "terr.move": ["Satışçı olmayanların lead'lerini aktar", "Move leads from non-sales users"],
+  "terr.move.title": [
+    "Satışçı olmayan sorumluların lead'lerini bölge satışçısına aktar",
+    "Move leads owned by non-sales users to the territory rep",
+  ],
+  "terr.move.none": ["Sorumlusu satışçı olmayan lead yok.", "No lead is owned by a non-sales user."],
+  "terr.move.summary": [
+    "{n} lead, ülkesinin kural sahibine (o uygun değilse yedeğe) aktarılacak. Açık ve kapanmış bütün lead'ler dahildir; satış temsilcilerine tek tek bildirim gönderilmez.",
+    "{n, plural, one {# lead} other {# leads}} will move to the rule owner of its country (or the backup). Open and closed leads are both included; reps are not notified for each lead.",
+  ],
+  "terr.move.from": ["Şu an sorumlu (satışçı değil)", "Current owner (not sales)"],
+  "terr.move.to": ["Aktarılacak satışçı", "New owner"],
+  "terr.move.noRule": ["Yerinde kalacak (ülkesinde uygun kural yok)", "Staying put (no usable rule for the country)"],
+  "terr.move.noCountry": ["Ülkesi yok", "No country"],
+  "terr.move.noRuleHelp": [
+    "Bu ülkeler için kural ekleyip işlemi yeniden çalıştırabilirsiniz.",
+    "Add a rule for these countries and run this again.",
+  ],
+  "terr.move.confirm": ["{n} lead'i aktar", "Move {n, plural, one {# lead} other {# leads}}"],
+  "terr.move.done": ["{n} lead aktarıldı", "{n, plural, one {# lead} other {# leads}} moved"],
+  "err.territory.directory_unavailable": [
+    "Kullanıcı tablosu okunamadı; işlem yapılmadı.",
+    "The user table couldn't be read; nothing was changed.",
+  ],
 
   // ---- Kişi birleştirme ve kuruluş arşivi (Kişiler sayfası)
   "merge.action": ["Birleştir", "Merge"],

@@ -236,6 +236,20 @@ export const AR_ADMIN: Record<keyof typeof ADMIN_DICT, string> = {
   "terr.apply.confirm": `إسناد ${LEADS}`,
   "terr.apply.done": "تم الإسناد: {n}",
   "terr.apply.row": `{name}: ${LEADS}`,
+  "terr.move": "نقل عملاء غير المندوبين",
+  "terr.move.title": "نقل عملاء المسؤولين غير المندوبين إلى مندوب المنطقة",
+  "terr.move.none": "لا يوجد عميل محتمل مسؤوله ليس مندوب مبيعات.",
+  "terr.move.summary":
+    "سيُنقل {n, plural, one {عميل محتمل واحد} two {عميلان محتملان} few {# عملاء محتملين} many {# عميلًا محتملًا} other {# عميل محتمل}} إلى صاحب قاعدة الدولة (أو البديل). يشمل ذلك العملاء المفتوحين والمغلقين؛ ولا يُرسل إشعار لكل عميل.",
+  "terr.move.from": "المسؤول الحالي (ليس مندوبًا)",
+  "terr.move.to": "المندوب الجديد",
+  "terr.move.noRule": "سيبقى كما هو (لا توجد قاعدة مناسبة للدولة)",
+  "terr.move.noCountry": "بلا دولة",
+  "terr.move.noRuleHelp": "أضف قاعدة لهذه الدول ثم أعد تشغيل العملية.",
+  "terr.move.confirm":
+    "نقل {n, plural, one {عميل محتمل واحد} two {عميلان محتملان} few {# عملاء محتملين} many {# عميلًا محتملًا} other {# عميل محتمل}}",
+  "terr.move.done": "تم النقل: {n}",
+  "err.territory.directory_unavailable": "تعذّرت قراءة جدول المستخدمين؛ لم يتغير شيء.",
 
   // ---- Kişi birleştirme ve kuruluş arşivi
   "merge.action": "دمج",

@@ -1,7 +1,13 @@
 /** Faz 7b/7d: bölge kuralları, havuza uygulama, kişi birleştirme, kuruluş arşivleme, kur kaynağı (bellek içi). */
 import { beforeEach, describe, expect, it } from "vitest";
 import { unwrap } from "../../shared/kernel";
-import { parseTerritoryRule, planPersonMerge, planPoolAssignment, type Person } from "../domain";
+import {
+  parseTerritoryRule,
+  planNonSalesReassignment,
+  planPersonMerge,
+  planPoolAssignment,
+  type Person,
+} from "../domain";
 import { testDeps, type TestHarness } from "./fakes";
 import { createSalesPipeline, type SalesPipeline } from "./index";
 
@@ -86,6 +92,39 @@ describe("bölge kuralı (saf)", () => {
       { leadId: "f", toUserId: "rep-2" },
     ]);
   });
+
+  it("satışçı olmayan sorumlu planı: pasif, satış dışı ve bilinmeyen kimlikler; kural yoksa yerinde kalır", () => {
+    const plan = planNonSalesReassignment(
+      [
+        { id: "a", country: "TR", assignedUserId: "44" },
+        { id: "b", country: "tr", assignedUserId: "43" },
+        { id: "c", country: "TR", assignedUserId: "rep-2" },
+        { id: "d", country: "TR", assignedUserId: null },
+        { id: "e", country: "DE", assignedUserId: "22" },
+        { id: "f", country: "GB", assignedUserId: "44" },
+        { id: "g", country: null, assignedUserId: "45" },
+        { id: "h", country: "FR", assignedUserId: "44" },
+      ],
+      [
+        { countryCode: "TR", assignedUserId: "rep-1", fallbackUserId: null },
+        // Kural sahibi artık satışçı değil: yedeğe gider.
+        { countryCode: "DE", assignedUserId: "44", fallbackUserId: "rep-2" },
+        // Sahibi de yedeği de satışçı değil: yerinde kalır.
+        { countryCode: "FR", assignedUserId: "44", fallbackUserId: "45" },
+      ],
+      new Set(["rep-1", "rep-2"]),
+    );
+    expect(plan.moves).toEqual([
+      { leadId: "a", toUserId: "rep-1", fromUserId: "44" },
+      { leadId: "b", toUserId: "rep-1", fromUserId: "43" },
+      { leadId: "e", toUserId: "rep-2", fromUserId: "22" },
+    ]);
+    expect(plan.noRule).toEqual([
+      { leadId: "f", fromUserId: "44", countryCode: "GB" },
+      { leadId: "g", fromUserId: "45", countryCode: null },
+      { leadId: "h", fromUserId: "44", countryCode: "FR" },
+    ]);
+  });
 });
 
 describe("TerritoryAdmin", () => {
@@ -143,6 +182,46 @@ describe("TerritoryAdmin", () => {
     expect(unwrap(await sp.territories.applyToPool({ actor: ADMIN, dryRun: false })).total).toBe(0);
     const denied = await sp.territories.applyToPool({ actor: REP, dryRun: true });
     expect(!denied.ok && denied.error.code).toBe("admin_only");
+  });
+
+  it("satışçı olmayanların lead'leri: kuru çalıştırma yazmaz; uygulama kural sahibine aktarır, kapanmışlar dahil", async () => {
+    const a = await lead({ assignedUserId: "44" });
+    const b = await lead({ assignedUserId: "43" });
+    const mine = await lead({ assignedUserId: "rep-2" });
+    const pool = await lead();
+    const gb = await lead({ country: "GB", assignedUserId: "44" });
+    const won = await lead({ assignedUserId: "44" });
+    h.uow.state.leads.find((l) => l.id === won.id)!.currentStage = "WON";
+    unwrap(await sp.territories.save({ actor: ADMIN, fields: { countryCode: "TR", assignedUserId: "rep-1" } }));
+    const owner = (id: string) => h.uow.state.leads.find((l) => l.id === id)?.assignedUserId;
+
+    const dry = unwrap(await sp.territories.reassignNonSales({ actor: ADMIN, dryRun: true }));
+    expect(dry).toEqual({
+      dryRun: true,
+      total: 3,
+      byUser: [{ userId: "rep-1", count: 3 }],
+      fromUsers: [
+        { userId: "44", count: 3 },
+        { userId: "43", count: 1 },
+      ],
+      noRule: [{ countryCode: "GB", count: 1 }],
+    });
+    expect([owner(a.id), owner(b.id), owner(won.id)]).toEqual(["44", "43", "44"]);
+
+    const real = unwrap(await sp.territories.reassignNonSales({ actor: ADMIN, dryRun: false }));
+    expect(real.total).toBe(3);
+    expect([owner(a.id), owner(b.id), owner(won.id)]).toEqual(["rep-1", "rep-1", "rep-1"]);
+    // Satışçının kendi lead'i, havuz ve kuralsız ülke yerinde kalır.
+    expect([owner(mine.id), owner(pool.id), owner(gb.id)]).toEqual(["rep-2", null, "44"]);
+    const again = unwrap(await sp.territories.reassignNonSales({ actor: ADMIN, dryRun: false }));
+    expect([again.total, again.noRule]).toEqual([0, [{ countryCode: "GB", count: 1 }]]);
+
+    const denied = await sp.territories.reassignNonSales({ actor: REP, dryRun: true });
+    expect(!denied.ok && denied.error.code).toBe("admin_only");
+    // Ekip dizini okunamıyorsa kimin satışçı olduğu bilinemez: hiçbir şey yapılmaz.
+    const blind = createSalesPipeline({ ...h, team: { activeSalesUserIds: async () => null } });
+    const none = await blind.territories.reassignNonSales({ actor: ADMIN, dryRun: false });
+    expect(!none.ok && none.error.code).toBe("territory.directory_unavailable");
   });
 });
 

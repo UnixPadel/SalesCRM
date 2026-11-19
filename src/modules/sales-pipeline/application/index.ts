@@ -90,7 +90,13 @@ export {
   type UpdateOrganizationInput,
 } from "./organizations";
 export { ArchiveOrganization, MergePersons, type MergePersonsResult } from "./peopleAdmin";
-export { TerritoryAdmin, type PoolApplyResult, type TerritoryOverview, type TerritoryRow } from "./territories";
+export {
+  TerritoryAdmin,
+  type NonSalesReassignResult,
+  type PoolApplyResult,
+  type TerritoryOverview,
+  type TerritoryRow,
+} from "./territories";
 export { currentEurRates } from "./types";
 export { canAct, canSee, loadActionableLead, territoriesOf } from "./visibility";
 export {

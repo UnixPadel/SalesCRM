@@ -65,6 +65,39 @@ export function planPoolAssignment(
   return out;
 }
 
+export interface NonSalesReassignPlan {
+  /** Kural sahibine (o uygun değilse yedeğe) aktarılacak lead'ler. */
+  moves: (PoolAssignment & { fromUserId: string })[];
+  /** Ülkesinde uygun kural olmadığı için yerinde kalan lead'ler (ülke yoksa `countryCode` null). */
+  noRule: { leadId: string; fromUserId: string; countryCode: string | null }[];
+}
+
+/**
+ * "Satışçı olmayanların lead'lerini aktar" (2026-11-19): sorumlusu aktif satış kullanıcısı olmayan (pasif, muhasebe,
+ * gözlemci ya da dizinde hiç olmayan) her lead, ülkesinin kural sahibine (o uygun değilse yedeğe) aktarılır. Açık,
+ * kapanmış ve test lead'leri dahildir: amaç listelerde satışçı olmayan sorumlu kalmamasıdır. Ülkesinde uygun kural
+ * olmayan lead'e dokunulmaz ve ayrıca raporlanır. Havuz lead'leri bu işlemin konusu değildir.
+ */
+export function planNonSalesReassignment(
+  leads: readonly Pick<Lead, "id" | "country" | "assignedUserId">[],
+  rules: readonly TerritoryRule[],
+  activeSales: ReadonlySet<string>,
+): NonSalesReassignPlan {
+  // Kural sahibi de satışçı değilse (pasif ya da rolü değişmiş) atlanır: yalnız aktif satış kullanıcısına aktarılır.
+  const unavailable = new Set(
+    rules.flatMap((r) => [r.assignedUserId, r.fallbackUserId]).filter((u): u is string => !!u && !activeSales.has(u)),
+  );
+  const plan: NonSalesReassignPlan = { moves: [], noRule: [] };
+  for (const l of leads) {
+    const from = l.assignedUserId;
+    if (from === null || activeSales.has(from)) continue;
+    const toUserId = resolveAssignee(l.country, rules, unavailable);
+    if (toUserId) plan.moves.push({ leadId: l.id, toUserId, fromUserId: from });
+    else plan.noRule.push({ leadId: l.id, fromUserId: from, countryCode: l.country ? l.country.toUpperCase() : null });
+  }
+  return plan;
+}
+
 export interface PersonMergePlan {
   /** Hedef kişide değişecek alanlar (boş olanlar kaynaktan dolar). */
   targetPatch: Partial<Pick<Person, "emailNormalized" | "phoneE164" | "company" | "country" | "organizationId">>;

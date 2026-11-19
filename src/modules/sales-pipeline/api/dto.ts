@@ -447,6 +447,12 @@ export interface PoolApplyResultDto {
   total: number;
   byUser: { userId: string; count: number }[];
 }
+/** POST /territories/reassign-non-sales: satışçı olmayan sorumluların lead'leri kural sahibine; gövde `PoolApplyBody`. */
+export interface NonSalesReassignResultDto extends PoolApplyResultDto {
+  fromUsers: { userId: string; count: number }[];
+  /** Ülkesinde uygun kural olmadığı için yerinde kalanlar (ülkesi yoksa null). */
+  noRule: { countryCode: string | null; count: number }[];
+}
 
 /* ---------------- Faz 7d: kişi birleştirme ---------------- */
 

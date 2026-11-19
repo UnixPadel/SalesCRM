@@ -8,6 +8,7 @@ import type {
   MergePersonBody,
   MergePersonResultDto,
   OrganizationDto,
+  NonSalesReassignResultDto,
   PoolApplyBody,
   PoolApplyResultDto,
   TerritoriesDto,
@@ -77,6 +78,16 @@ export function registerAdminRoutes(r: Router, deps: AdminRouteDeps): void {
     const result = await pipeline.territories.applyToPool({ actor: a, dryRun: b.dryRun !== false });
     if (!result.ok) return sendError(res, result.error);
     res.json(<PoolApplyResultDto>result.value);
+  });
+
+  /** Sorumlusu satışçı olmayan lead'ler kural sahibine; önce `dryRun: true`, onaydan sonra `dryRun: false`. */
+  r.post("/territories/reassign-non-sales", async (req, res) => {
+    const a = actor(req, res, true);
+    if (!a) return;
+    const b = (req.body ?? {}) as PoolApplyBody;
+    const result = await pipeline.territories.reassignNonSales({ actor: a, dryRun: b.dryRun !== false });
+    if (!result.ok) return sendError(res, result.error);
+    res.json(<NonSalesReassignResultDto>result.value);
   });
 
   // Ürün listesi: herkes okur; dosyadan güncelleme yalnız yönetici (önce `dryRun: true` ile plan gösterilir).
