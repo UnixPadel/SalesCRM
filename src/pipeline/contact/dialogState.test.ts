@@ -98,8 +98,20 @@ describe("dialogState", () => {
     expect(body.next).toBeNull();
   });
 
+  it("görüşme notu zorunlu: boş ya da yalnız boşluk kaydı durdurur", () => {
+    const s = initialState(FORM, RULES);
+    const at = Date.parse(FORM.now);
+    expect(saveBlockers(s, FORM, RULES, at)).toEqual(["contact.needNote"]);
+    expect(saveBlockers({ ...s, note: "   " }, FORM, RULES, at)).toEqual(["contact.needNote"]);
+    expect(saveBlockers({ ...s, note: "Fiyat listesi istedi" }, FORM, RULES, at)).toEqual([]);
+  });
+
   it("Kazanıldı için tutar, Kaybedildi için neden zorunlu; ileri saat reddi", () => {
-    const won = { ...retarget({ ...initialState(FORM, RULES), outcome: "agreed" }, FORM, RULES), stageChecked: true };
+    const won = {
+      ...retarget({ ...initialState(FORM, RULES), outcome: "agreed" }, FORM, RULES),
+      stageChecked: true,
+      note: "Anlaştık",
+    };
     expect(saveBlockers(won, FORM, RULES, Date.parse(FORM.now))).toEqual(["contact.needAmount"]);
     expect(buildBody({ ...won, amount: "12.500,5".replace(".", "") }, FORM, RULES).stage).toMatchObject({
       target: "WON",
@@ -108,6 +120,7 @@ describe("dialogState", () => {
     const lost = {
       ...retarget({ ...initialState(FORM, RULES), outcome: "negative" }, FORM, RULES),
       stageChecked: true,
+      note: "İlgilenmiyor",
     };
     expect(saveBlockers(lost, FORM, RULES, Date.parse(FORM.now))).toEqual(["contact.needReason"]);
     const future = { ...initialState(FORM, RULES), occurredAt: "2026-11-10T14:00" };
@@ -181,7 +194,7 @@ describe("dialogState", () => {
     });
 
     it("okunamayan teklif tutarı kaydı durdurur; boş ya da geçerli tutar durdurmaz", () => {
-      const s = initialState(FORM, RULES, { outcome: "proposal_sent" });
+      const s = { ...initialState(FORM, RULES, { outcome: "proposal_sent" }), note: "Teklif gitti" };
       const at = Date.parse(FORM.now);
       expect(saveBlockers({ ...s, amount: "12.500,00" }, FORM, RULES, at)).toEqual(["contact.badAmount"]);
       expect(saveBlockers({ ...s, amount: "" }, FORM, RULES, at)).toEqual([]);

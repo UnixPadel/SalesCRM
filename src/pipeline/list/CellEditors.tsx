@@ -47,7 +47,6 @@ export const CellEditors = forwardRef<CellEditorsApi, { onChanged: OnChanged }>(
   { onChanged },
   apiRef,
 ) {
-  const { t } = useLang();
   const { toast } = useCrm();
   const { ref } = useReference();
   const errText = useErrorText();
@@ -78,20 +77,19 @@ export const CellEditors = forwardRef<CellEditorsApi, { onChanged: OnChanged }>(
       quick,
       form: openForm,
       moveStage: (lead, target) => {
-        // Panodaki kural: temas kaydı olmayan lead "İletişim kuruldu"ya geçerken önce temas sorulur.
-        if (lead.currentStage === "NEW" && target === "CONTACTED" && lead.contact.state !== "contacted") {
+        // Panodaki kural: lead "İletişim kuruldu"ya geçerken iletişim penceresi açılır (görüşme notu zorunlu).
+        if (lead.currentStage === "NEW" && target === "CONTACTED") {
           openDialog({
             leadId: lead.id,
             leadName: lead.fullName,
             outcome: "reply_received",
-            alt: { label: t("board.logOnDrop"), run: () => move(lead, target) },
           });
           return;
         }
         move(lead, target);
       },
     }),
-    [openDialog, quick, openForm, move, t],
+    [openDialog, quick, openForm, move],
   );
 
   return (

@@ -223,5 +223,4 @@ export const LIST_DICT = {
   "board.nextAt": ["Takip: {d}", "Follow-up: {d}"],
   "board.filtersActive": ["{n} filtre", "{n, plural, one {# filter} other {# filters}}"],
   "board.noLeadsFiltered": ["Bu filtrelerle lead yok.", "No leads with these filters."],
-  "board.logOnDrop": ["Yalnız aşamayı taşı", "Only move the stage"],
 } as const satisfies Record<string, readonly [string, string]>;

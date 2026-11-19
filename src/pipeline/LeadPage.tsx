@@ -3,10 +3,12 @@ import { Button, Empty, Icon, Skeleton, StatusTag, fmtDate, money, relDays } fro
 import type { Currency } from "../domain/types";
 import { useLang } from "../i18n";
 import type { ActivityDto, LeadDto, StageCodeDto, StageEventDto } from "../modules/sales-pipeline/api/dto";
+import type { AttachmentDto } from "../modules/sales-pipeline/api/dto.attachment";
 import { navigate } from "../router";
 import { useCrm } from "../state/CrmContext";
 import { ACTIVITY_ICON, ActivityItem, AddActivityForm } from "./activityBits";
 import { pipelineApi } from "./api";
+import { AttachmentChips, AttachmentsPanel, useAttachments } from "./attachments/AttachmentsPanel";
 import { Age, Country, SourceBadge, StageTag } from "./bits";
 import { LeadContactForm } from "./LeadContactForm";
 import { LeadFieldsForm } from "./LeadFieldsForm";
@@ -37,14 +39,17 @@ export function LeadPage({ id }: { id: string }) {
   const { team, nameOf } = useTeamNames();
   const errText = useErrorText();
   const now = useNow(1000);
+  const attachments = useAttachments(id);
+  const reloadAttachments = attachments.reload;
 
   const onChanged = useCallback(
     (lead: LeadDto) => {
       // Komut yanıtı yalın lead döner; aktivite özeti yeniden yüklemeye kadar eski değerle kalır.
       setDetail((d) => (d ? { ...d, lead: { ...d.lead, ...lead } } : d));
       reload();
+      reloadAttachments();
     },
-    [setDetail, reload],
+    [setDetail, reload, reloadAttachments],
   );
   // Kazanıldı penceresi son geçerli teklif tutarıyla açılır; satışçı yalnız onaylar ya da düzeltir.
   const lastValue = useCallback(
@@ -54,7 +59,11 @@ export function LeadPage({ id }: { id: string }) {
     [detail],
   );
   const { move, dialog, saving } = useStageMove(ref, onChanged, { lastValue });
-  const contact = useLogContact(reload);
+  const reloadAll = useCallback(() => {
+    reload();
+    reloadAttachments();
+  }, [reload, reloadAttachments]);
+  const contact = useLogContact(reloadAll);
   const [moreOpen, setMoreOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
@@ -218,7 +227,9 @@ export function LeadPage({ id }: { id: string }) {
                       className={"menu-item" + (s === "LOST" ? " danger" : "")}
                       onClick={() => {
                         setMoreOpen(false);
-                        move(lead, s);
+                        // İletişim kuruldu'ya geçiş görüşme notu ister: iletişim penceresi açılır (panodaki gibi).
+                        if (lead.currentStage === "NEW" && s === "CONTACTED") logFor(undefined, "reply_received");
+                        else move(lead, s);
                       }}
                     >
                       {stageName(s)}
@@ -400,7 +411,15 @@ export function LeadPage({ id }: { id: string }) {
             {openActs.length === 0 && !lead.rotting && <p className="muted">{t("activity.none")}</p>}
             {canAct && <AddActivityForm leadId={lead.id} onAdded={() => reload()} />}
           </div>
-          <SourceDetail lead={lead} />
+          <AttachmentsPanel
+            leadId={lead.id}
+            items={attachments.items}
+            canAdd={canAct}
+            who={nameOf}
+            onChanged={reloadAttachments}
+          />
+          {/* Kaynak detayı yalnız yöneticiye açıktır (2026-11-19). */}
+          {isAdmin && <SourceDetail lead={lead} />}
         </div>
 
         <div className="lead-right panel">
@@ -421,6 +440,7 @@ export function LeadPage({ id }: { id: string }) {
                     who={nameOf}
                     now={now}
                     log={logById.get(x.a.id)}
+                    files={(attachments.items ?? []).filter((f) => f.activityId === x.a.id)}
                     onUndo={(id) => contact.undo(id)}
                     onDelete={isAdmin ? () => deleteContact(x.a.id) : undefined}
                   />
@@ -450,10 +470,12 @@ function ContactItem({
   who,
   now,
   log,
+  files,
   onUndo,
   onDelete,
 }: {
   a: ActivityDto;
+  files: AttachmentDto[];
   who: (id: string | null) => string;
   now: number;
   log: { id: string; undoUntil: string; canUndo: boolean } | undefined;
@@ -476,6 +498,7 @@ function ContactItem({
           {a.customerReplied && <span className="tag tag-neutral">{t("contact.replied")}</span>}
         </div>
         {a.resultNote && <p className="tl-note">{a.resultNote}</p>}
+        <AttachmentChips items={files} who={who} />
         <small className="muted">
           {a.dateEstimated ? "≈ " : ""}
           {fmtDate(a.doneAt ?? a.dueAt, !a.dateEstimated)}

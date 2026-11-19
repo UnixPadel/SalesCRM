@@ -1527,3 +1527,98 @@
   font-size: var(--t-lg);
   color: var(--ok-ink);
 }
+
+/* ---- dosya ekleri (2026-11-19) ---- */
+.fp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-2);
+}
+.fp .field-h {
+  margin: 0;
+}
+.fp-list,
+.att-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  inline-size: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.fp-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-sm);
+}
+.fp-name,
+.att-name {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fp-list .link-btn {
+  margin-inline-start: auto;
+}
+.fp > .field-err {
+  inline-size: 100%;
+  margin: 0;
+}
+.att {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-1);
+  font-size: var(--t-sm);
+}
+.att-main {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+.att-name {
+  font-weight: 700;
+}
+.att-thumb {
+  flex: 0 0 auto;
+  inline-size: 40px;
+  block-size: 40px;
+  border-radius: var(--r-1);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.att-thumb img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  display: block;
+}
+.att-deleted {
+  color: var(--text-2);
+  background: var(--surface-2);
+}
+.att-deleted .att-name {
+  text-decoration: line-through;
+  font-weight: 400;
+}
+.att-reason {
+  color: var(--text-1);
+}
+.att-add {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin-block-start: var(--s-3);
+}
+.att-inline {
+  margin-block: var(--s-1);
+}

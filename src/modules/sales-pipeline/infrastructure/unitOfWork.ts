@@ -2,6 +2,7 @@ import type { Db, Queryable } from "../../shared/db";
 import type { IdGenerator } from "../../shared/kernel";
 import type { Repositories, UnitOfWork } from "../domain";
 import { pgActivityRepository } from "./activityRepository";
+import { pgAttachmentRepository } from "./attachmentRepository";
 import { pgContactLogRepository } from "./contactLogRepository";
 import { pgOrganizationRepository } from "./organizationRepository";
 import {
@@ -22,6 +23,7 @@ export function repositoriesFor(q: Queryable, ids: IdGenerator): Repositories {
     stageEvents: pgStageEventRepository(q),
     activities: pgActivityRepository(q),
     contactLogs: pgContactLogRepository(q),
+    attachments: pgAttachmentRepository(q),
     outbox: pgOutboxWriter(q, ids),
     territories: pgTerritoryRuleSource(q),
     lostReasons: pgLostReasonSource(q),

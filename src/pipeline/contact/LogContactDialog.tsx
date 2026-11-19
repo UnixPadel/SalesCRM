@@ -3,7 +3,10 @@ import { Button, Icon, Modal, Skeleton, fmtDate } from "../../components/ui";
 import { localeOf, useLang } from "../../i18n";
 import type { ActivityOutcomeDto, ActivityTypeDto, StageCodeDto } from "../../modules/sales-pipeline/api/dto";
 import type { ContactFormDto, LogContactResultDto } from "../../modules/sales-pipeline/api/dto.contact";
+import { useCrm } from "../../state/CrmContext";
 import { ACTIVITY_ICON } from "../activityBits";
+import { uploadAll } from "../attachments/attachmentApi";
+import { FilePicker } from "../attachments/FilePicker";
 import { useErrorText, useNow, useReference } from "../hooks";
 import { contactApi } from "./contactApi";
 import {
@@ -33,8 +36,6 @@ export interface LogContactOpen {
   pickChannel?: boolean;
   /** Tamamlama modu (Bugün "Tamamla…", plan satırı). */
   activityId?: string | null;
-  /** İkincil bağlantı (panoda "Yalnız aşamayı taşı"): diyalog kapanır, eski akış çalışır. */
-  alt?: { label: string; run: () => void };
 }
 
 /**
@@ -51,8 +52,11 @@ export function LogContactDialog({
   onSaved: (r: LogContactResultDto) => void;
 }) {
   const { t, lang } = useLang();
+  const { toast } = useCrm();
   const { ref, stageName, reasonName } = useReference();
   const errText = useErrorText();
+  // Görüşme notuna eklenecek dosyalar; temas kaydedilince o görüşmeye bağlanarak yüklenir.
+  const [files, setFiles] = useState<File[]>([]);
   const [form, setForm] = useState<ContactFormDto | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [s, setS] = useState<DialogState | null>(null);
@@ -64,6 +68,7 @@ export function LogContactDialog({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [noteTouched, setNoteTouched] = useState(false);
   const helpId = useId();
   const rules = ref?.contactRules;
   const nowMs = useNow(15_000);
@@ -90,7 +95,7 @@ export function LogContactDialog({
   }, [form, rules, s, open]);
 
   const order = useMemo<ActivityOutcomeDto[]>(() => (ref?.outcomeDisplayOrder ?? []) as ActivityOutcomeDto[], [ref]);
-  const requestClose = () => (s && s.note.trim() && !saving ? setConfirmClose(true) : onClose());
+  const requestClose = () => (s && (s.note.trim() || files.length) && !saving ? setConfirmClose(true) : onClose());
 
   const body = () => {
     if (loadError)
@@ -252,11 +257,15 @@ export function LogContactDialog({
         </fieldset>
 
         {/* 4. Not */}
-        <label className="field">
-          <span className="field-l">{t("contact.note")}</span>
+        <label className={"field" + (noteTouched && !s.note.trim() ? " has-error" : "")}>
+          <span className="field-l">
+            {t("contact.note")} <span aria-hidden="true">*</span>
+          </span>
           <textarea
             rows={3}
             maxLength={rules.noteMax}
+            aria-required="true"
+            onBlur={() => setNoteTouched(true)}
             value={s.note}
             placeholder={t("contact.notePlaceholder")}
             onChange={(e) => up({ note: e.target.value })}
@@ -267,6 +276,7 @@ export function LogContactDialog({
             </span>
           )}
         </label>
+        <FilePicker files={files} onChange={setFiles} rules={ref.attachments} disabled={saving} />
 
         {/* 5. Zaman ve takip özeti */}
         <div className="cd-line">
@@ -457,6 +467,10 @@ export function LogContactDialog({
     setSaveError(null);
     try {
       const r = await contactApi.log(open.leadId, buildBody(s, form, rules));
+      if (files.length) {
+        const failed = await uploadAll(open.leadId, files, r.activity.id);
+        if (failed.length) toast(t("attach.failed", { names: failed.join(", ") }), { bad: true });
+      }
       onSaved(r);
     } catch (e) {
       const text = errText(e);
@@ -475,18 +489,6 @@ export function LogContactDialog({
       width={560}
       footer={
         <>
-          {open.alt && (
-            <button
-              type="button"
-              className="link-btn cd-alt"
-              onClick={() => {
-                onClose();
-                open.alt!.run();
-              }}
-            >
-              {open.alt.label}
-            </button>
-          )}
           <Button onClick={requestClose}>{t("common.cancel")}</Button>
           <Button variant="pri" size="lg" loading={saving} disabled={!ready || blocked} onClick={save}>
             {saving ? t("contact.saving") : t("common.save")}

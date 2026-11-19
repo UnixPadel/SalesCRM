@@ -13,7 +13,7 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
 
   it("dosyaları sırayla uygular, ikinci çalıştırmada atlar", async () => {
     const files = readMigrations(MIGRATIONS_DIR);
-    expect(files.map((f) => f.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+    expect(files.map((f) => f.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
     const first = await migrate(db, files);
     expect(first.applied).toEqual([
       "0001_faz1_core",
@@ -33,13 +33,14 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
       "0015_meta_tr_form_fields",
       "0016_redact_tokens_in_errors",
       "0017_urun_listesi",
+      "0018_lead_attachments",
     ]);
     const second = await migrate(db, files);
     expect(second.applied).toEqual([]);
-    expect(second.skipped).toHaveLength(17);
+    expect(second.skipped).toHaveLength(18);
   });
 
-  it("on dokuz tablo ve seed verisi var", async () => {
+  it("yirmi tablo ve seed verisi var", async () => {
     const tables = (
       await db.query<{ table_name: string }>(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1",
@@ -51,6 +52,7 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
       "form_field_mappings",
       "inbound_webhook_events",
       "integration_settings",
+      "lead_attachments",
       "lead_attribution",
       "lead_consents",
       "lead_stage_events",

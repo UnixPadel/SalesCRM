@@ -154,5 +154,4 @@ export const AR_LIST: Record<keyof typeof LIST_DICT, string> = {
   "board.nextAt": "المتابعة: {d}",
   "board.filtersActive": "عوامل التصفية: {n}",
   "board.noLeadsFiltered": "لا يوجد عملاء محتملون بهذه العوامل.",
-  "board.logOnDrop": "نقل المرحلة فقط",
 };

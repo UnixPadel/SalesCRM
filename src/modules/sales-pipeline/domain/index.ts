@@ -17,4 +17,5 @@ export * from "./trackingReport";
 export * from "./events";
 export * from "./filter";
 export * from "./adminRules";
+export * from "./attachment";
 export * from "./ports";

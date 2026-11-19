@@ -3,6 +3,8 @@ import { refName, useLang } from "../i18n";
 import type { ChangeStageBody, LeadDto, ReferenceDto, StageCodeDto } from "../modules/sales-pipeline/api/dto";
 import { useCrm } from "../state/CrmContext";
 import { pipelineApi } from "./api";
+import { uploadAll } from "./attachments/attachmentApi";
+import { FilePicker } from "./attachments/FilePicker";
 import { useErrorText } from "./hooks";
 import { LostDialog, ProposalDialog, QualifiedDialog, WonDialog, type MoneyValue } from "./StageDialogs";
 
@@ -26,12 +28,18 @@ export function useStageMove(
   const errText = useErrorText();
   const [pending, setPending] = useState<{ lead: LeadDto; target: StageCodeDto } | null>(null);
   const [saving, setSaving] = useState(false);
+  // Aşama penceresinde seçilen dosyalar; aşama değişince lead'e yüklenir (2026-11-19).
+  const [files, setFiles] = useState<File[]>([]);
 
   const submit = useCallback(
-    async (lead: LeadDto, body: ChangeStageBody): Promise<boolean> => {
+    async (lead: LeadDto, body: ChangeStageBody, attach: readonly File[] = []): Promise<boolean> => {
       setSaving(true);
       try {
         const r = await pipelineApi.changeStage(lead.id, body);
+        if (attach.length) {
+          const failed = await uploadAll(lead.id, attach);
+          if (failed.length) toast(t("attach.failed", { names: failed.join(", ") }), { bad: true });
+        }
         const name = ref?.stages.find((s) => s.code === body.target);
         toast(t("stage.changed", { stage: name ? refName(lang, "stage", name) : body.target }), {
           action: {
@@ -62,9 +70,10 @@ export function useStageMove(
   const move = useCallback(
     (lead: LeadDto, target: StageCodeDto) => {
       if (lead.currentStage === target) return;
-      if (target === "QUALIFIED" || target === "PROPOSAL" || target === "WON" || target === "LOST")
+      if (target === "QUALIFIED" || target === "PROPOSAL" || target === "WON" || target === "LOST") {
+        setFiles([]);
         setPending({ lead, target });
-      else void submit(lead, { target });
+      } else void submit(lead, { target });
     },
     [submit],
   );
@@ -73,25 +82,44 @@ export function useStageMove(
   if (pending && ref) {
     const close = () => setPending(null);
     const confirm = async (body: ChangeStageBody) => {
-      if (await submit(pending.lead, body)) close();
+      if (await submit(pending.lead, body, files)) close();
     };
+    const extra = <FilePicker files={files} onChange={setFiles} rules={ref.attachments} disabled={saving} />;
     if (pending.target === "QUALIFIED")
       dialog = (
-        <QualifiedDialog questions={ref.qualificationQuestions} saving={saving} onCancel={close} onConfirm={confirm} />
+        <QualifiedDialog
+          questions={ref.qualificationQuestions}
+          saving={saving}
+          extra={extra}
+          onCancel={close}
+          onConfirm={confirm}
+        />
       );
     else if (pending.target === "PROPOSAL")
-      dialog = <ProposalDialog currencies={ref.currencies} saving={saving} onCancel={close} onConfirm={confirm} />;
+      dialog = (
+        <ProposalDialog
+          currencies={ref.currencies}
+          saving={saving}
+          extra={extra}
+          onCancel={close}
+          onConfirm={confirm}
+        />
+      );
     else if (pending.target === "WON")
       dialog = (
         <WonDialog
           currencies={ref.currencies}
           initial={opts.lastValue?.(pending.lead) ?? null}
           saving={saving}
+          extra={extra}
           onCancel={close}
           onConfirm={confirm}
         />
       );
-    else dialog = <LostDialog reasons={ref.lostReasons} saving={saving} onCancel={close} onConfirm={confirm} />;
+    else
+      dialog = (
+        <LostDialog reasons={ref.lostReasons} saving={saving} extra={extra} onCancel={close} onConfirm={confirm} />
+      );
   }
 
   return { move, dialog, saving };

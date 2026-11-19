@@ -7,6 +7,8 @@ import { aggregateContacts, feedbackIdentity, filterValues } from "../domain";
 import type {
   Activity,
   ActivityRepository,
+  Attachment,
+  AttachmentRepository,
   CatalogProduct,
   ContactLog,
   ContactLogRepository,
@@ -54,6 +56,9 @@ export interface MemoryState {
   activities: Activity[];
   /** Temas kayıtları (Faz 7g). */
   contactLogs: ContactLog[];
+  /** Dosya ekleri ve içerikleri (id → base64). */
+  attachments: Attachment[];
+  attachmentContents: Record<string, string>;
   outbox: OutboxRow[];
   territories: TerritoryRule[];
   lostReasons: string[];
@@ -72,6 +77,8 @@ export const emptyState = (): MemoryState => ({
   consents: [],
   activities: [],
   contactLogs: [],
+  attachments: [],
+  attachmentContents: {},
   outbox: [],
   territories: [],
   lostReasons: ["price_too_high", "competitor", "no_response", "unqualified"],
@@ -540,6 +547,34 @@ function reposFor(s: MemoryState): Repositories {
     },
   };
   const lostReasons: LostReasonSource = { activeCodes: async () => [...s.lostReasons] };
+  const attachments: AttachmentRepository = {
+    async insert(a, contentBase64) {
+      if (s.attachments.some((x) => x.id === a.id)) throw new Error("duplicate attachment id");
+      s.attachments.push({ ...a });
+      s.attachmentContents[a.id] = contentBase64;
+    },
+    async findById(id) {
+      const a = s.attachments.find((x) => x.id === id);
+      return a ? { ...a } : undefined;
+    },
+    async listByLead(leadId) {
+      return s.attachments
+        .filter((a) => a.leadId === leadId)
+        .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime() || (a.id < b.id ? 1 : -1))
+        .map((a) => ({ ...a }));
+    },
+    async content(id) {
+      return s.attachmentContents[id];
+    },
+    async markDeleted(id, by, reason, at) {
+      const a = s.attachments.find((x) => x.id === id);
+      if (!a) return;
+      a.deletedAt = at;
+      a.deletedBy = by;
+      a.deleteReason = reason;
+      delete s.attachmentContents[id];
+    },
+  };
   const products: ProductCatalogRepository = {
     list: async () => [...s.catalog].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id).map((p) => ({ ...p })),
     apply: async (plan, order) => {
@@ -563,6 +598,7 @@ function reposFor(s: MemoryState): Repositories {
     stageEvents,
     activities,
     contactLogs,
+    attachments,
     outbox,
     territories,
     lostReasons,

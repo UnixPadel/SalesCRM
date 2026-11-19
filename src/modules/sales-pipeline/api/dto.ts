@@ -347,6 +347,8 @@ export interface ReferenceDto extends TrackingReferenceDto {
   qualificationQuestions: string[];
   currencies: string[];
   undoWindowMinutes: number;
+  /** Dosya eki sınırları (boyut, uzantılar, silme nedeni). */
+  attachments: import("./dto.attachment").AttachmentRulesDto;
   /** Para birimi → EUR çarpanı (pano toplamları). */
   eurRates: Record<string, number>;
 }

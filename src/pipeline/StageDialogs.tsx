@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button, Field, Modal } from "../components/ui";
 import { refName, useLang } from "../i18n";
 import type { ChangeStageBody, ReferenceDto } from "../modules/sales-pipeline/api/dto";
@@ -8,11 +8,14 @@ import type { ChangeStageBody, ReferenceDto } from "../modules/sales-pipeline/ap
 export function QualifiedDialog({
   questions,
   saving,
+  extra,
   onCancel,
   onConfirm,
 }: {
   questions: string[];
   saving: boolean;
+  /** Pencerenin altına eklenen bölüm (dosya ekleme). */
+  extra?: ReactNode;
   onCancel: () => void;
   onConfirm: (body: ChangeStageBody) => void;
 }) {
@@ -49,6 +52,7 @@ export function QualifiedDialog({
           {t("dialog.qualified.notAll")}
         </p>
       )}
+      {extra}
       <div className="modal-actions">
         <Button onClick={onCancel}>{t("common.cancel")}</Button>
         <Button
@@ -119,11 +123,14 @@ const parseAmount = (s: string) => Number(s.replace(",", "."));
 export function ProposalDialog({
   currencies,
   saving,
+  extra,
   onCancel,
   onConfirm,
 }: {
   currencies: string[];
   saving: boolean;
+  /** Pencerenin altına eklenen bölüm (dosya ekleme). */
+  extra?: ReactNode;
   onCancel: () => void;
   onConfirm: (body: ChangeStageBody) => void;
 }) {
@@ -147,6 +154,7 @@ export function ProposalDialog({
         onAmount={setAmount}
         onCurrency={setCurrency}
       />
+      {extra}
       <div className="modal-actions">
         <Button onClick={onCancel}>{t("common.cancel")}</Button>
         <Button
@@ -168,6 +176,7 @@ export function WonDialog({
   currencies,
   initial,
   saving,
+  extra,
   onCancel,
   onConfirm,
 }: {
@@ -175,6 +184,8 @@ export function WonDialog({
   /** Son teklif tutarı; varsa alan dolu gelir, satışçı yalnız onaylar ya da düzeltir. */
   initial?: MoneyValue | null;
   saving: boolean;
+  /** Pencerenin altına eklenen bölüm (dosya ekleme). */
+  extra?: ReactNode;
   onCancel: () => void;
   onConfirm: (body: ChangeStageBody) => void;
 }) {
@@ -196,6 +207,7 @@ export function WonDialog({
         onAmount={setAmount}
         onCurrency={setCurrency}
       />
+      {extra}
       <div className="modal-actions">
         <Button onClick={onCancel}>{t("common.cancel")}</Button>
         <Button
@@ -217,11 +229,14 @@ export function WonDialog({
 export function LostDialog({
   reasons,
   saving,
+  extra,
   onCancel,
   onConfirm,
 }: {
   reasons: ReferenceDto["lostReasons"];
   saving: boolean;
+  /** Pencerenin altına eklenen bölüm (dosya ekleme). */
+  extra?: ReactNode;
   onCancel: () => void;
   onConfirm: (body: ChangeStageBody) => void;
 }) {
@@ -246,6 +261,7 @@ export function LostDialog({
           {err}
         </p>
       )}
+      {extra}
       <div className="modal-actions">
         <Button onClick={onCancel}>{t("common.cancel")}</Button>
         <Button

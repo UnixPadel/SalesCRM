@@ -5,6 +5,7 @@ import type { Actor, ActivityWithLead, Notification, NotificationQueries, SalesP
 import { DEFAULT_EUR_RATES, QUALIFICATION_QUESTIONS, isStageCode, type EurRates } from "../domain";
 import { readLostReasons, readStageDefinitions } from "../infrastructure";
 import { registerAdminRoutes } from "./adminRoutes";
+import { attachmentRules, registerAttachmentRoutes } from "./attachmentRoutes";
 import { registerContactRoutes } from "./contactRoutes";
 import { parseLeadFilter, registerTrackingRoutes, trackingReference } from "./trackingRoutes";
 import { activityDto } from "./mappers";
@@ -79,6 +80,8 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
   registerTrackingRoutes(r, { pipeline, actor, sendError });
   // Faz 7b/7d: bölge kuralları, kişi birleştirme, kuruluş arşivleme.
   registerAdminRoutes(r, { pipeline, actor, send, sendError });
+  // Lead dosya ekleri (2026-11-19).
+  registerAttachmentRoutes(r, { pipeline, actor, sendError });
 
   r.get("/reference", async (req, res) => {
     if (!actor(req, res, false)) return;
@@ -102,6 +105,7 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
       currencies: CURRENCIES,
       undoWindowMinutes: deps.undoWindowMinutes,
       eurRates: { ...rates },
+      attachments: attachmentRules(),
       ...trackingReference(deps.policy ?? { repsEditProducts: false }, deps.timeZone, products),
     };
     res.json(body);
@@ -413,6 +417,8 @@ const STATUS: Record<string, number> = {
   "lead.forbidden": 403,
   "assign.forbidden": 403,
   "undo.not_owner": 403,
+  "attachment.not_owner": 403,
+  "attachment.too_large": 413,
 };
 
 export function sendError(res: Response, error: RuleError): Response {

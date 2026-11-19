@@ -70,6 +70,14 @@ export {
 } from "./contacts";
 export { CheckWarning, SetCustomerStatus, type CheckWarningInput, type SetCustomerStatusInput } from "./leadStatus";
 export {
+  AddAttachment,
+  AttachmentQueries,
+  DeleteAttachment,
+  type AddAttachmentInput,
+  type AttachmentContent,
+  type DeleteAttachmentInput,
+} from "./attachments";
+export {
   CreateOrganization,
   PeopleQueries,
   UpdateLeadContact,
@@ -112,6 +120,7 @@ export {
 
 import { ActivityQueries, AddActivity, DeleteActivity, SetActivityDone } from "./activities";
 import { AssignLead } from "./assignLead";
+import { AddAttachment, AttachmentQueries, DeleteAttachment } from "./attachments";
 import { ChangeLeadStage } from "./changeLeadStage";
 import { ContactQueries } from "./contactQueries";
 import { ContactFormQuery, LogContact, UndoLogContact } from "./contacts";
@@ -156,6 +165,10 @@ export interface SalesPipeline {
   archiveOrganization: ArchiveOrganization;
   /** Ürün listesi: herkes okur, yönetici ürün dosyasından günceller. */
   productCatalog: ProductCatalog;
+  /** Lead dosya ekleri: ekleme, nedenli silme, liste ve indirme. */
+  addAttachment: AddAttachment;
+  deleteAttachment: DeleteAttachment;
+  attachments: AttachmentQueries;
 }
 
 /** Modülün dışa açık yüzü: api katmanı ve diğer modüller bunu kullanır. */
@@ -188,5 +201,8 @@ export function createSalesPipeline(deps: UseCaseDeps): SalesPipeline {
     mergePersons: new MergePersons(deps),
     archiveOrganization: new ArchiveOrganization(deps),
     productCatalog: new ProductCatalog(deps),
+    addAttachment: new AddAttachment(deps),
+    deleteAttachment: new DeleteAttachment(deps),
+    attachments: new AttachmentQueries(deps),
   };
 }

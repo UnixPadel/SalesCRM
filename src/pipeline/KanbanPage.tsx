@@ -102,15 +102,13 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
       toast(t("stage.backwardBlocked", { n: ref.undoWindowMinutes }), { bad: true });
       return;
     }
-    // Faz 7g (§5.1): lead NEW → CONTACTED bırakılınca "Temas kaydet" açılır (aşama satırı önerili); "Yalnız aşamayı
-    // taşı" eski akıştır. Önceden temas kaydı olan lead'de (ör. Sheet senkronunun "mail atıldı" e-posta teması)
-    // pencere atlanıyordu; artık her kullanıcı ve her lead için açılır (2026-11-19).
+    // Faz 7g (§5.1): lead NEW → CONTACTED bırakılınca "İletişim kaydet" açılır (aşama satırı önerili). Her kullanıcı ve
+    // her lead için açılır; görüşme notu zorunlu olduğundan "Yalnız aşamayı taşı" kısa yolu kaldırıldı (2026-11-19).
     if (lead.currentStage === "NEW" && target === "CONTACTED") {
       contact.openDialog({
         leadId: lead.id,
         leadName: lead.fullName,
         outcome: "reply_received",
-        alt: { label: t("board.logOnDrop"), run: () => move(lead, target) },
       });
       return;
     }

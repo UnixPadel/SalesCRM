@@ -203,6 +203,8 @@ const amountOk = (v: string) => /^\d+([.,]\d{1,2})?$/.test(v.trim()) && Number(v
 export function saveBlockers(s: DialogState, form: ContactFormDto, rules: ContactRules, nowMs: number): string[] {
   const out: string[] = [];
   const target = effectiveTarget(s, form, rules);
+  // Görüşme notu zorunludur (2026-11-19); hızlı kayıt düğmeleri bu pencereden geçmez.
+  if (!s.note.trim()) out.push("contact.needNote");
   if (target === "WON" && !amountOk(s.amount)) out.push("contact.needAmount");
   // Teklif tutarı isteğe bağlıdır; ama yazıldıysa okunamayan tutar sessizce düşmesin.
   if (target === "PROPOSAL" && s.amount.trim() && !amountOk(s.amount)) out.push("contact.badAmount");

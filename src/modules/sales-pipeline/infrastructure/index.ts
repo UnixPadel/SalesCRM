@@ -3,6 +3,7 @@ export { PgUnitOfWork, repositoriesFor } from "./unitOfWork";
 export { pgLeadRepository, pgOutboxWriter, pgPersonRepository, pgStageEventRepository } from "./repositories";
 export { pgActivityRepository } from "./activityRepository";
 export { pgContactLogRepository } from "./contactLogRepository";
+export { pgAttachmentRepository } from "./attachmentRepository";
 export { pgOrganizationRepository } from "./organizationRepository";
 export { readStageDefinitions, readLostReasons, type StageDefinition, type LostReason } from "./referenceData";
 export { pgNotificationStore } from "./notifications";

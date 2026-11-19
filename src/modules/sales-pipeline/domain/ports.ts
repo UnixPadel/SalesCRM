@@ -1,4 +1,5 @@
 import type { Activity, ActivityOutcome, ActivityType, ContactLog } from "./activity";
+import type { Attachment } from "./attachment";
 import type { ContactAggregateRow } from "./contact";
 import type { CustomerStatus, InstallTimeline } from "./leadProfile";
 import type { TerritoryRule } from "./assignment";
@@ -232,6 +233,18 @@ export interface ContactLogRepository {
   remove(id: string): Promise<void>;
 }
 
+/** Lead dosya ekleri (`lead_attachments`). Listeler içerik taşımaz; içerik ayrı okunur. */
+export interface AttachmentRepository {
+  insert(attachment: Attachment, contentBase64: string): Promise<void>;
+  findById(id: string): Promise<Attachment | undefined>;
+  /** Lead'in ekleri (silinenler dahil), en yeni önce. */
+  listByLead(leadId: string): Promise<Attachment[]>;
+  /** Silinmemiş ekin içeriği (base64); yoksa ya da silindiyse undefined. */
+  content(id: string): Promise<string | undefined>;
+  /** Yumuşak silme: neden yazılır, içerik boşaltılır. */
+  markDeleted(id: string, by: string, reason: string, at: Date): Promise<void>;
+}
+
 export interface Repositories {
   leads: LeadRepository;
   persons: PersonRepository;
@@ -239,6 +252,7 @@ export interface Repositories {
   stageEvents: StageEventRepository;
   activities: ActivityRepository;
   contactLogs: ContactLogRepository;
+  attachments: AttachmentRepository;
   outbox: OutboxWriter;
   territories: TerritoryRuleSource;
   lostReasons: LostReasonSource;
