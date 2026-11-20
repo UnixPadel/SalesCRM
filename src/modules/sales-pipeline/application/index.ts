@@ -98,6 +98,22 @@ export {
   type TerritoryRow,
 } from "./territories";
 export { currentEurRates } from "./types";
+export {
+  ACTION_TYPES,
+  ActionLog,
+  ActionLogQueries,
+  InMemoryActionLogStore,
+  LOG_PAGE_MAX,
+  isActionType,
+  type ActionLogEntry,
+  type ActionLogFilter,
+  type ActionLogPage,
+  type ActionLogStore,
+  type ActionRecorder,
+  type ActionType,
+  type ListActionsInput,
+  type RecordActionInput,
+} from "./actionLog";
 export { canAct, canSee, loadActionableLead, territoriesOf } from "./visibility";
 export {
   ADMIN_ONLY,

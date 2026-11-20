@@ -53,6 +53,12 @@ export class AssignLead {
           occurredAt: outcome.value.lead.updatedAt,
         },
       ]);
+      await this.deps.actions?.record({
+        actor: input.actor,
+        action: "lead.assigned",
+        lead: outcome.value.lead,
+        details: { from: outcome.value.from, to: outcome.value.lead.assignedUserId },
+      });
     }
     return ok(outcome.value.lead);
   }

@@ -18,6 +18,7 @@ import { createLoginLimiter } from "./loginLimiter.mjs";
 import {
   adminAccess,
   campaignViewers,
+  logViewers,
   canReadDirectory,
   marketingUsers,
   reportsAccess,
@@ -359,6 +360,7 @@ const publicUser = (s) => ({
   name: s.name,
   role: s.role,
   seesCampaign: Boolean(s.seesCampaign),
+  seesLogs: Boolean(s.seesLogs),
   hasMailbox: MAIL_ENABLED && !s.local && s.email.includes("@"),
 });
 
@@ -449,6 +451,11 @@ app.post("/api/auth/login", async (req, res) => {
     seesCampaign: seesCampaign(
       who.local ? { id: "admin", login: limitKey } : { id: who.id, login: limitKey, email },
       campaignViewers(),
+    ),
+    // İşlem günlüğü (Yönetim > Loglar) yalnız CRM_LOG_VIEWERS listesindekilere; aynı eşleşme kuralı.
+    seesLogs: seesCampaign(
+      who.local ? { id: "admin", login: limitKey } : { id: who.id, login: limitKey, email },
+      logViewers(),
     ),
     local: who.local,
     password: who.local ? "" : password,

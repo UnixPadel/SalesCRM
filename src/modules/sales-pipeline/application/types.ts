@@ -1,4 +1,5 @@
 import type { Clock, IdGenerator, Logger } from "../../shared/kernel";
+import type { ActionRecorder } from "./actionLog";
 import type { DomainEventPublisher, EurRates, PlatformRegistry, UnitOfWork } from "../domain";
 
 /** İsteği yapan kişi; oturumdan gelir (api katmanı çevirir). */
@@ -27,6 +28,8 @@ export interface UseCaseDeps {
   eurRatesSource?: (() => Promise<EurRates>) | undefined;
   /** Ekip dizini (Faz 7g): rapor satırları ve bölge atamasında pasif kullanıcı. Yoksa ya da null dönerse süzme yok. */
   team?: TeamDirectory | undefined;
+  /** İşlem günlüğü (yönetimdeki "Loglar" sekmesi); verilmezse kayıt tutulmaz. */
+  actions?: ActionRecorder | undefined;
   /** Yetki anahtarları (Faz 7g, D4); verilmezse hepsi kapalı. */
   policy?: { repsEditProducts: boolean } | undefined;
 }

@@ -23,6 +23,7 @@ export class SetCustomerStatus {
       return err(new RuleError("lead.customer_status", "Müşteri durumu listede yok.", { customerStatus: status }));
     }
     const { uow, clock } = this.deps;
+    let changed = false;
     const out = await uow.run(async (repos): Promise<Result<{ lead: Lead; events: DomainEvent[] }, RuleError>> => {
       const loaded = await loadActionableLead(repos, input.leadId, input.actor);
       if (!loaded.ok) return loaded;
@@ -43,9 +44,18 @@ export class SetCustomerStatus {
           occurredAt: now,
         });
       }
+      changed = lead.customerStatus !== status;
       return ok({ lead: { ...lead, customerStatus: status, assignedUserId, updatedAt: now }, events });
     });
     if (!out.ok) return out;
+    if (changed) {
+      await this.deps.actions?.record({
+        actor: input.actor,
+        action: "lead.status_changed",
+        lead: out.value.lead,
+        details: { status },
+      });
+    }
     if (out.value.events.length) await this.deps.events.publish(out.value.events);
     this.deps.logger.info("müşteri durumu değişti", {
       leadId: out.value.lead.id,

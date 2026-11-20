@@ -379,6 +379,9 @@ export class CreateLead {
     });
 
     if (outcome.domainEvents.length) await this.deps.events.publish(outcome.domainEvents);
+    if (outcome.created && !outcome.adopted) {
+      await this.deps.actions?.record({ actor: input.actor, action: "lead.created", lead: outcome.lead });
+    }
     this.deps.logger.info(
       outcome.adopted ? "Excel lead'i benimsendi" : outcome.created ? "lead oluşturuldu" : "lead zaten vardı",
       {

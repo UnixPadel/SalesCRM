@@ -315,3 +315,50 @@ tr.is-archived td {
 .cat-preview .cd-check {
   display: inline-flex;
 }
+
+/* Loglar (işlem günlüğü): süzgeç satırı + zaman ve cümleden oluşan liste. */
+.log-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--s-3);
+}
+.log-filters .field {
+  min-inline-size: 160px;
+}
+.log-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-1);
+}
+.log-list li {
+  display: grid;
+  grid-template-columns: 11.5rem minmax(0, 1fr);
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-block-end: 1px solid var(--border);
+}
+.log-list li:last-child {
+  border-block-end: 0;
+}
+.log-list time {
+  color: var(--text-2);
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.log-text {
+  overflow-wrap: anywhere;
+}
+.log-lead {
+  font-weight: 700;
+}
+@media (max-width: 640px) {
+  .log-list li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+}

@@ -56,6 +56,12 @@ export class AddAttachment {
       return ok(attachment);
     });
     if (out.ok) {
+      await this.deps.actions?.record({
+        actor: input.actor,
+        action: "attachment.added",
+        lead: { id: out.value.leadId },
+        details: { fileName: out.value.fileName, image: out.value.mimeType.startsWith("image/") },
+      });
       this.deps.logger.info("dosya eklendi", {
         leadId: out.value.leadId,
         attachmentId: out.value.id,
@@ -94,6 +100,12 @@ export class DeleteAttachment {
       return ok({ ...found, deletedAt: at, deletedBy: input.actor.userId, deleteReason: reason.value });
     });
     if (out.ok) {
+      await this.deps.actions?.record({
+        actor: input.actor,
+        action: "attachment.deleted",
+        lead: { id: out.value.leadId },
+        details: { fileName: out.value.fileName },
+      });
       this.deps.logger.info("dosya silindi", {
         leadId: out.value.leadId,
         attachmentId: out.value.id,

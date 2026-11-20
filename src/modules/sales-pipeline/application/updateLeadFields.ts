@@ -26,7 +26,9 @@ export class UpdateLeadFields {
     const access = requireFieldAccess(input.actor, fields, this.deps.policy);
     if (!access.ok) return access;
     const { uow, clock, logger } = this.deps;
-    return uow.run(async (repos): Promise<Result<Lead, RuleError>> => {
+    // Günlüğe yalnız değeri gerçekten değişen alanlar yazılır (liste hücresi aynı değeri de gönderebilir).
+    let changed: string[] = [];
+    const out = await uow.run(async (repos): Promise<Result<Lead, RuleError>> => {
       const lead = await loadActionableLead(repos, input.leadId, input.actor);
       if (!lead.ok) return lead;
       if (Object.keys(fields).length === 0) return lead;
@@ -54,6 +56,10 @@ export class UpdateLeadFields {
         const refs = checkCatalogRefs(fields.products, lead.value.products, await repos.products.list());
         if (!refs.ok) return refs;
       }
+      const before = lead.value as unknown as Record<string, unknown>;
+      changed = Object.entries(fields)
+        .filter(([k, v]) => JSON.stringify(v ?? null) !== JSON.stringify(before[k] ?? null))
+        .map(([k]) => k);
       const now = clock.now();
       await repos.leads.updateFields(lead.value.id, fields, now);
       let extraAnswers = lead.value.extraAnswers;
@@ -77,5 +83,14 @@ export class UpdateLeadFields {
       });
       return { ok: true, value: { ...lead.value, ...fields, extraAnswers, checkedWarnings, updatedAt: now } };
     });
+    if (out.ok && changed.length) {
+      await this.deps.actions?.record({
+        actor: input.actor,
+        action: "lead.fields_updated",
+        lead: out.value,
+        details: { fields: changed },
+      });
+    }
+    return out;
   }
 }

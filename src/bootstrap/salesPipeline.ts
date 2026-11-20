@@ -15,6 +15,8 @@ import {
   type Logger,
 } from "../modules/shared/kernel";
 import {
+  ActionLog,
+  ActionLogQueries,
   LeadNotifier,
   NotificationQueries,
   createSalesPipeline,
@@ -29,6 +31,7 @@ import {
   PgUnitOfWork,
   createSmtpEmailSender,
   loggingEmailSender,
+  pgActionLogStore,
   pgNotificationStore,
 } from "../modules/sales-pipeline/infrastructure";
 
@@ -40,6 +43,8 @@ export interface SessionLike {
   role?: string;
   /** Kampanya adlarını görebilir (server/roles.mjs CRM_CAMPAIGN_VIEWERS). */
   seesCampaign?: boolean;
+  /** İşlem günlüğünü görebilir (server/roles.mjs CRM_LOG_VIEWERS). */
+  seesLogs?: boolean;
 }
 
 export interface SalesPipelineApp {
@@ -67,7 +72,13 @@ export function actorFromSession(s: SessionLike | undefined) {
   if (!userId) return undefined;
   // Görüntüleyici ve pazarlama (server/roles.mjs): her lead'i görür (isAdmin görünürlüğü), hiçbir şeyi değiştiremez.
   const readOnly = s.role === "viewer" || s.role === "marketing";
-  return { userId, isAdmin: s.role === "admin" || readOnly, readOnly, seesCampaign: s.seesCampaign === true };
+  return {
+    userId,
+    isAdmin: s.role === "admin" || readOnly,
+    readOnly,
+    seesCampaign: s.seesCampaign === true,
+    seesLogs: s.seesLogs === true,
+  };
 }
 
 export interface BootOptions {
@@ -119,6 +130,16 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
     logger,
   });
 
+  // İşlem günlüğü: use-case'ler başarıdan sonra yazar; Yönetim > Loglar okur.
+  const actionStore = pgActionLogStore(db);
+  const actions = new ActionLog({
+    store: actionStore,
+    uow,
+    clock: systemClock,
+    ids: uuidGenerator,
+    logger: logger.child({ module: "action-log" }),
+  });
+
   const pipeline = createSalesPipeline({
     uow,
     clock: systemClock,
@@ -134,11 +155,13 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
     undoWindowMs: config.undoWindowMinutes * 60_000,
     eurRatesSource: eurRates.current,
     team: opts.team,
+    actions,
     policy: { repsEditProducts: config.repsEditProducts },
   });
   const router = createSalesPipelineRouter({
     pipeline,
     notifications,
+    actionLog: new ActionLogQueries(actionStore),
     db,
     logger,
     undoWindowMinutes: config.undoWindowMinutes,

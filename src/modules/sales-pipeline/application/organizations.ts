@@ -124,7 +124,8 @@ export class UpdateLeadContact {
     const allowed = requireAdmin(input.actor, "contact");
     if (!allowed.ok) return allowed;
     const { uow, clock, logger } = this.deps;
-    return uow.run(async (repos): Promise<Result<Lead, RuleError>> => {
+    let changed: string[] = [];
+    const out = await uow.run(async (repos): Promise<Result<Lead, RuleError>> => {
       const leadR = await loadActionableLead(repos, input.leadId, input.actor);
       if (!leadR.ok) return leadR;
       const lead = leadR.value;
@@ -175,6 +176,11 @@ export class UpdateLeadContact {
           );
         }
       }
+      changed = [
+        ...(fullName !== lead.fullName ? ["fullName"] : []),
+        ...(email !== lead.email ? ["email"] : []),
+        ...(phoneE164 !== lead.phoneE164 ? ["phone"] : []),
+      ];
       const now = clock.now();
       await repos.leads.updateIdentity(lead.id, { fullName, email, phoneE164 }, now);
       await repos.persons.update(lead.personId, { fullName, emailNormalized: email, phoneE164 });
@@ -195,6 +201,15 @@ export class UpdateLeadContact {
       logger.info("lead kimliği güncellendi", { leadId: lead.id, actorUserId: input.actor.userId });
       return ok({ ...lead, fullName, email, phoneE164, extraAnswers, checkedWarnings, updatedAt: now });
     });
+    if (out.ok && changed.length) {
+      await this.deps.actions?.record({
+        actor: input.actor,
+        action: "lead.fields_updated",
+        lead: out.value,
+        details: { fields: changed },
+      });
+    }
+    return out;
   }
 }
 

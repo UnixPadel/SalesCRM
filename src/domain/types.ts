@@ -26,6 +26,8 @@ export interface User {
   role: Role;
   /** Reklam kampanyası adlarını görebilir (sunucu CRM_CAMPAIGN_VIEWERS listesi; 2026-11-20). */
   seesCampaign?: boolean;
+  /** İşlem günlüğünü (Yönetim > Loglar) görebilir (sunucu CRM_LOG_VIEWERS listesi; 2026-11-20). */
+  seesLogs?: boolean;
   /** Yerel Admin için false: kendi posta kutusu yok. */
   hasMailbox: boolean;
 }

@@ -58,6 +58,12 @@ export class AddActivity {
       return ok(activity);
     });
     if (outcome.ok) {
+      await this.deps.actions?.record({
+        actor: input.actor,
+        action: "activity.planned",
+        lead: { id: outcome.value.leadId },
+        details: { type: outcome.value.type },
+      });
       this.deps.logger.info("aktivite eklendi", {
         activityId: outcome.value.id,
         leadId: outcome.value.leadId,
@@ -81,7 +87,8 @@ export class SetActivityDone {
 
   async execute(input: SetActivityDoneInput): Promise<Result<Activity, RuleError>> {
     const { uow, clock } = this.deps;
-    return uow.run(async (repos): Promise<Result<Activity, RuleError>> => {
+    let changed = false;
+    const out = await uow.run(async (repos): Promise<Result<Activity, RuleError>> => {
       const activity = await repos.activities.findById(input.activityId);
       if (!activity) return err(new NotFoundError("Activity", input.activityId));
       const lead = await visibleLead(repos, activity.leadId, input.actor);
@@ -98,6 +105,7 @@ export class SetActivityDone {
           );
         }
       }
+      changed = input.done !== (activity.doneAt !== null);
       const now = clock.now();
       const doneAt = input.done ? now : null;
       await repos.activities.setDone(activity.id, doneAt, now);
@@ -116,6 +124,15 @@ export class SetActivityDone {
           : { ...activity, doneAt, updatedAt: now },
       );
     });
+    if (out.ok && changed) {
+      await this.deps.actions?.record({
+        actor: input.actor,
+        action: input.done ? "activity.done" : "activity.reopened",
+        lead: { id: out.value.leadId },
+        details: { type: out.value.type },
+      });
+    }
+    return out;
   }
 }
 
@@ -128,7 +145,8 @@ export class DeleteActivity {
   constructor(private readonly deps: UseCaseDeps) {}
 
   async execute(input: DeleteActivityInput): Promise<Result<{ id: string }, RuleError>> {
-    return this.deps.uow.run(async (repos): Promise<Result<{ id: string }, RuleError>> => {
+    let removed: Activity | null = null;
+    const out = await this.deps.uow.run(async (repos): Promise<Result<{ id: string }, RuleError>> => {
       const activity = await repos.activities.findById(input.activityId);
       if (!activity) return err(new NotFoundError("Activity", input.activityId));
       const lead = await visibleLead(repos, activity.leadId, input.actor);
@@ -139,8 +157,19 @@ export class DeleteActivity {
         if (!admin.ok) return admin;
       }
       await repos.activities.remove(activity.id);
+      removed = activity;
       return ok({ id: activity.id });
     });
+    const gone = removed as Activity | null;
+    if (out.ok && gone) {
+      await this.deps.actions?.record({
+        actor: input.actor,
+        action: "activity.deleted",
+        lead: { id: gone.leadId },
+        details: { type: gone.type },
+      });
+    }
+    return out;
   }
 }
 

@@ -7,4 +7,5 @@ export { pgAttachmentRepository } from "./attachmentRepository";
 export { pgOrganizationRepository } from "./organizationRepository";
 export { readStageDefinitions, readLostReasons, type StageDefinition, type LostReason } from "./referenceData";
 export { pgNotificationStore } from "./notifications";
+export { pgActionLogStore } from "./actionLogStore";
 export { createSmtpEmailSender, loggingEmailSender } from "./smtpEmailSender";

@@ -7,6 +7,7 @@ import { useErrorText } from "../hooks";
 import { adminApi } from "./adminApi";
 import { AdminWriteCtx, LoadError, useAdminCanWrite, useLoad } from "./bits";
 import { HealthTab } from "./HealthTab";
+import { LogsTab } from "./LogsTab";
 import { MappingsTab } from "./MappingsTab";
 import { ProductsTab } from "./ProductsTab";
 import { SettingsTab } from "./SettingsTab";
@@ -17,19 +18,24 @@ import { TerritoriesTab } from "./TerritoriesTab";
  * Sağlık · Eşlemeler · Ayarlar (2026-11-20). `admin` rolü görür ve değiştirir; pazarlama rolü salt okunur görür
  * (değişiklik düğmeleri gizli, alanlar kilitli; sunucu da yazmayı 403 ile reddeder) ve Teknik'ten açar. Satışçı ve
  * görüntüleyici bu adresi yazarsa "yetki yok" sayfası görür. Sekme URL'de tutulur (`tab=`).
+ *
+ * Loglar sekmesi (işlem günlüğü) Ürün listesinin yanındadır ve yalnız oturumu `seesLogs` olan kişiye görünür
+ * (server/roles.mjs CRM_LOG_VIEWERS). Bu kişi yönetici değilse panelde yalnız Loglar sekmesini görür.
  */
 
 const MAIN_TABS = ["territories", "products"] as const;
 const TECH_TABS = ["health", "mappings", "settings"] as const;
-const TABS = [...MAIN_TABS, ...TECH_TABS] as const;
+const TABS = [...MAIN_TABS, "logs", ...TECH_TABS] as const;
 type Tab = (typeof TABS)[number];
 const isTab = (v: string | null): v is Tab => (TABS as readonly string[]).includes(v ?? "");
 const isTech = (t: Tab) => (TECH_TABS as readonly string[]).includes(t);
 
 export function AdminPage({ params }: { params: URLSearchParams }) {
   const { t } = useLang();
-  const { isAdmin, isMarketing } = useCrm();
-  if (!isAdmin && !isMarketing) {
+  const { isAdmin, isMarketing, user } = useCrm();
+  const seesLogs = user?.seesLogs === true;
+  const panel = isAdmin || isMarketing;
+  if (!panel && !seesLogs) {
     return (
       <section className="pl-page" aria-labelledby="adm-h">
         <h1 id="adm-h" className="pl-title">
@@ -39,18 +45,25 @@ export function AdminPage({ params }: { params: URLSearchParams }) {
       </section>
     );
   }
+  const asked = params.get("tab");
+  const allowed = isTab(asked) && (asked === "logs" ? seesLogs : panel);
   return (
     <AdminWriteCtx.Provider value={isAdmin}>
-      <AdminTabs tab={isTab(params.get("tab")) ? (params.get("tab") as Tab) : isAdmin ? "territories" : "health"} />
+      <AdminTabs
+        tab={allowed ? (asked as Tab) : !panel ? "logs" : isAdmin ? "territories" : "health"}
+        panel={panel}
+        seesLogs={seesLogs}
+      />
     </AdminWriteCtx.Provider>
   );
 }
 
-function AdminTabs({ tab }: { tab: Tab }) {
+function AdminTabs({ tab, panel, seesLogs }: { tab: Tab; panel: boolean; seesLogs: boolean }) {
   const { t } = useLang();
   const errText = useErrorText();
   // Sağlayıcı listesi (ad, giden akışı var mı) bir kez okunur; Eşlemeler ve Ayarlar sekmeleri bunu kullanır.
-  const load = useCallback(() => adminApi.health(), []);
+  // Yalnız Loglar'ı gören kişi (yönetici ya da pazarlama değil) sağlık ucunu okuyamaz; istek atılmaz.
+  const load = useCallback(() => (panel ? adminApi.health() : Promise.resolve(null)), [panel]);
   const { data, error, reload } = useLoad(load);
   const providers = (data?.providers ?? []).map((p) => ({ provider: p.provider, hasOutbound: p.outbound !== null }));
   const needsProviders = tab === "mappings" || tab === "settings";
@@ -78,18 +91,21 @@ function AdminTabs({ tab }: { tab: Tab }) {
           {t("admin.title")}
         </h1>
         <div className="tabs adm-tabs" role="tablist" aria-label={t("admin.title")}>
-          {MAIN_TABS.map((k) => tabButton(k, t(`admin.tab.${k}`)))}
-          <button
-            type="button"
-            role="tab"
-            id="adm-tab-tech"
-            aria-selected={isTech(tab)}
-            aria-controls="adm-panel"
-            className="tab adm-tab-tech"
-            onClick={() => !isTech(tab) && go("health")}
-          >
-            <Icon name="settings" size={15} /> {t("admin.tab.technical")}
-          </button>
+          {panel && MAIN_TABS.map((k) => tabButton(k, t(`admin.tab.${k}`)))}
+          {seesLogs && tabButton("logs", t("admin.tab.logs"))}
+          {panel && (
+            <button
+              type="button"
+              role="tab"
+              id="adm-tab-tech"
+              aria-selected={isTech(tab)}
+              aria-controls="adm-panel"
+              className="tab adm-tab-tech"
+              onClick={() => !isTech(tab) && go("health")}
+            >
+              <Icon name="settings" size={15} /> {t("admin.tab.technical")}
+            </button>
+          )}
         </div>
       </div>
       {isTech(tab) && (
@@ -97,7 +113,7 @@ function AdminTabs({ tab }: { tab: Tab }) {
           {TECH_TABS.map((k) => tabButton(k, t(`admin.tab.${k}`)))}
         </div>
       )}
-      {!canWrite && (
+      {!canWrite && tab !== "logs" && (
         <p className="adm-ro" role="note">
           {t("admin.readOnly")}
         </p>
@@ -109,6 +125,8 @@ function AdminTabs({ tab }: { tab: Tab }) {
           <TerritoriesTab />
         ) : tab === "products" ? (
           <ProductsTab />
+        ) : tab === "logs" ? (
+          <LogsTab />
         ) : needsProviders && !data ? (
           error ? (
             <LoadError message={errText(error)} onRetry={() => void reload()} />

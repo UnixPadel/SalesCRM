@@ -163,6 +163,13 @@ export class ChangeLeadStage {
 
     if (!outcome.ok) return outcome;
     await this.deps.events.publish(outcome.value.domainEvents);
+    const moved = outcome.value.domainEvents.find((e) => e.type === "LeadStageChanged");
+    await this.deps.actions?.record({
+      actor: input.actor,
+      action: "stage.changed",
+      lead: outcome.value.lead,
+      details: { from: moved?.type === "LeadStageChanged" ? moved.from : null, to: outcome.value.lead.currentStage },
+    });
     this.deps.logger.info("aşama değişti", {
       leadId: outcome.value.lead.id,
       changeId: outcome.value.changeId,

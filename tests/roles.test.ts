@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   adminAccess,
   campaignViewers,
+  logViewers,
   canReadDirectory,
   canSeeReports,
   isReadOnlyRole,
@@ -46,6 +47,7 @@ describe("pazarlama rolü (CRM_MARKETING_USERS)", () => {
       isAdmin: true,
       readOnly: true,
       seesCampaign: false,
+      seesLogs: false,
     });
     expect(isReadOnlyRole("marketing")).toBe(true);
     expect(canSeeReports("marketing")).toBe(false);
@@ -96,6 +98,17 @@ describe("kampanya görünürlüğü (2026-11-20)", () => {
   it("oturumdaki izin aktöre geçer", () => {
     expect(actorFromSession({ userId: "7", role: "rep", seesCampaign: true })?.seesCampaign).toBe(true);
     expect(actorFromSession({ userId: "7", role: "rep" })?.seesCampaign).toBe(false);
+  });
+
+  it("işlem günlüğü (Loglar): varsayılan yalnız elshan.rasulov; CRM_LOG_VIEWERS değiştirir; izin aktöre geçer", () => {
+    const v = logViewers({});
+    expect([...v]).toEqual(["elshan.rasulov"]);
+    expect(seesCampaign({ login: "Elshan.Rasulov" }, v)).toBe(true);
+    expect(seesCampaign({ id: "admin", login: "admin" }, v)).toBe(false);
+    expect(seesCampaign({ login: "amro" }, logViewers({ CRM_LOG_VIEWERS: "amro, 51" }))).toBe(true);
+    expect(seesCampaign({ login: "elshan.rasulov" }, logViewers({ CRM_LOG_VIEWERS: "" }))).toBe(false);
+    expect(actorFromSession({ userId: "7", role: "rep", seesLogs: true })?.seesLogs).toBe(true);
+    expect(actorFromSession({ userId: "7", role: "admin" })?.seesLogs).toBe(false);
   });
 
   it("yanıttaki kampanya bilgisi boşalır, diğer alanlar kalır", () => {

@@ -67,6 +67,22 @@ export function seesCampaign(ids, viewers) {
     .some((k) => k && viewers.has(k));
 }
 
+/**
+ * İşlem günlüğünü (Yönetim > Loglar: hangi satışçı hangi lead'de ne yaptı) görebilenler. Rolden bağımsız, kişi
+ * bazında: CRM_LOG_VIEWERS (virgülle: kullanıcı adı, e-posta ya da KullaniciID; büyük/küçük harf fark etmez).
+ * Değişken hiç tanımlı değilse varsayılan liste geçerlidir (2026-11-20 karar). Eşleşme `seesCampaign` ile aynıdır.
+ * @param {Record<string, string | undefined>} env
+ */
+export function logViewers(env = process.env) {
+  const raw = env.CRM_LOG_VIEWERS ?? "elshan.rasulov";
+  return new Set(
+    String(raw)
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
 /** Hiçbir lead / kişi / aktivite verisini değiştiremeyen roller. */
 export const isReadOnlyRole = (role) => role === "viewer" || role === "marketing";
 /** Yönetim panelini okuyabilir (GET). */

@@ -569,12 +569,14 @@ describe("actorFromSession", () => {
       isAdmin: true,
       readOnly: false,
       seesCampaign: false,
+      seesLogs: false,
     });
     expect(actorFromSession({ userId: "7", email: "a@b.co", role: "viewer" })).toEqual({
       userId: "7",
       isAdmin: true,
       readOnly: true,
       seesCampaign: false,
+      seesLogs: false,
     });
   });
 });

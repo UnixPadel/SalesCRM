@@ -363,6 +363,12 @@ export class LogContact {
     }
     const { domainEvents, ...result } = written.value;
     if (domainEvents.length) await this.deps.events.publish(domainEvents);
+    await this.deps.actions?.record({
+      actor: input.actor,
+      action: "contact.logged",
+      lead,
+      details: { type: result.activity.type, outcome: result.activity.outcome },
+    });
     this.deps.logger.info("temas kaydedildi", {
       leadId: lead.id,
       logId: result.logId,
@@ -445,6 +451,7 @@ export class UndoLogContact {
       }
       await repos.contactLogs.remove(log.id);
     });
+    await this.deps.actions?.record({ actor: input.actor, action: "contact.undone", lead: { id: log.leadId } });
     this.deps.logger.info("temas kaydı geri alındı", {
       leadId: log.leadId,
       logId: log.id,

@@ -1,9 +1,17 @@
 import { Router, type Request, type Response } from "express";
 import type { Db } from "../../shared/db";
 import { RuleError, isAppError, type Logger, type Result } from "../../shared/kernel";
-import type { Actor, ActivityWithLead, Notification, NotificationQueries, SalesPipeline } from "../application";
+import type {
+  ActionLogQueries,
+  Actor,
+  ActivityWithLead,
+  Notification,
+  NotificationQueries,
+  SalesPipeline,
+} from "../application";
 import { DEFAULT_EUR_RATES, QUALIFICATION_QUESTIONS, isStageCode, type EurRates } from "../domain";
 import { readLostReasons, readStageDefinitions } from "../infrastructure";
+import { registerActionLogRoutes } from "./actionLogRoutes";
 import { registerAdminRoutes } from "./adminRoutes";
 import { attachmentRules, registerAttachmentRoutes } from "./attachmentRoutes";
 import { campaignRedaction } from "./campaignVisibility";
@@ -36,6 +44,8 @@ import type {
 export interface RouterDeps {
   pipeline: SalesPipeline;
   notifications: NotificationQueries;
+  /** İşlem günlüğü sorgusu (Yönetim > Loglar); verilmezse uç açılmaz. */
+  actionLog?: ActionLogQueries | undefined;
   db: Db;
   logger: Logger;
   undoWindowMinutes: number;
@@ -48,7 +58,7 @@ export interface RouterDeps {
   /** Satış ekibinin saat dilimi; verilmezse Europe/Istanbul. */
   timeZone?: string | undefined;
   /** Oturumdan kişiyi çıkarır; yoksa undefined (401). `readOnly` görüntüleyici rolü. */
-  actorOf(req: Request): (Actor & { readOnly: boolean; seesCampaign?: boolean }) | undefined;
+  actorOf(req: Request): (Actor & { readOnly: boolean; seesCampaign?: boolean; seesLogs?: boolean }) | undefined;
 }
 
 /** Seçim listelerinde önce gelenler; kalan para birimleri (kur tablosunda olanlar) alfabetik. */
@@ -72,7 +82,7 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
     req: Request,
     res: Response,
     write: boolean,
-  ): (Actor & { readOnly: boolean; seesCampaign?: boolean }) | undefined => {
+  ): (Actor & { readOnly: boolean; seesCampaign?: boolean; seesLogs?: boolean }) | undefined => {
     const a = deps.actorOf(req);
     if (!a) {
       res.status(401).json(<ApiErrorDto>{ error: "Oturum açılmamış.", code: "unauthorized" });
@@ -97,6 +107,8 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
   registerAdminRoutes(r, { pipeline, actor, send, sendError });
   // Lead dosya ekleri (2026-11-19).
   registerAttachmentRoutes(r, { pipeline, actor, sendError });
+  // İşlem günlüğü (2026-11-20): yalnız izinli kişiler okur.
+  if (deps.actionLog) registerActionLogRoutes(r, { actionLog: deps.actionLog, actor, sendError });
 
   r.get("/reference", async (req, res) => {
     if (!actor(req, res, false)) return;
@@ -436,6 +448,7 @@ const STATUS: Record<string, number> = {
   "assign.forbidden": 403,
   "undo.not_owner": 403,
   "attachment.not_owner": 403,
+  "logs.forbidden": 403,
   "attachment.too_large": 413,
 };
 

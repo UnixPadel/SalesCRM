@@ -24,6 +24,7 @@ import type {
   TerritoryBody,
   TerritoryRuleDto,
 } from "../../modules/sales-pipeline/api/dto";
+import type { ActionLogPageDto, ActionTypeDto } from "../../modules/sales-pipeline/api/dto.actionLog";
 import { PipelineError, call } from "../api";
 
 /** Yönetim paneli istemcisi (Faz 7): `/api/admin` + satış modülündeki bölge / birleştirme / arşiv uçları. */
@@ -82,6 +83,26 @@ export const adminApi = {
 
   products: () => call<CatalogProductDto[]>("GET", "/products"),
   importProducts: (body: CatalogImportBody) => call<CatalogImportResultDto>("POST", "/products/import", body),
+
+  /** İşlem günlüğü (Loglar sekmesi): en yeni önce; `before` önceki sayfanın `next` değeri. */
+  actionLogs: (p: {
+    actor?: string | undefined;
+    actions?: readonly ActionTypeDto[] | undefined;
+    from?: string | undefined;
+    to?: string | undefined;
+    before?: string | undefined;
+    limit?: number | undefined;
+  }) => {
+    const q = new URLSearchParams();
+    if (p.actor) q.set("actor", p.actor);
+    if (p.actions?.length) q.set("action", p.actions.join(","));
+    if (p.from) q.set("from", p.from);
+    if (p.to) q.set("to", p.to);
+    if (p.before) q.set("before", p.before);
+    if (p.limit) q.set("limit", String(p.limit));
+    const qs = q.toString();
+    return call<ActionLogPageDto>("GET", `/action-logs${qs ? "?" + qs : ""}`);
+  },
 
   mergePerson: (targetId: string, sourceId: string) =>
     call<MergePersonResultDto>("POST", `/persons/${enc(targetId)}/merge`, { sourceId }),

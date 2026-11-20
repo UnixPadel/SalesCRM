@@ -63,6 +63,12 @@ export class UndoStageChange {
         occurredAt: outcome.value.lead.updatedAt,
       },
     ]);
+    await this.deps.actions?.record({
+      actor: input.actor,
+      action: "stage.undone",
+      lead: outcome.value.lead,
+      details: { to: outcome.value.revertedTo },
+    });
     this.deps.logger.info("aşama değişikliği geri alındı", {
       leadId: outcome.value.lead.id,
       changeId: outcome.value.changeId,
