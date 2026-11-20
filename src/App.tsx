@@ -12,7 +12,7 @@ import { LeadPage } from "./pipeline/LeadPage";
 import { NewLeadDialog } from "./pipeline/NewLeadDialog";
 import { PeoplePage } from "./pipeline/PeoplePage";
 import { ReportsPage } from "./pipeline/ReportsPage";
-import { parseHash } from "./router";
+import { homeRoute, parseHash } from "./router";
 import { useCrm } from "./state/CrmContext";
 
 /**
@@ -31,6 +31,14 @@ export default function App() {
     return () => window.removeEventListener("hashchange", on);
   }, []);
 
+  // Adressiz açılış (yer imi, ilk giriş) rolün açılış sayfasına gider; geçmişe kayıt eklemez.
+  const role = user?.role;
+  useEffect(() => {
+    if (!role || location.hash.replace(/^#\/?/, "")) return;
+    history.replaceState(null, "", `#/${homeRoute(role)}`);
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  }, [role]);
+
   if (!authChecked) {
     return (
       <div className="login" aria-busy="true" aria-label={t("login.checking")}>
@@ -46,8 +54,19 @@ export default function App() {
 
   return (
     <div className="shell">
+      {/* Klavye kullanıcısı menüyü atlayıp içeriğe geçer. Adres #/... yönlendirmesi olduğu için href'e değil odağa gider. */}
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={(e) => {
+          e.preventDefault();
+          document.getElementById("main")?.focus();
+        }}
+      >
+        {t("a11y.skipToContent")}
+      </a>
       <Header route={route} onNewLead={() => setNewLead(true)} />
-      <main className="page" id="main">
+      <main className="page" id="main" tabIndex={-1}>
         {route === "list" ? (
           <LeadListPage params={params} />
         ) : route === "lead" ? (

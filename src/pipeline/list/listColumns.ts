@@ -477,6 +477,12 @@ export function groupSummary(g: GroupId, l: LeadListDto, c: Ctx): string {
         : l.contact.state === "legacy"
           ? c.t("summary.legacyShort")
           : c.t("summary.never");
+    case "proposal":
+      return l.proposal.given ? c.t("list.col.proposal") : "—";
+    case "check": {
+      const n = l.warnings.filter((w) => w.severity === "warn" && !w.checked).length;
+      return n ? `${c.t("list.col.warn")}: ${n}` : "—";
+    }
     case "products":
       return productLine(l.products, c.productName, 2) || "—";
     case "form":

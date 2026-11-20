@@ -215,8 +215,8 @@ h4 {
   line-height: var(--lh-tight);
   margin: 0;
 }
-/* Başlık ve düğmelerde her kelime büyük harfle başlar (2026-11-19). `capitalize` belgenin diline uyar (lang="tr":
-   i → İ), Arapçada etkisizdir ve metni değiştirmez (ekran okuyucu, kopyalama, testler aynı metni görür). Cümle
+/* Başlık ve düğmelerde her kelime büyük harfle başlar (2026-11-19). `capitalize` Chromium'da belge dilini izlemez
+   (Türkçe i → I); kelime başı i harfleri src/i18n/turkishTitleCase.ts ile önceden İ yapılır. Arapçada etkisizdir. Cümle
    taşıyan başlıklar (boş durum) ve kullanıcının yazdığı metinler `.no-cap` ile dışarıda kalır. */
 h1,
 h2,
@@ -263,6 +263,27 @@ a {
   outline-offset: 2px;
   border-radius: var(--r-1);
 }
+/* "İçeriğe geç": yalnız klavyeyle odaklanınca görünür. Odak alan ana bölge çerçeve çizmez. */
+.skip-link {
+  position: fixed;
+  inset-block-start: var(--s-2);
+  inset-inline-start: var(--s-2);
+  z-index: 100;
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--r-2);
+  background: var(--brand);
+  color: var(--brand-text);
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: var(--shadow-2);
+  transform: translateY(calc(-100% - var(--s-4)));
+}
+.skip-link:focus-visible {
+  transform: none;
+}
+main.page:focus {
+  outline: none;
+}
 .ic {
   flex: 0 0 auto;
 }
@@ -299,8 +320,12 @@ a {
 }
 
 /* ---------------- form controls ---------------- */
+/* `type` yazılmamış input da metin kutusudur: bu listeden düşerse tarayıcı görünümüne kalır. */
 textarea,
+input:not([type]),
 input[type="text"],
+input[type="url"],
+input[type="datetime-local"],
 input[type="search"],
 input[type="email"],
 input[type="password"],
@@ -335,6 +360,12 @@ select option {
   color: #1e1a14;
   background: #ffffff;
   font-weight: 400;
+}
+/* Tarayıcının varsayılan gri placeholder'ı açık zeminde 4.5:1'in altında kalıyor. */
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-3);
+  opacity: 1;
 }
 input:focus-visible,
 select:focus-visible,
@@ -747,6 +778,7 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: var(--t-sm);
   color: var(--text-3);
   font-weight: 700;
+  white-space: nowrap;
 }
 .login-card h1 {
   font-size: var(--t-lg);
@@ -783,6 +815,8 @@ input[type="number"]::-webkit-outer-spin-button {
 /* ---------------- shell + header ---------------- */
 .shell {
   display: grid;
+  /* Sütun ekran genişliğinde kalır; bir içerik (üst menü, geniş tablo) ızgarayı ekrandan taşıramaz. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   block-size: 100%;
 }
@@ -819,6 +853,7 @@ html:has(.shell) body {
   font-weight: 700;
   text-decoration: none;
   font-size: var(--t-md);
+  white-space: nowrap;
 }
 .nav-link::after {
   content: "";
@@ -863,6 +898,7 @@ html:has(.shell) body {
 }
 .hdr-end {
   margin-inline-start: auto;
+  min-inline-size: 0;
   display: flex;
   align-items: center;
   gap: var(--s-3);
@@ -870,6 +906,7 @@ html:has(.shell) body {
 .gsearch {
   position: relative;
   flex: 0 1 360px;
+  min-inline-size: 0;
 }
 .gsearch-box {
   display: flex;
@@ -887,6 +924,7 @@ html:has(.shell) body {
 }
 .gsearch-box input {
   flex: 1;
+  min-inline-size: 0;
   border: 0;
   background: none;
   box-shadow: none !important;
@@ -3283,6 +3321,9 @@ time.t {
   font-weight: 600;
   cursor: pointer;
   text-align: start;
+  /* Uzun, boşluksuz firma ya da e-posta adı kartı yana taşırmasın. */
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
 }
 @media (hover: hover) {
   .dealref:hover {
@@ -3924,6 +3965,9 @@ select.bare {
   max-inline-size: 52ch;
   margin-inline: auto;
 }
+.empty p > .btn + .btn {
+  margin-inline-start: var(--s-2);
+}
 .empty-ok {
   border-style: solid;
   border-color: color-mix(in srgb, var(--ok) 40%, transparent);
@@ -4030,9 +4074,19 @@ select.bare {
   .drawer {
     inline-size: 100vw;
   }
+}
+/* Üst menü tek satırda kalır: etiketler kırılmaz ("Lead / Listesi"); yer daraldıkça önce alt başlık ve Ctrl K ipucu,
+   sonra menü etiketleri çekilir (simge + title kalır). Eşikler gerçek etiket genişliklerinden ölçüldü (TR). */
+@media (max-width: 1440px) {
+  .wordmark span,
   .hdr .kbd {
     display: none;
   }
+  .nav-link {
+    padding-inline: var(--s-2);
+  }
+}
+@media (max-width: 1300px) {
   .nav-link span.lbl {
     display: none;
   }

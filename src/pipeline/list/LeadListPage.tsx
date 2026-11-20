@@ -65,6 +65,7 @@ const COLLAPSE_KEY = "unixcrm.v2.listColumns";
 const FILTER_KEY = "unixcrm.v2.listFilter";
 const HIDDEN_KEY = "unixcrm.v2.listHidden";
 const SIZES = [100, 200, 500] as const;
+const DEFAULT_COLLAPSED: readonly GroupId[] = ["reach", "proposal", "form", "check"];
 
 const read = <T,>(k: string, d: T): T => {
   try {
@@ -111,11 +112,13 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
   const [rows, setRows] = useState<LeadListDto[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [collapsed, setCollapsed] = useState<GroupId[]>(() =>
-    // Dar ekranda bazı gruplar katlı başlar; Form cevapları her ekranda açık gelir. Sabit gruplar (Ürünler) hiç
-    // daralmaz; tarayıcıda kalmış eski daraltma kaydı da yok sayılır.
-    read<GroupId[]>(COLLAPSE_KEY, window.innerWidth < 768 ? ["customer", "proposal"] : []).filter(
-      (g) => !GROUPS.find((x) => x.id === g)?.fixed,
-    ),
+    // Varsayılan görünüm sade (2026-11-20): kim, ne zaman, hangi aşama, son temas, sıradaki iş açık; ulaşım
+    // kanalları, teklif, form cevapları ve kontrol tek özet hücresine katlı. "Sütunlar" menüsünden açılır, seçim
+    // tarayıcıda kalır. Sabit gruplar (Ürünler) hiç daralmaz; tarayıcıda kalmış eski daraltma kaydı da yok sayılır.
+    read<GroupId[]>(COLLAPSE_KEY, [
+      ...DEFAULT_COLLAPSED,
+      ...(window.innerWidth < 768 ? ["customer" as const] : []),
+    ]).filter((g) => !GROUPS.find((x) => x.id === g)?.fixed),
   );
   const [hiddenCols, setHiddenCols] = useState<string[]>(() => read<string[]>(HIDDEN_KEY, []));
   const [search, setSearch] = useState(params.get("q") ?? "");
@@ -376,8 +379,10 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
           {extra && <span>{extra}</span>}
         </span>
       ) : (
-        <span className="no" aria-label={t("common.no")}>
-          ✘
+        // "Yok": Excel'deki gibi ✘ (ekip isteği, 2026-11-20); ekran okuyucu "Hayır" okur.
+        <span className="no">
+          <span aria-hidden="true">✘</span>
+          <span className="sr-only">{t("common.no")}</span>
         </span>
       );
     const short = (iso: string) =>
@@ -796,9 +801,12 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
         )}
         {isAdmin && (
           <>
-            <Button icon="upload" onClick={() => setImporting(true)} disabled={!ref}>
-              {t("list.import")}
-            </Button>
+            {/* İçe aktarım masaüstü işi (dosya seçip sütun eşlemek); telefonda araç çubuğunu kalabalıklaştırmasın. */}
+            {!phone && (
+              <Button icon="upload" onClick={() => setImporting(true)} disabled={!ref}>
+                {t("list.import")}
+              </Button>
+            )}
             <label className="cd-check">
               <input
                 type="checkbox"

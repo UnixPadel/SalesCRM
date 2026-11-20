@@ -463,6 +463,7 @@ export const DICT = {
   "err.network": ["Sunucuya ulaşılamadı.", "Could not reach the server."],
   "app.name": ["Satış Panosu", "Sales Board"],
   "app.home": ["Unixpadel Satış Panosu, ana sayfa", "Unixpadel Sales Board, home"],
+  "a11y.skipToContent": ["İçeriğe geç", "Skip to content"],
   "nav.main": ["Ana menü", "Main menu"],
   "nav.today.badge": [
     "{n} gecikmiş veya bugünkü aktivite",

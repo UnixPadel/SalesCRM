@@ -20,6 +20,9 @@ export function parseHash(): Location {
   return { route, q: params.get("q") || "", id: decodeURIComponent(id), params };
 }
 
+/** Açılış sayfası: satışçı günün işleriyle (Bugün) başlar; yönetici ve izleyici tam listeyle. */
+export const homeRoute = (role: string | undefined): Route => (role === "rep" ? "activities" : "list");
+
 export function navigate(route: Route, q?: string, id?: string) {
   location.hash = `/${route}${id ? "/" + encodeURIComponent(id) : ""}${q ? "?q=" + encodeURIComponent(q) : ""}`;
 }

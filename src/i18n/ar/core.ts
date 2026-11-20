@@ -338,6 +338,7 @@ export const AR_CORE = {
   "err.network": "تعذّر الوصول إلى الخادم.",
   "app.name": "لوحة المبيعات",
   "app.home": "لوحة مبيعات Unixpadel، الصفحة الرئيسية",
+  "a11y.skipToContent": "الانتقال إلى المحتوى",
   "nav.main": "القائمة الرئيسية",
   "nav.today.badge": "أنشطة متأخرة أو مستحقة اليوم: {n}",
   "user.menu": "حساب {name}، فتح القائمة",

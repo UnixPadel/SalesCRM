@@ -23,6 +23,114 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-20",
+    date: "2026-11-20",
+    items: {
+      tr: [
+        {
+          title: "Özet rapor yeniden görünüyor",
+          text: 'Raporlar sayfasının üstündeki "Aşama Raporu" ve "Özet Rapor" düğmeleri artık görünür. Özet rapora oradan geçebilirsiniz.',
+        },
+        {
+          title: "Yazı kutuları düzeldi",
+          text: "Yeni lead penceresindeki Ad Soyad, Şehir, Firma ve İlgilenilen Ürün kutuları artık diğer kutularla aynı görünür ve daha kolay dokunulur.",
+        },
+        {
+          title: "Noktalı İ doğru yazılıyor",
+          text: 'Düğme ve başlıklarda "Işaretle", "Içe Aktar" gibi noktasız yazılan kelimeler artık "İşaretle", "İçe Aktar" diye doğru görünür.',
+        },
+        {
+          title: "Bağlantı koptuğunda lead sayfası",
+          text: 'İnternet ya da sunucu bağlantısı koparsa lead sayfası artık "bulunamadı" demez; ne olduğunu yazar ve "Tekrar Dene" düğmesi gösterir.',
+        },
+        {
+          title: "Program Bugün sayfasıyla açılır",
+          text: "Satış temsilcileri programı açınca önce Bugün sayfasını görür: gecikmiş ve bugünkü işler. Lead listesi alttaki ve üstteki menüde yerinde duruyor.",
+        },
+        {
+          title: "Lead listesi sadeleşti",
+          text: 'Listede Ulaşım, Teklif ve Form cevapları sütunları artık tek bir "Özet" sütununa katlı gelir. Açmak için başlıktaki oka ya da "Sütunlar" düğmesine basın. Daha önce sütunları kendiniz ayarladıysanız düzeniniz aynen kalır.',
+        },
+        {
+          title: "Satırlarda daha az düğme",
+          text: 'Tabloda Ara ve E-posta artık yalnız simgeyle, WhatsApp simge ve "Wp" yazısıyla görünür; üzerine gelince adı yazar. "İletişim kaydet" yazılı kalır.',
+        },
+        {
+          title: "Yana kaydırırken arama yerinde kalır",
+          text: "Lead listesini sağa kaydırdığınızda başlık, arama kutusu ve süzgeç düğmeleri ekranda kalır; geri dönmeden arayabilirsiniz.",
+        },
+      ],
+      en: [
+        {
+          title: "Summary report is back",
+          text: 'The "Stage Report" and "Summary Report" buttons at the top of the Reports page are visible again. Use them to switch to the summary report.',
+        },
+        {
+          title: "Text boxes fixed",
+          text: "In the new lead window, the Full Name, City, Company and Product Interest boxes now look like the other boxes and are easier to tap.",
+        },
+        {
+          title: "Turkish capital İ fixed",
+          text: 'In Turkish, buttons and headings no longer show a dotless "I" in words like "İşaretle" or "İçe Aktar".',
+        },
+        {
+          title: "Lead page when the connection drops",
+          text: 'If the internet or server connection drops, the lead page no longer says the lead was not found. It says what happened and shows a "Retry" button.',
+        },
+        {
+          title: "The app opens on Today",
+          text: "Sales reps now see the Today page first when they open the app: overdue and today's tasks. The lead list is still in the menu at the top and bottom.",
+        },
+        {
+          title: "A simpler lead list",
+          text: 'The Reach, Proposal and Form answers columns now start folded into a single "Summary" column. To open them, tap the arrow in the heading or the "Columns" button. If you already arranged the columns yourself, your layout stays as it was.',
+        },
+        {
+          title: "Fewer buttons in each row",
+          text: 'In the table, Call and Email now show only their icon and WhatsApp shows its icon with "Wp"; hover to see the name. "Log contact" keeps its label.',
+        },
+        {
+          title: "Search stays put when scrolling sideways",
+          text: "When you scroll the lead list to the right, the title, search box and filter buttons stay on screen, so you can search without scrolling back.",
+        },
+      ],
+      ar: [
+        {
+          title: "التقرير الملخّص ظاهر من جديد",
+          text: 'أصبح زرّا "تقرير المراحل" و"التقرير الملخّص" في أعلى صفحة التقارير ظاهرين من جديد. استخدمهما للانتقال إلى التقرير الملخّص.',
+        },
+        {
+          title: "إصلاح خانات الكتابة",
+          text: "في نافذة العميل المحتمل الجديد، أصبحت خانات الاسم الكامل والمدينة والشركة والمنتج المطلوب تشبه باقي الخانات وأسهل في اللمس.",
+        },
+        {
+          title: "إصلاح الحرف التركي İ",
+          text: 'في الواجهة التركية، لم تعد الأزرار والعناوين تعرض حرف "I" بلا نقطة في كلمات مثل "İşaretle" و"İçe Aktar".',
+        },
+        {
+          title: "صفحة العميل المحتمل عند انقطاع الاتصال",
+          text: 'إذا انقطع الاتصال بالإنترنت أو بالخادم، لم تعد صفحة العميل المحتمل تقول إنه غير موجود، بل توضّح ما حدث وتعرض زر "إعادة المحاولة".',
+        },
+        {
+          title: "يبدأ البرنامج بصفحة اليوم",
+          text: "يرى مندوبو المبيعات صفحة اليوم أولًا عند فتح البرنامج: المهام المتأخرة ومهام اليوم. قائمة العملاء المحتملين ما زالت في القائمة العلوية والسفلية.",
+        },
+        {
+          title: "قائمة عملاء محتملين أبسط",
+          text: 'أعمدة التواصل وعرض السعر وإجابات النموذج تظهر الآن مطوية في عمود "ملخص" واحد. لفتحها اضغط السهم في العنوان أو زر "الأعمدة". إذا رتّبت الأعمدة بنفسك من قبل فيبقى ترتيبك كما هو.',
+        },
+        {
+          title: "أزرار أقل في كل صف",
+          text: 'في الجدول يظهر الاتصال والبريد الإلكتروني الآن كأيقونات فقط، وواتساب بأيقونته مع "Wp"، ويظهر الاسم عند تمرير المؤشر. يبقى زر "تسجيل تواصل" بنصّه.',
+        },
+        {
+          title: "البحث يبقى ظاهرًا عند التمرير الجانبي",
+          text: "عند تمرير قائمة العملاء المحتملين إلى الجانب، يبقى العنوان ومربع البحث وأزرار التصفية ظاهرة، فتستطيع البحث دون الرجوع.",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-19-2",
     date: "2026-11-19",
     items: {

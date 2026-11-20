@@ -7,7 +7,7 @@ import type { AttachmentDto } from "../modules/sales-pipeline/api/dto.attachment
 import { navigate } from "../router";
 import { useCrm } from "../state/CrmContext";
 import { ACTIVITY_ICON, ActivityItem, AddActivityForm } from "./activityBits";
-import { pipelineApi } from "./api";
+import { PipelineError, pipelineApi } from "./api";
 import { AttachmentChips, AttachmentsPanel, useAttachments } from "./attachments/AttachmentsPanel";
 import { Age, Country, SourceBadge, StageTag } from "./bits";
 import { LeadContactForm } from "./LeadContactForm";
@@ -76,9 +76,16 @@ export function LeadPage({ id }: { id: string }) {
     return () => document.removeEventListener("mousedown", away);
   }, []);
 
-  if (error) {
+  // Yalnız gerçekten yok/yetkisiz olan lead "bulunamadı" der; bağlantı ya da sunucu hatası yeniden denenebilir.
+  const missing = !id || (error instanceof PipelineError && (error.status === 404 || error.status === 403));
+  if (missing || (error && !detail)) {
     return (
-      <Empty title={t("lead.notFound")}>
+      <Empty title={missing ? t("lead.notFound") : errText(error)}>
+        {!missing && (
+          <Button icon="refresh" onClick={reload}>
+            {t("common.retry")}
+          </Button>
+        )}
         <Button icon="arrowL" onClick={() => navigate("list")}>
           {t("common.back")}
         </Button>

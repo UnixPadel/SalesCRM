@@ -2,6 +2,7 @@ import { setCountryLang } from "../domain/constants";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { translate, type TKey } from "./dict";
 import { dirOf, isLang, setActiveLang, type Lang } from "./lang";
+import { watchTurkishTitleCase } from "./turkishTitleCase";
 
 /** Arayüz dili: sağlayıcı ve `useLang`. Sözlük ve çeviri `./dict` içinde (React'siz; testler oradan okur). */
 export { DICT, refName, translate, type TKey } from "./dict";
@@ -42,6 +43,8 @@ export function LangProvider({ children }: { children: ReactNode }) {
     document.documentElement.dir = dirOf(lang);
     document.title = `Unixpadel ${translate(lang, "app.name")}`;
   }, [lang]);
+  // Başlık büyütmesi Türkçede "i"yi "I" yapmasın (bkz. turkishTitleCase.ts).
+  useEffect(() => (lang === "tr" ? watchTurkishTitleCase() : undefined), [lang]);
   const t = useCallback<LangCtx["t"]>((key, vars) => translate(lang, key, vars), [lang]);
   const value = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -44,16 +44,38 @@ export function ContactLinks({
       <div className="qlinks-row">
         {phone ? (
           <>
-            <a className="qlink" href={wa!} target="_blank" rel="noreferrer" onClick={() => pick("whatsapp")}>
+            <a
+              className="qlink"
+              href={wa!}
+              target="_blank"
+              rel="noreferrer"
+              title={compact ? "WhatsApp" : undefined}
+              onClick={() => pick("whatsapp")}
+            >
               <Icon name="chat" size={16} /> <span>{compact ? "WhatsApp" : phone}</span>
+              {compact && (
+                <b className="qlink-short" aria-hidden="true">
+                  Wp
+                </b>
+              )}
             </a>
-            <a className="qlink" href={`tel:${phone}`} onClick={() => pick("call")}>
+            <a
+              className="qlink"
+              href={`tel:${phone}`}
+              title={compact ? t("contact.callLink") : undefined}
+              onClick={() => pick("call")}
+            >
               <Icon name="phone" size={16} /> <span>{t("contact.callLink")}</span>
             </a>
           </>
         ) : null}
         {email && (
-          <a className="qlink" href={`mailto:${email}`} onClick={() => pick("email")}>
+          <a
+            className="qlink"
+            href={`mailto:${email}`}
+            title={compact ? t("summary.email") : undefined}
+            onClick={() => pick("email")}
+          >
             <Icon name="mail" size={16} /> <span>{compact ? t("summary.email") : email}</span>
           </a>
         )}

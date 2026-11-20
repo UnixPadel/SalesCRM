@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { countryName } from "../domain/constants";
 import { useLang } from "../i18n";
-import { navigate, type Route } from "../router";
+import { homeRoute, navigate, type Route } from "../router";
 import { NotificationsBell } from "../pipeline/NotificationsBell";
 import { pipelineApi } from "../pipeline/api";
 import { useReference, useTodayCount } from "../pipeline/hooks";
@@ -55,7 +55,7 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
 
   return (
     <header className="hdr">
-      <a className="wordmark" href="#/list" aria-label={t("app.home")}>
+      <a className="wordmark" href={`#/${homeRoute(user?.role)}`} aria-label={t("app.home")}>
         <b>Unixpadel</b>
         <span>{t("app.name")}</span>
       </a>
@@ -67,6 +67,7 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
             className="nav-link"
             aria-current={route === n.r || (n.r === "list" && route === "lead") ? "page" : undefined}
             aria-label={n.badge ? `${n.label}, ${n.badgeLabel}` : n.label}
+            title={n.label}
           >
             <Icon name={n.icon} size={18} />
             <span className="lbl" aria-hidden="true">

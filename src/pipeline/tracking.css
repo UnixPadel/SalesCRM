@@ -855,6 +855,33 @@
   color: var(--text-3);
   opacity: 0.7;
 }
+/* Tabloda WhatsApp / Ara / E-posta yalnız ikon: satırda tek yazılı eylem "İletişim kaydet" kalır. Ad ekran
+   okuyucuya ve fareyle gelince (title) okunur; telefon kartları yazılı kalır. */
+.ll .qlinks.compact .qlink {
+  inline-size: var(--hit-md);
+  justify-content: center;
+  padding-inline: 0;
+}
+/* WhatsApp simgesinin yanında kısa "Wp" yazısı (yalnız tabloda; kartlar tam adı yazar). */
+.qlink-short {
+  display: none;
+}
+.ll .qlinks.compact .qlink:has(> .qlink-short) {
+  inline-size: auto;
+  padding-inline: var(--s-2);
+  gap: var(--s-1);
+}
+.ll .qlink-short {
+  display: inline;
+}
+.ll .qlinks.compact .qlink > span {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 /* Gizlenen sütun: tablodan kalkmaz, 24 px'lik sakin bir şeride iner. Başlıkta "genişlet" ikonlu yuvarlak düğme
    (birden çok sütun birleştiyse altında sayısı) tıklanacağını söyler; satırlarda yalnız bir ton koyu düz zemin vardır.
    Şeridin herhangi bir yerine gelince bütün şerit birlikte vurgulanır (.hover sınıfını tablo ekler). */
@@ -1241,7 +1268,9 @@
 .reports-page > .sr {
   margin-inline: var(--s-5);
 }
+/* Sayfa sabit yükseklikte dikey flex: sekmeler küçülmesin, yoksa 0px'e ezilip görünmez olur. */
 .reports-page > .report-tabs {
+  flex-shrink: 0;
   margin-block-start: var(--s-4);
 }
 .reports-page > .sr {
@@ -1251,6 +1280,21 @@
 .ll-page {
   flex: none;
   overflow: visible;
+}
+/* Tablo görünümünde sayfa tablo kadar geniştir; başlık, arama ve süzgeç satırı ise görünür alan genişliğinde kalıp
+   yana kaydırırken solda yapışık durur. Kaydırma hâlâ tek (main.page): tablo başlığı dikeyde yapışık kalır.
+   100cqi = ana alanın görünür iç genişliği (main.page'in kapsayıcı olması gerekir). */
+.page:has(> .ll-page > .ll-wrap) {
+  container-type: inline-size;
+}
+.ll-page:has(> .ll-wrap) {
+  inline-size: max-content;
+  min-inline-size: 100%;
+}
+.ll-page:has(> .ll-wrap) > .ll-toolbar {
+  position: sticky;
+  inset-inline-start: var(--s-5);
+  inline-size: calc(100cqi - var(--s-5) * 2);
 }
 .new-more {
   border: 1px solid var(--border);
@@ -1268,6 +1312,10 @@
   .ll-page,
   .today-page {
     padding: var(--s-3) var(--s-4) var(--s-5);
+  }
+  .ll-page:has(> .ll-wrap) > .ll-toolbar {
+    inset-inline-start: var(--s-4);
+    inline-size: calc(100cqi - var(--s-4) * 2);
   }
   .reports-page > .report-tabs,
   .reports-page > .pl-title,
