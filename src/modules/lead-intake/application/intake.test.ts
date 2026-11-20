@@ -194,7 +194,8 @@ describe("RunBackfill", () => {
     await accept("L-1");
     const ok = new FakeBackfill("fake", async () => [
       { dedupeKey: "fake:L-1", payload: { platformLeadId: "L-1" } },
-      { dedupeKey: "fake:L-9", payload: { platformLeadId: "L-9" } },
+      // Başka kişi: aynı e-posta/telefon tekrar gönderim sayılır ve L-1'in lead'ine işlenirdi.
+      { dedupeKey: "fake:L-9", payload: { platformLeadId: "L-9", email: "l9@example.com", phone: null } },
     ]);
     const broken = new FakeBackfill("other", async () => {
       throw new TransientError("platform.unavailable", "timeout");

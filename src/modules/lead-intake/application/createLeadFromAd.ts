@@ -13,6 +13,13 @@ export interface CreateLeadFromAdResult {
   assignedUserId: string | null;
 }
 
+/** Tekrar gönderim işinin notunda görünen kaynak adı (satış çekirdeği platform adı bilmez). */
+const SOURCE_LABELS: Record<string, string> = {
+  meta_form: "Meta formu",
+  google_form: "Google formu",
+  web_form: "Web sitesi formu",
+};
+
 export class CreateLeadFromAd {
   constructor(
     private readonly leads: LeadCreator,
@@ -47,6 +54,9 @@ export class CreateLeadFromAd {
       parseMode: "lenient",
       invalidPhone: "drop",
       adoptImportLead: true,
+      // Aynı kişi formu yeniden doldurduysa açık lead'ine işlenir; satışçı iki ayrı lead yürütmez.
+      mergeRepeatSubmission: true,
+      sourceLabel: SOURCE_LABELS[dto.source] ?? dto.source,
     });
     if (!r.ok) {
       return err(
@@ -57,7 +67,12 @@ export class CreateLeadFromAd {
         }),
       );
     }
-    this.logger.info(r.value.created ? "reklam lead'i açıldı" : "reklam lead'i zaten vardı", {
+    const what = r.value.created
+      ? "reklam lead'i açıldı"
+      : r.value.merged
+        ? "tekrar form gönderimi açık lead'e işlendi"
+        : "reklam lead'i zaten vardı";
+    this.logger.info(what, {
       leadId: r.value.lead.id,
       provider: dto.provider,
       platformLeadId: dto.platformLeadId,

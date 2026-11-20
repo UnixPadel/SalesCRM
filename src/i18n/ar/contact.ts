@@ -233,6 +233,7 @@ export const AR_CONTACT: Record<keyof typeof CONTACT_DICT, string> = {
   "source.excel": "Excel",
   "source.sheet": "جدول النماذج",
   "extra.sheet_row": "صف جدول النماذج",
+  "extra.form_resubmissions": "عدد مرات إعادة تعبئة النموذج",
   "extra.platform": "المنصة",
   "extra.is_organic": "عضوي (بلا إعلان)",
   "lead.excelOwner": "المسؤول في Excel: {name}",

@@ -345,6 +345,7 @@ export const CONTACT_DICT = {
   "source.excel": ["Excel", "Excel"],
   "source.sheet": ["Form tablosu", "Form sheet"],
   "extra.sheet_row": ["Form tablosu satırı", "Form sheet row"],
+  "extra.form_resubmissions": ["Formu tekrar doldurma sayısı", "Repeat form submissions"],
   "extra.platform": ["Platform", "Platform"],
   "extra.is_organic": ["Organik (reklamsız)", "Organic (not from an ad)"],
   "lead.excelOwner": ["Excel'deki sorumlu: {name}", "Owner in Excel: {name}"],

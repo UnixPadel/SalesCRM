@@ -12,6 +12,7 @@ export const HIDDEN_EXTRA_KEYS = [
   "dropped_fields",
   "sheet_key",
   "platform_source",
+  "repeat_submissions",
 ] as const;
 
 /** Bilinen anahtar → çeviri anahtarı. */
@@ -24,6 +25,7 @@ export const EXTRA_LABELS: Record<string, string> = {
   sheet_row: "extra.sheet_row",
   platform: "extra.platform",
   is_organic: "extra.is_organic",
+  form_resubmissions: "extra.form_resubmissions",
 };
 
 /** Meta'nın platform kısaltmaları → okunur ad. */

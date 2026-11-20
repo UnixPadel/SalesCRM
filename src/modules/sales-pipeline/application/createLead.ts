@@ -3,6 +3,7 @@ import { Email, PhoneNumber } from "../../shared/normalization";
 import {
   EMPTY_ATTRIBUTION,
   EMPTY_CAMPAIGN,
+  NO_CONTACT_FIELDS,
   PlatformLeadId,
   emptyTrackingFields,
   checkCatalogRefs,
@@ -105,6 +106,39 @@ export interface CreateLeadInput {
    * alanlar doldurulur, platform kimliği yazılır [M-I12][K-M15].
    */
   adoptImportLead?: boolean;
+  /**
+   * Intake: aynı kişi (e-posta ya da telefon) formu yeniden doldurduysa ve açık lead'i varsa yeni lead açılmaz;
+   * gönderim o lead'e işlenir (boş alanlar dolar, gönderim `extra_answers.repeat_submissions`'a yazılır) ve
+   * sorumluya "Formu tekrar doldurdu" işi açılır. Lead'i kapanmış kişi için yeni lead açılır.
+   */
+  mergeRepeatSubmission?: boolean;
+  /** Tekrar gönderim işinin notunda görünen kaynak adı (platform adını intake verir); yoksa kaynak kodu. */
+  sourceLabel?: string;
+}
+
+/** Tekrar form gönderiminde açılan işin konusu; açık bir tane varken ikincisi açılmaz. */
+export const RESUBMIT_SUBJECT = "Formu tekrar doldurdu";
+/** `extra_answers.repeat_submissions` en çok bu kadar gönderim tutar (en yeniler kalır). */
+const REPEAT_SUBMISSIONS_KEPT = 20;
+
+const ANSWER_LABELS = {
+  installSite: "Kurulum yeri",
+  installTimeline: "Kurulum zamanı",
+  customerProfile: "Müşteri profili",
+  courtCountBand: "Kort sayısı aralığı",
+  courtCount: "Kort sayısı",
+} as const;
+
+/** Bir form gönderiminin mevcut lead'e işlenen kısmı (benimseme ve tekrar gönderim ortak). */
+interface Submission {
+  email: Email | null;
+  phone: PhoneNumber | null;
+  campaignName: string | null;
+  platformLeadId: string | null;
+  source: LeadSource;
+  attribution: Partial<LeadAttribution> | null;
+  consents: readonly ConsentInput[];
+  fields: Partial<LeadFields>;
 }
 
 export interface CreateLeadResult {
@@ -115,6 +149,8 @@ export interface CreateLeadResult {
   personMatched: boolean;
   /** true: Excel'den gelen açık lead benimsendi (yeni lead açılmadı). */
   adopted?: boolean;
+  /** true: kişi formu yeniden doldurdu, gönderim açık lead'ine işlendi (yeni lead açılmadı). */
+  merged?: boolean;
 }
 
 /**
@@ -251,18 +287,18 @@ export class CreateLead {
         const existing = await repos.leads.findByPlatformId(input.source, platformId.value);
         if (existing) return { lead: existing, created: false, personMatched: false, domainEvents: [] };
       }
+      const submission: Submission = {
+        email,
+        phone,
+        campaignName: input.campaign?.campaignName ?? null,
+        platformLeadId: platformId?.value ?? null,
+        source: input.source,
+        attribution: input.attribution ?? null,
+        consents: consentInputs,
+        fields,
+      };
       if (input.adoptImportLead) {
-        const adopted = await this.adopt(repos, {
-          email,
-          phone,
-          campaignName: input.campaign?.campaignName ?? null,
-          platformLeadId: platformId?.value ?? null,
-          source: input.source,
-          attribution: input.attribution ?? null,
-          consents: consentInputs,
-          fields,
-          extraAnswers,
-        });
+        const adopted = await this.adopt(repos, submission);
         if (adopted) return { lead: adopted, created: false, personMatched: true, adopted: true, domainEvents: [] };
       }
 
@@ -270,6 +306,21 @@ export class CreateLead {
       const submitted = input.createdAt;
       const createdAt =
         submitted && !Number.isNaN(submitted.getTime()) && submitted.getTime() <= now.getTime() ? submitted : now;
+      if (input.mergeRepeatSubmission) {
+        const merged = await this.absorb(repos, submission, {
+          isTest: input.isTest ?? false,
+          formId: input.formId ?? null,
+          sourceLabel: (input.sourceLabel ?? "").trim() || input.source,
+          submittedAt: createdAt,
+          message: (input.notes ?? "").trim(),
+          text: {
+            city: (input.city ?? "").trim(),
+            company: (input.company ?? "").trim(),
+            productInterest: (input.productInterest ?? "").trim(),
+          },
+        });
+        if (merged) return { lead: merged, created: false, personMatched: true, merged: true, domainEvents: [] };
+      }
       const { person, matched } = await this.findOrCreatePerson(repos, {
         fullName,
         email,
@@ -383,7 +434,13 @@ export class CreateLead {
       await this.deps.actions?.record({ actor: input.actor, action: "lead.created", lead: outcome.lead });
     }
     this.deps.logger.info(
-      outcome.adopted ? "Excel lead'i benimsendi" : outcome.created ? "lead oluşturuldu" : "lead zaten vardı",
+      outcome.adopted
+        ? "Excel lead'i benimsendi"
+        : outcome.merged
+          ? "tekrar form gönderimi açık lead'e işlendi"
+          : outcome.created
+            ? "lead oluşturuldu"
+            : "lead zaten vardı",
       {
         leadId: outcome.lead.id,
         source: input.source,
@@ -396,6 +453,7 @@ export class CreateLead {
       created: outcome.created,
       personMatched: outcome.personMatched,
       ...(outcome.adopted ? { adopted: true } : {}),
+      ...(outcome.merged ? { merged: true } : {}),
     });
   }
 
@@ -403,20 +461,7 @@ export class CreateLead {
    * Excel'den gelen açık lead'i benimseme: aynı kişi, `extra_answers.excel_no` var, aşama açık, kampanya aynı ya da
    * boş. Boş alanlar doldurulur (esnek), platform kimliği `extra_answers.platform_lead_id`'ye yazılır.
    */
-  private async adopt(
-    repos: Repositories,
-    a: {
-      email: Email | null;
-      phone: PhoneNumber | null;
-      campaignName: string | null;
-      platformLeadId: string | null;
-      source: LeadSource;
-      attribution: Partial<LeadAttribution> | null;
-      consents: readonly ConsentInput[];
-      fields: Partial<LeadFields>;
-      extraAnswers: Record<string, unknown>;
-    },
-  ): Promise<Lead | null> {
+  private async adopt(repos: Repositories, a: Submission): Promise<Lead | null> {
     const person = await repos.persons.findByEmailOrPhone(a.email?.value ?? null, a.phone?.e164 ?? null);
     if (!person) return null;
     const candidates = (await repos.leads.list({ personId: person.id, includeTest: true })).filter(
@@ -428,7 +473,115 @@ export class CreateLead {
     );
     const lead = candidates[0];
     if (!lead) return null;
+    return this.applySubmission(repos, lead, a, this.deps.clock.now());
+  }
+
+  /**
+   * Tekrar form gönderimi: kişinin açık lead'i varsa (en yenisi) gönderim ona işlenir. Kampanya farklı olsa da aynı
+   * lead'dir: satışçı aynı kişiyi iki ayrı lead olarak yürütmez. Test gönderimi yalnız test lead'iyle eşleşir.
+   * Geri bildirim kimliği lead'in ilk gönderimi olarak kalır; bu gönderimin platform kimliği
+   * `extra_answers.repeat_submissions`'ta saklanır.
+   */
+  private async absorb(
+    repos: Repositories,
+    a: Submission,
+    s: {
+      isTest: boolean;
+      formId: string | null;
+      sourceLabel: string;
+      submittedAt: Date;
+      message: string;
+      text: Pick<LeadFields, "city" | "company" | "productInterest">;
+    },
+  ): Promise<Lead | null> {
+    const person = await repos.persons.findByEmailOrPhone(a.email?.value ?? null, a.phone?.e164 ?? null);
+    if (!person) return null;
+    const open = (await repos.leads.list({ personId: person.id, includeTest: true }))
+      .filter((l) => !isTerminal(l.currentStage) && l.isTest === s.isTest)
+      .sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime());
+    const before = open[0];
+    if (!before) return null;
     const now = this.deps.clock.now();
+    // İçe aktarılan lead'in platform kimliği yoktur; ilk reklam gönderimi geri bildirim kimliği olur (feedbackIdentity).
+    let lead = await this.applySubmission(repos, before, a, now, before.source === "import");
+
+    // Lead'de boş olan metin ve iletişim alanları bu gönderimden dolar; dolu alan değişmez (CRM esastır).
+    const text: Partial<LeadFields> = {};
+    for (const k of ["city", "company", "productInterest"] as const) {
+      if (!lead[k] && s.text[k]) text[k] = s.text[k];
+    }
+    if (Object.keys(text).length) {
+      await repos.leads.updateFields(lead.id, text, now);
+      lead = { ...lead, ...text };
+    }
+    const email = lead.email ?? a.email?.value ?? null;
+    const phoneE164 = lead.phoneE164 ?? a.phone?.e164 ?? null;
+    if (email !== lead.email || phoneE164 !== lead.phoneE164) {
+      await repos.leads.updateIdentity(lead.id, { fullName: lead.fullName, email, phoneE164 }, now);
+      lead = { ...lead, email, phoneE164 };
+    }
+
+    const earlier = Array.isArray(lead.extraAnswers["repeat_submissions"])
+      ? (lead.extraAnswers["repeat_submissions"] as unknown[])
+      : [];
+    const count = Number(lead.extraAnswers["form_resubmissions"]) || earlier.length;
+    const history = {
+      form_resubmissions: count + 1,
+      repeat_submissions: [
+        ...earlier,
+        {
+          at: s.submittedAt.toISOString(),
+          source: a.source,
+          platform_lead_id: a.platformLeadId,
+          form_id: s.formId,
+          campaign: a.campaignName,
+        },
+      ].slice(-REPEAT_SUBMISSIONS_KEPT),
+    };
+    await repos.leads.mergeExtraAnswers(lead.id, history, now);
+    lead = { ...lead, extraAnswers: { ...lead.extraAnswers, ...history }, updatedAt: now };
+
+    // Sorumlu "Bugün"de görsün: açık bir "Formu tekrar doldurdu" işi yoksa şimdi vadeli bir arama açılır.
+    const pending = (await repos.activities.listOpenByLeads([lead.id])).some(
+      (x) => x.autoCreated && x.subject === RESUBMIT_SUBJECT,
+    );
+    if (!pending) {
+      const lines = [`Kaynak: ${s.sourceLabel}${a.campaignName ? ` · Kampanya: ${a.campaignName}` : ""}`];
+      if (s.message) lines.push(`Mesaj: ${s.message}`);
+      for (const k of Object.keys(ANSWER_LABELS) as (keyof typeof ANSWER_LABELS)[]) {
+        const given = a.fields[k];
+        if (given != null && before[k] != null && given !== before[k]) {
+          lines.push(`${ANSWER_LABELS[k]}: ${String(given)} (kayıtlı: ${String(before[k])})`);
+        }
+      }
+      await repos.activities.insert({
+        id: this.deps.ids.next(),
+        leadId: lead.id,
+        type: "call",
+        subject: RESUBMIT_SUBJECT,
+        dueAt: now,
+        doneAt: null,
+        notes: lines.join("\n").slice(0, 4000),
+        autoCreated: true,
+        createdByChangeId: null,
+        createdByUserId: null,
+        legacyId: null,
+        ...NO_CONTACT_FIELDS,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    return lead;
+  }
+
+  /** Gönderimi mevcut lead'e işler: boş form alanları, geri bildirim kimliği, eşleştirme anahtarları, onaylar. */
+  private async applySubmission(
+    repos: Repositories,
+    lead: Lead,
+    a: Submission,
+    now: Date,
+    writeIdentity = true,
+  ): Promise<Lead> {
     const fill: Partial<LeadFields> = {};
     for (const k of ["installSite", "installTimeline", "customerProfile", "courtCountBand", "adSurface"] as const) {
       if (lead[k] === null && a.fields[k] != null) (fill as Record<string, unknown>)[k] = a.fields[k];
@@ -439,10 +592,11 @@ export class CreateLead {
     if (Object.keys(fill).length) await repos.leads.updateFields(lead.id, fill, now);
     // Geri bildirim kimliği (feedbackIdentity): ilk benimseyen reklam kaydı kalır; `source` yine `import`.
     const identity: Record<string, unknown> = {};
-    if (isAdSource(a.source) && !isAdSource(lead.extraAnswers["platform_source"])) {
+    // `writeIdentity` kapalı: kendi kimliği olan (reklam) ya da elle açılan lead'in geri bildirim kimliği değişmez.
+    if (writeIdentity && isAdSource(a.source) && !isAdSource(lead.extraAnswers["platform_source"])) {
       identity["platform_source"] = a.source;
       if (a.platformLeadId) identity["platform_lead_id"] = a.platformLeadId;
-    } else if (a.platformLeadId && !("platform_lead_id" in lead.extraAnswers)) {
+    } else if (writeIdentity && a.platformLeadId && !("platform_lead_id" in lead.extraAnswers)) {
       identity["platform_lead_id"] = a.platformLeadId;
     }
     if (Object.keys(identity).length) await repos.leads.mergeExtraAnswers(lead.id, identity, now);

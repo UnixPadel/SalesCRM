@@ -123,7 +123,8 @@ function item(n: number, fields: Record<string, unknown> = {}, extra: Record<str
         name: `Kişi ${n}`,
         company: "Club Test",
         email: `kisi${n}@example.com`,
-        phone: "+49 151 2345678",
+        // Kişi başına ayrı numara: aynı telefon aynı kişi sayılır ve tekrar gönderim açık lead'e işlenir.
+        phone: `+49 151 ${2345000 + n}`,
         country: "DE",
         product_interest: "Panoramic padel court",
         product_slug: "panoramic-padel-court",
@@ -312,6 +313,27 @@ describe("web-pull: sahte WP sunucusuyla", () => {
     await a.intake.process.runOnce();
     const rows = await leads();
     expect(rows.map((l) => l.platform_lead_id)).toEqual([uuid(1), uuid(2)]);
+    expect(wp.pendingIds()).toEqual([]);
+  });
+
+  it("aynı kişi formu iki kez doldurur → tek lead; tekrar gönderim lead'e işlenir ve satışçıya iş açılır", async () => {
+    wp.queue = [item(1), item(2, { email: "kisi1@example.com", message: "Tekrar yazıyorum." })];
+    const app = boot();
+    await app.webPull!.runOnce();
+    expect(await app.intake.process.runOnce()).toMatchObject({ done: 2, failed: 0 });
+    const rows = await leads();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.extra_answers).toMatchObject({ form_resubmissions: 1 });
+    expect(rows[0]!.extra_answers["repeat_submissions"]).toMatchObject([{ source: "web_form" }]);
+    const acts = await sp.db.query<{ subject: string; type: string; notes: string; done_at: Date | null }>(
+      "SELECT subject, type, notes, done_at FROM activities",
+    );
+    expect(acts).toHaveLength(1);
+    expect(acts[0]).toMatchObject({ subject: "Formu tekrar doldurdu", type: "call", done_at: null });
+    expect(acts[0]!.notes).toContain("Kaynak: Web sitesi formu");
+    // Her iki gönderim de işlendi sayılır: inbox satırları aynı lead'e bağlanır, site kuyruğu boşalır.
+    const inboxRows = await sp.db.query<{ lead_id: string }>("SELECT lead_id FROM inbound_webhook_events");
+    expect(new Set(inboxRows.map((r) => r.lead_id)).size).toBe(1);
     expect(wp.pendingIds()).toEqual([]);
   });
 

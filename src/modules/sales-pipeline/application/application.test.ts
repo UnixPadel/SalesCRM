@@ -254,6 +254,121 @@ describe("CreateLead", () => {
     expect(again!.consents).toHaveLength(1);
   });
 
+  describe("tekrar form gönderimi (mergeRepeatSubmission)", () => {
+    const form = (over: Record<string, unknown> = {}) =>
+      sp.createLead.execute({
+        source: "meta_form",
+        platformLeadId: "m-1",
+        fullName: "Stelios M.",
+        email: "stelios@example.com",
+        country: "GR",
+        actor: null,
+        parseMode: "lenient",
+        invalidPhone: "drop",
+        adoptImportLead: true,
+        mergeRepeatSubmission: true,
+        sourceLabel: "Reklam formu",
+        ...over,
+      });
+
+    it("açık lead'i olan kişi yeniden doldurursa yeni lead açılmaz; boş alanlar dolar, iş açılır", async () => {
+      const first = unwrap(await form({ installTimeline: "m0_3", campaign: { campaignName: "Yaz" } }));
+      expect(first).toMatchObject({ created: true });
+      h.events.published = [];
+      const outboxBefore = h.uow.state.outbox.length;
+
+      // Aynı e-posta, bu kez telefon, şehir ve farklı kurulum zamanıyla; kampanya da farklı.
+      const second = unwrap(
+        await form({
+          platformLeadId: "m-2",
+          phone: "+30 694 123 4567",
+          city: "Selanik",
+          installTimeline: "m3_6",
+          installSite: "rooftop",
+          notes: "Lütfen arayın",
+          campaign: { campaignName: "Kış" },
+          attribution: { fbclid: "F1" },
+        }),
+      );
+      expect(second).toMatchObject({ created: false, merged: true, personMatched: true });
+      expect(second.lead.id).toBe(first.lead.id);
+
+      const s = h.uow.state;
+      expect(s.leads).toHaveLength(1);
+      expect(s.persons).toHaveLength(1);
+      expect(s.events).toHaveLength(1);
+      expect(s.outbox).toHaveLength(outboxBefore);
+      expect(h.events.published).toEqual([]);
+      // Dolu alan değişmez (CRM esastır), boş alan dolar; geri bildirim kimliği ilk gönderimde kalır.
+      expect(s.leads[0]).toMatchObject({
+        platformLeadId: "m-1",
+        installTimeline: "m0_3",
+        installSite: "rooftop",
+        city: "Selanik",
+        phoneE164: "+306941234567",
+        campaign: { campaignName: "Yaz" },
+      });
+      expect(s.leads[0]!.extraAnswers).toMatchObject({
+        form_resubmissions: 1,
+        repeat_submissions: [{ source: "meta_form", platform_lead_id: "m-2", campaign: "Kış" }],
+      });
+      expect(s.leads[0]!.extraAnswers["platform_lead_id"]).toBeUndefined();
+      expect(s.attributions[first.lead.id]).toMatchObject({ fbclid: "F1" });
+
+      const acts = s.activities.filter((a) => a.leadId === first.lead.id);
+      expect(acts).toHaveLength(1);
+      expect(acts[0]).toMatchObject({
+        type: "call",
+        subject: "Formu tekrar doldurdu",
+        doneAt: null,
+        autoCreated: true,
+      });
+      expect(acts[0]!.dueAt).toEqual(h.clock.now());
+      expect(acts[0]!.notes).toBe(
+        "Kaynak: Reklam formu · Kampanya: Kış\nMesaj: Lütfen arayın\nKurulum zamanı: m3_6 (kayıtlı: m0_3)",
+      );
+
+      // Üçüncü gönderim: sayaç artar, açık iş varken ikincisi açılmaz.
+      unwrap(await form({ platformLeadId: "m-3", source: "web_form" }));
+      const after = h.uow.state;
+      expect(after.leads).toHaveLength(1);
+      expect(after.leads[0]!.extraAnswers["form_resubmissions"]).toBe(2);
+      expect(after.leads[0]!.extraAnswers["repeat_submissions"]).toHaveLength(2);
+      expect(after.activities.filter((a) => a.leadId === first.lead.id)).toHaveLength(1);
+    });
+
+    it("telefonla eşleşir; kapanmış lead'i olan kişi için yeni lead açılır; test gönderimi gerçek lead'e karışmaz", async () => {
+      const first = unwrap(await form({ phone: "+30 694 123 4567" }));
+      const byPhone = unwrap(
+        await form({ platformLeadId: "m-2", email: "baska@example.com", phone: "+30 694 123 4567" }),
+      );
+      expect(byPhone).toMatchObject({ created: false, merged: true });
+      expect(byPhone.lead.id).toBe(first.lead.id);
+
+      const test = unwrap(await form({ platformLeadId: "m-t", isTest: true }));
+      expect(test).toMatchObject({ created: true });
+
+      unwrap(
+        await sp.changeLeadStage.execute({
+          leadId: first.lead.id,
+          target: "LOST",
+          lostReasonCode: "competitor",
+          actor: ADMIN,
+        }),
+      );
+      const again = unwrap(await form({ platformLeadId: "m-4" }));
+      expect(again).toMatchObject({ created: true, personMatched: true });
+      expect(again.lead.id).not.toBe(first.lead.id);
+    });
+
+    it("bayrak yokken (elle açma) davranış değişmez: aynı kişiye ikinci lead açılır", async () => {
+      unwrap(await form());
+      const manualLead = unwrap(await manual({ email: "stelios@example.com", phone: null }));
+      expect(manualLead).toMatchObject({ created: true, personMatched: true });
+      expect(h.uow.state.leads).toHaveLength(2);
+    });
+  });
+
   it("onay türü geçersizse lead açılmaz (consent.type_invalid)", async () => {
     const r = await manual({ consents: [{ type: "KVKK onayı", granted: true }] });
     expect(r.ok).toBe(false);

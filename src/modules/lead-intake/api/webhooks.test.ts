@@ -179,7 +179,16 @@ describe("POST /webhooks/google", () => {
   });
 
   it("aynı bildirim iki kez → tek lead", async () => {
-    const body = { ...googleFixture("lead-normal.json"), google_key: GKEY };
+    // Fixture'daki kişi Meta testinde zaten lead oldu; aynı e-posta/telefon tekrar gönderim sayılırdı, bu yüzden başka kişi.
+    const fixture = googleFixture("lead-normal.json");
+    const columns = (fixture["user_column_data"] as { column_id: string; string_value: string }[]).map((c) =>
+      c.column_id === "EMAIL"
+        ? { ...c, string_value: "baska.kisi@example.com" }
+        : c.column_id === "PHONE_NUMBER"
+          ? { ...c, string_value: "+905321234599" }
+          : c,
+    );
+    const body = { ...fixture, user_column_data: columns, google_key: GKEY };
     expect((await post("/webhooks/google", JSON.stringify(body))).status).toBe(200);
     expect((await post("/webhooks/google", JSON.stringify(body))).status).toBe(200);
     await li.intake.process.runOnce();
