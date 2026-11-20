@@ -7,6 +7,7 @@ export const ADMIN_DICT = {
   "admin.tab.settings": ["Ayarlar", "Settings"],
   "admin.tab.territories": ["Bölgeler", "Territories"],
   "admin.tab.products": ["Ürün listesi", "Product list"],
+  "admin.tab.technical": ["Teknik", "Technical"],
   "catalog.title": ["Ürün listesi", "Product list"],
   "catalog.help": [
     "Lead'e girilebilen ürünler. Liste ürün dosyasından (CSV: KategoriID, KategoriAdi) güncellenir; dosyada olmayan ürün silinmez, kullanımdan kalkar.",

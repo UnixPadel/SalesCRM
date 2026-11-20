@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { Empty, Skeleton } from "../../components/ui";
+import { Empty, Icon, Skeleton } from "../../components/ui";
 import { useLang } from "../../i18n";
 import { setHashParams } from "../../router";
 import { useCrm } from "../../state/CrmContext";
@@ -13,14 +13,18 @@ import { SettingsTab } from "./SettingsTab";
 import { TerritoriesTab } from "./TerritoriesTab";
 
 /**
- * Yönetim paneli (Faz 7, `#/admin`): Sağlık · Eşlemeler · Ayarlar · Bölgeler · Ürün listesi. `admin` rolü görür ve değiştirir;
- * pazarlama rolü salt okunur görür (değişiklik düğmeleri gizli, alanlar kilitli; sunucu da yazmayı 403 ile reddeder).
- * Satışçı ve görüntüleyici bu adresi yazarsa "yetki yok" sayfası görür. Sekme URL'de tutulur.
+ * Yönetim paneli (Faz 7, `#/admin`). Önde iş sekmeleri: Bölgeler · Ürün listesi; kenarda "Teknik" sekmesi, altında
+ * Sağlık · Eşlemeler · Ayarlar (2026-11-20). `admin` rolü görür ve değiştirir; pazarlama rolü salt okunur görür
+ * (değişiklik düğmeleri gizli, alanlar kilitli; sunucu da yazmayı 403 ile reddeder) ve Teknik'ten açar. Satışçı ve
+ * görüntüleyici bu adresi yazarsa "yetki yok" sayfası görür. Sekme URL'de tutulur (`tab=`).
  */
 
-const TABS = ["health", "mappings", "settings", "territories", "products"] as const;
+const MAIN_TABS = ["territories", "products"] as const;
+const TECH_TABS = ["health", "mappings", "settings"] as const;
+const TABS = [...MAIN_TABS, ...TECH_TABS] as const;
 type Tab = (typeof TABS)[number];
 const isTab = (v: string | null): v is Tab => (TABS as readonly string[]).includes(v ?? "");
+const isTech = (t: Tab) => (TECH_TABS as readonly string[]).includes(t);
 
 export function AdminPage({ params }: { params: URLSearchParams }) {
   const { t } = useLang();
@@ -37,7 +41,7 @@ export function AdminPage({ params }: { params: URLSearchParams }) {
   }
   return (
     <AdminWriteCtx.Provider value={isAdmin}>
-      <AdminTabs tab={isTab(params.get("tab")) ? (params.get("tab") as Tab) : "health"} />
+      <AdminTabs tab={isTab(params.get("tab")) ? (params.get("tab") as Tab) : isAdmin ? "territories" : "health"} />
     </AdminWriteCtx.Provider>
   );
 }
@@ -51,6 +55,21 @@ function AdminTabs({ tab }: { tab: Tab }) {
   const providers = (data?.providers ?? []).map((p) => ({ provider: p.provider, hasOutbound: p.outbound !== null }));
   const needsProviders = tab === "mappings" || tab === "settings";
   const canWrite = useAdminCanWrite();
+  const go = (k: Tab) => setHashParams("admin", new URLSearchParams(`tab=${k}`), true);
+  const tabButton = (k: Tab, label: string, className = "tab", selected = tab === k) => (
+    <button
+      key={k}
+      type="button"
+      role="tab"
+      id={`adm-tab-${k}`}
+      aria-selected={selected}
+      aria-controls="adm-panel"
+      className={className}
+      onClick={() => go(k)}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <section className="pl-page adm-page" aria-labelledby="adm-h">
@@ -58,23 +77,26 @@ function AdminTabs({ tab }: { tab: Tab }) {
         <h1 id="adm-h" className="pl-title">
           {t("admin.title")}
         </h1>
-        <div className="tabs" role="tablist" aria-label={t("admin.title")}>
-          {TABS.map((k) => (
-            <button
-              key={k}
-              type="button"
-              role="tab"
-              id={`adm-tab-${k}`}
-              aria-selected={tab === k}
-              aria-controls="adm-panel"
-              className="tab"
-              onClick={() => setHashParams("admin", new URLSearchParams(k === "health" ? "" : `tab=${k}`), true)}
-            >
-              {t(`admin.tab.${k}`)}
-            </button>
-          ))}
+        <div className="tabs adm-tabs" role="tablist" aria-label={t("admin.title")}>
+          {MAIN_TABS.map((k) => tabButton(k, t(`admin.tab.${k}`)))}
+          <button
+            type="button"
+            role="tab"
+            id="adm-tab-tech"
+            aria-selected={isTech(tab)}
+            aria-controls="adm-panel"
+            className="tab adm-tab-tech"
+            onClick={() => !isTech(tab) && go("health")}
+          >
+            <Icon name="settings" size={15} /> {t("admin.tab.technical")}
+          </button>
         </div>
       </div>
+      {isTech(tab) && (
+        <div className="tabs adm-subtabs" role="tablist" aria-label={t("admin.tab.technical")}>
+          {TECH_TABS.map((k) => tabButton(k, t(`admin.tab.${k}`)))}
+        </div>
+      )}
       {!canWrite && (
         <p className="adm-ro" role="note">
           {t("admin.readOnly")}

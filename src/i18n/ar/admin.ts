@@ -10,6 +10,7 @@ export const AR_ADMIN: Record<keyof typeof ADMIN_DICT, string> = {
   "admin.tab.settings": "الإعدادات",
   "admin.tab.territories": "المناطق",
   "admin.tab.products": "قائمة المنتجات",
+  "admin.tab.technical": "تقني",
   "catalog.title": "قائمة المنتجات",
   "catalog.help":
     "المنتجات التي يمكن إضافتها إلى عميل محتمل. تُحدَّث القائمة من ملف المنتجات (CSV: KategoriID, KategoriAdi)؛ المنتج غير الموجود في الملف لا يُحذف بل يتوقّف.",

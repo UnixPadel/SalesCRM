@@ -17,6 +17,21 @@
 .adm-top .pl-title {
   margin: 0;
 }
+/* Önde iş sekmeleri, kenarda Teknik (2026-11-20); Teknik seçiliyken altında Sağlık · Eşlemeler · Ayarlar. */
+.adm-tabs {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+}
+.adm-tab-tech {
+  margin-inline-start: auto;
+}
+.adm-subtabs {
+  /* Sayfa sütunu (flex) bu satırı ezmesin. */
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  padding-block-end: var(--s-2);
+  border-block-end: 1px solid var(--border);
+}
 .adm-stack {
   display: flex;
   flex-direction: column;
