@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Empty, Icon, Skeleton, StatusTag, fmtDate, money, relDays } from "../components/ui";
-import type { Currency } from "../domain/types";
+import { Button, Empty, Icon, Skeleton, StatusTag, fmtDate, leadMoney, relDays } from "../components/ui";
 import { localeOf, useLang } from "../i18n";
 import type { ActivityDto, LeadDto, StageCodeDto, StageEventDto } from "../modules/sales-pipeline/api/dto";
 import type { AttachmentDto } from "../modules/sales-pipeline/api/dto.attachment";
 import { navigate } from "../router";
 import { useCrm } from "../state/CrmContext";
+import { useDisplayCurrency } from "../state/currency";
 import { ACTIVITY_ICON, ActivityItem, AddActivityForm } from "./activityBits";
 import { PipelineError, pipelineApi } from "./api";
 import { AttachmentChips, AttachmentsPanel, useAttachments } from "./attachments/AttachmentsPanel";
@@ -346,8 +346,9 @@ export function LeadPage({ id }: { id: string }) {
                     : "—"}
                 </Fact>
                 <Fact label={t("lead.value")}>
-                  {lead.value ? money(lead.value.amount, lead.value.currency as Currency) : "—"}
+                  {lead.value ? <LeadAmount v={lead.value} leadCurrency={lead.currency} /> : "—"}
                 </Fact>
+                <Fact label={t("lead.currency")}>{lead.currency ?? t("lead.currency.auto")}</Fact>
                 <Fact label={t("lead.inStage")}>
                   {t("board.inStage", {
                     n: Math.max(0, Math.floor((now - new Date(lead.stageEnteredAt).getTime()) / 86_400_000)),
@@ -439,7 +440,14 @@ export function LeadPage({ id }: { id: string }) {
               .sort((x, y) => y.at.localeCompare(x.at))
               .map((x) =>
                 x.k === "e" ? (
-                  <TimelineItem key={x.e.id} e={x.e} stageName={stageName} reasonName={reasonName} who={nameOf} />
+                  <TimelineItem
+                    key={x.e.id}
+                    e={x.e}
+                    leadCurrency={lead.currency}
+                    stageName={stageName}
+                    reasonName={reasonName}
+                    who={nameOf}
+                  />
                 ) : (
                   <ContactItem
                     key={x.a.id}
@@ -534,18 +542,34 @@ function ContactItem({
   );
 }
 
+/** Lead tutarı, lead'in çalışma para biriminde (yoksa görünüm para biriminde); girilen tutar ipucunda. */
+function LeadAmount({ v, leadCurrency }: { v: { amount: number; currency: string }; leadCurrency: string | null }) {
+  useDisplayCurrency();
+  const m = leadMoney(v.amount, v.currency, leadCurrency);
+  return m.original ? (
+    <span title={m.original}>
+      {m.text} <small className="muted">({m.original})</small>
+    </span>
+  ) : (
+    <>{m.text}</>
+  );
+}
+
 function TimelineItem({
   e,
+  leadCurrency,
   stageName,
   reasonName,
   who,
 }: {
   e: StageEventDto;
+  leadCurrency: string | null;
   stageName: (c: StageCodeDto) => string;
   reasonName: (c: string | null) => string;
   who: (id: string | null) => string;
 }) {
   const { t, lang } = useLang();
+  useDisplayCurrency();
   return (
     <li className={"tl-i" + (e.undoneAt ? " undone" : "") + (e.origin === "auto_fill" ? " auto" : "")}>
       <span className="tl-dot">
@@ -571,13 +595,19 @@ function TimelineItem({
         <small className="muted">
           {fmtDate(e.occurredAt, true)}
           {e.actorUserId && ` · ${t("stage.by", { who: who(e.actorUserId) })}`}
-          {e.value && ` · ${money(e.value.amount, e.value.currency as Currency)}`}
+          {e.value && (
+            <>
+              {" · "}
+              <LeadAmount v={e.value} leadCurrency={leadCurrency} />
+            </>
+          )}
           {e.lostReasonCode && ` · ${reasonName(e.lostReasonCode)}`}
         </small>
         {e.qualificationDetails && (
           <p className="tl-note">
             {t("qual.sum.budget", {
-              v: money(e.qualificationDetails.budgetAmount, e.qualificationDetails.budgetCurrency as Currency),
+              v: leadMoney(e.qualificationDetails.budgetAmount, e.qualificationDetails.budgetCurrency, leadCurrency)
+                .text,
             })}
             {" · "}
             {t("qual.sum.site", { v: e.qualificationDetails.site })}

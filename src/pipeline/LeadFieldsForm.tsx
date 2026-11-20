@@ -4,7 +4,7 @@ import { useLang } from "../i18n";
 import type { LeadDto, OrganizationDto, UpdateLeadBody } from "../modules/sales-pipeline/api/dto";
 import { useCrm } from "../state/CrmContext";
 import { PipelineError, pipelineApi } from "./api";
-import { useErrorText } from "./hooks";
+import { useErrorText, useReference } from "./hooks";
 import { OrganizationDialog } from "./OrganizationDialog";
 
 /**
@@ -29,7 +29,9 @@ export function LeadFieldsForm({
   const { t } = useLang();
   const { toast } = useCrm();
   const errText = useErrorText();
+  const { ref } = useReference();
   const [f, setF] = useState({
+    currency: lead.currency ?? "",
     expectedCloseDate: lead.expectedCloseDate ?? "",
     company: lead.company,
     city: lead.city,
@@ -67,6 +69,7 @@ export function LeadFieldsForm({
             productInterest: f.productInterest,
             notes: f.notes,
             organizationId: f.organizationId || null,
+            currency: f.currency || null,
           };
       const saved = await pipelineApi.update(lead.id, body);
       toast(t("lead.saved"));
@@ -75,21 +78,23 @@ export function LeadFieldsForm({
       const code = ex instanceof PipelineError ? ex.code : "";
       const field = code.includes("organization")
         ? "organizationId"
-        : code.includes("court_count")
-          ? "courtCount"
-          : code.includes("court_model")
-            ? "courtModel"
-            : code.includes("expected_close")
-              ? "expectedCloseDate"
-              : code.includes("company")
-                ? "company"
-                : code.includes("city")
-                  ? "city"
-                  : code.includes("product_interest")
-                    ? "productInterest"
-                    : code.includes("notes")
-                      ? "notes"
-                      : "";
+        : code.includes("currency")
+          ? "currency"
+          : code.includes("court_count")
+            ? "courtCount"
+            : code.includes("court_model")
+              ? "courtModel"
+              : code.includes("expected_close")
+                ? "expectedCloseDate"
+                : code.includes("company")
+                  ? "company"
+                  : code.includes("city")
+                    ? "city"
+                    : code.includes("product_interest")
+                      ? "productInterest"
+                      : code.includes("notes")
+                        ? "notes"
+                        : "";
       if (field) setErr({ field, text: errText(ex) });
       else toast(errText(ex), { bad: true });
     } finally {
@@ -119,6 +124,16 @@ export function LeadFieldsForm({
           </Field>
           <Field label={t("lead.city")} error={fieldErr("city")}>
             <input value={f.city} onChange={set("city")} maxLength={200} />
+          </Field>
+          <Field label={t("lead.currency")} error={fieldErr("currency")}>
+            <select value={f.currency} onChange={set("currency")}>
+              <option value="">{t("lead.currency.auto")}</option>
+              {(ref?.currencies ?? []).map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </Field>
           <div className="wide org-pick">
             <Field label={t("lead.organization")} error={fieldErr("organizationId")}>

@@ -69,6 +69,8 @@ export const adminApi = {
     admin<ProviderSettingsDto>("PUT", `/settings/${enc(provider)}`, { values }),
   eurRates: () => admin<EurRatesDto>("GET", "/eur-rates"),
   saveEurRates: (rates: Record<string, number>) => admin<EurRatesDto>("PUT", "/eur-rates", { rates }),
+  setEurRatesAuto: (auto: boolean) => admin<EurRatesDto>("PUT", "/eur-rates", { auto }),
+  refreshEurRates: () => admin<EurRatesDto>("POST", "/eur-rates/refresh"),
 
   territories: () => call<TerritoriesDto>("GET", "/territories"),
   saveTerritory: (countryCode: string, body: TerritoryBody) =>

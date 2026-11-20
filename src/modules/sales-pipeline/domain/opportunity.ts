@@ -41,6 +41,8 @@ export interface LeadFields {
   customerProfile: CustomerProfile | null;
   courtCountBand: CourtCountBand | null;
   adSurface: string | null;
+  /** Müşteriye özel çalışma para birimi (ISO 4217, 3 büyük harf); null = görünüm para birimi. */
+  currency: string | null;
 }
 
 /** Faz 7g kod alanları (geçersiz kod katı modda `lead.<alan>`, esnek modda düşer). */
@@ -69,6 +71,7 @@ export const LEAD_FIELD_KEYS = [
   "customerProfile",
   "courtCountBand",
   "adSurface",
+  "currency",
 ] as const satisfies readonly (keyof LeadFields)[];
 
 /**
@@ -166,6 +169,12 @@ export function parseLeadFields(raw: Record<string, unknown>): Result<Partial<Le
     const r = text("notes", LEAD_FIELD_LIMITS.notes);
     if (!r.ok) return r;
     out.notes = r.value;
+  }
+  if ("currency" in raw) {
+    const v = raw["currency"];
+    if (v === null || v === "" || v === undefined) out.currency = null;
+    else if (typeof v === "string" && /^[A-Za-z]{3}$/.test(v.trim())) out.currency = v.trim().toUpperCase();
+    else return err(new RuleError("lead.currency_invalid", "Para birimi 3 harfli kod olmalı (ör. USD).", { value: v }));
   }
   if ("organizationId" in raw) {
     const v = raw["organizationId"];

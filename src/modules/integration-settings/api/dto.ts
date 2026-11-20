@@ -168,10 +168,16 @@ export interface SettingsBody {
 export interface EurRatesDto {
   /** EUR karşılığı çarpanlar (EUR her zaman 1). */
   rates: Record<string, number>;
-  /** Kurların geldiği yer: yönetim ekranı, ortam değişkeni ya da varsayılan tablo. */
-  source: "setting" | "env" | "default";
+  /** Kurların geldiği yer: TCMB (otomatik), yönetim ekranı, ortam değişkeni ya da varsayılan tablo. */
+  source: "tcmb" | "setting" | "env" | "default";
   updatedAt: string | null;
+  /** TCMB bülten tarihi (YYYY-MM-DD); elle girilen kurlarda null. */
+  rateDate: string | null;
+  /** TCMB'den otomatik güncelleme açık mı. */
+  auto: boolean;
 }
 export interface EurRatesBody {
-  rates: Record<string, number>;
+  /** Verilmezse yalnız `auto` değişir. */
+  rates?: Record<string, number>;
+  auto?: boolean;
 }

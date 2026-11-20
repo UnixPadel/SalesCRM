@@ -36,6 +36,7 @@ import {
 } from "../domain";
 import type { TrackingReferenceDto, TrackingReportDto } from "./dto";
 import type { ContactHistoryDto, ContactHistoryItemDto } from "./dto.contact";
+import { hidesCampaign } from "./campaignVisibility";
 import { activityDto } from "./mappers";
 
 /**
@@ -44,7 +45,11 @@ import { activityDto } from "./mappers";
  */
 export interface TrackingRouteDeps {
   pipeline: SalesPipeline;
-  actor(req: Request, res: Response, write: boolean): (Actor & { readOnly: boolean }) | undefined;
+  actor(
+    req: Request,
+    res: Response,
+    write: boolean,
+  ): (Actor & { readOnly: boolean; seesCampaign?: boolean }) | undefined;
   sendError(res: Response, error: RuleError): Response;
 }
 
@@ -65,7 +70,7 @@ const one = (v: unknown): string | undefined => (typeof v === "string" && v.trim
  */
 export function parseLeadFilter(
   query: Request["query"],
-  actor: Actor,
+  actor: Actor & { seesCampaign?: boolean },
 ): LeadFilterInput & { stage?: readonly StageCode[] | undefined } {
   const owners = many(query["owner"]).map((o) => (o === "pool" ? null : o === "me" ? actor.userId : o));
   const countries = many(query["country"])
@@ -84,7 +89,7 @@ export function parseLeadFilter(
     hot: query["hot"] === "1",
     warning: query["warning"] === "1",
     scope: query["scope"] === "excel" ? "excel" : undefined,
-    campaign: one(query["campaign"]),
+    campaign: hidesCampaign(actor) ? undefined : one(query["campaign"]),
     search: one(query["q"]),
     includeTest: query["includeTest"] === "1",
   };
@@ -184,7 +189,7 @@ export function registerTrackingRoutes(r: Router, deps: TrackingRouteDeps): void
       from: one(q["from"]),
       to: one(q["to"]),
       source: one(q["source"]),
-      campaign: one(q["campaign"]),
+      campaign: hidesCampaign(a) ? undefined : one(q["campaign"]),
       owner: owner === "me" ? a.userId : owner,
       scope: q["scope"] === "excel" ? "excel" : undefined,
     });

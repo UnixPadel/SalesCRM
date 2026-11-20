@@ -109,6 +109,8 @@ export interface Lead {
   courtCountBand: CourtCountBand | null;
   /** Reklam yüzeyi, opak kod (`ig`, `fb`, `web`…); etiket yalnız arayüzde. */
   adSurface: string | null;
+  /** Müşteriye özel çalışma para birimi (ISO 4217); null = kullanıcının görünüm para birimi (migration 0020). */
+  currency: string | null;
   /** Yöneticinin "Kontrol edildi" dediği veri uyarısı kodları (D6). */
   checkedWarnings: string[];
   /** Temas geçmişi bilinmeyen eski kayıt (köken olgusu, uyarı değil): "Hiç ulaşılmadı"ya sayılmaz. */
@@ -126,6 +128,7 @@ export type LeadTrackingFields = Pick<
   | "customerProfile"
   | "courtCountBand"
   | "adSurface"
+  | "currency"
   | "checkedWarnings"
   | "contactHistoryUnknown"
 >;
@@ -139,6 +142,7 @@ export const emptyTrackingFields = (): LeadTrackingFields => ({
   customerProfile: null,
   courtCountBand: null,
   adSurface: null,
+  currency: null,
   checkedWarnings: [],
   contactHistoryUnknown: false,
 });

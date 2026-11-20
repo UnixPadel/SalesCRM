@@ -58,6 +58,8 @@ export interface LeadDto {
   courtCountBand: CourtCountBandDto | null;
   /** Reklam yüzeyi, opak kod; etiketi `src/i18n` `surface.*`. */
   adSurface: string | null;
+  /** Müşteriye özel çalışma para birimi; null = görünüm para birimi. */
+  currency: string | null;
   /** "Kontrol edildi" denen veri uyarısı kodları. */
   checkedWarnings: string[];
   /** Temas geçmişi bilinmeyen eski kayıt ("Kayıt yok (eski)"). */
@@ -276,6 +278,7 @@ export interface UpdateLeadBody {
   customerProfile?: CustomerProfileDto | null;
   courtCountBand?: CourtCountBandDto | null;
   adSurface?: string | null;
+  currency?: string | null;
 }
 
 export interface LeadDetailDto {

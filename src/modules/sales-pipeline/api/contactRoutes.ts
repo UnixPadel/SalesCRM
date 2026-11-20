@@ -130,6 +130,7 @@ function contactFormDto(f: ContactForm): ContactFormDto {
       currentStage: f.lead.currentStage,
       assignedUserId: f.lead.assignedUserId,
       customerStatus: f.lead.customerStatus,
+      currency: f.lead.currency,
       createdAt: f.lead.createdAt.toISOString(),
     },
     openActivities: f.openActivities.map((a) => ({

@@ -8,6 +8,8 @@ export function sessionRole(
   ids: { id?: unknown; login?: unknown; email?: unknown },
   marketing: Set<string>,
 ): string;
+export function campaignViewers(env?: Record<string, string | undefined>): Set<string>;
+export function seesCampaign(ids: { id?: unknown; login?: unknown; email?: unknown }, viewers: Set<string>): boolean;
 export function isReadOnlyRole(role: string | undefined): boolean;
 export function canReadAdmin(role: string | undefined): boolean;
 export function canWriteAdmin(role: string | undefined): boolean;

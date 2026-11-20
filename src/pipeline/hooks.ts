@@ -12,6 +12,7 @@ import type {
   TodayDto,
 } from "../modules/sales-pipeline/api/dto";
 import { useCrm } from "../state/CrmContext";
+import { setRates } from "../state/currency";
 import { PipelineError, pipelineApi } from "./api";
 
 /** Hata → kullanıcı metni: önce kod çevirisi, yoksa sunucu mesajı. */
@@ -46,6 +47,7 @@ export function useReference() {
       .reference()
       .then((r) => {
         referenceCache = r;
+        setRates(r.eurRates);
         setRef(r);
       })
       .catch(setError);

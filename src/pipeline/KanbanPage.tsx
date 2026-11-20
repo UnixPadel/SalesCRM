@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Empty, Icon, Skeleton, StatusTag, eur, money, relDays } from "../components/ui";
+import { Button, Empty, Icon, Skeleton, StatusTag, eur, leadMoney, relDays } from "../components/ui";
 import { countryOptions } from "../domain/constants";
-import type { Currency } from "../domain/types";
 import { refName, useLang } from "../i18n";
 import type { ColumnStatsDto, LeadListDto, StageCodeDto } from "../modules/sales-pipeline/api/dto";
 import { navigate, setHashParams } from "../router";
 import { useCrm } from "../state/CrmContext";
+import { useDisplayCurrency } from "../state/currency";
 import { ACTIVITY_ICON, dueState } from "./activityBits";
 import { STAGE_TONE } from "./bits";
 import { pipelineApi } from "./api";
@@ -39,6 +39,8 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
   const { t, lang } = useLang();
   const { toast, isViewer, isAdmin, user } = useCrm();
   const { ref } = useReference();
+  // Sağ üstteki görünüm para birimi değişince toplamlar ve kartlar yeniden çizilir.
+  useDisplayCurrency();
   const { team, nameOf } = useTeamNames();
   const now = useNow(30_000);
   const errText = useErrorText();
@@ -349,9 +351,14 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
                             </StatusTag>
                           )}
                           {(s.code === "PROPOSAL" || s.code === "WON") && l.value && (
-                            <span className="kb-chip kb-chip-money" title={t("lead.value")}>
+                            <span
+                              className="kb-chip kb-chip-money"
+                              title={
+                                leadMoney(l.value.amount, l.value.currency, l.currency).original ?? t("lead.value")
+                              }
+                            >
                               <Icon name="money" size={13} />{" "}
-                              {money(l.value.amount, l.value.currency as Currency, true)}
+                              {leadMoney(l.value.amount, l.value.currency, l.currency, true).text}
                             </span>
                           )}
                         </div>

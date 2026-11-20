@@ -233,7 +233,9 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
   }, [search]);
 
   const groups = GROUPS.filter((g) => !g.adminOnly || isAdmin);
-  const visibleCols = (g: GroupId) => COLUMNS.filter((c) => c.group === g && !c.hidden);
+  // Kampanya sütunu yalnız izinli kişilere (sunucu da kampanya adlarını göndermez).
+  const visibleCols = (g: GroupId) =>
+    COLUMNS.filter((c) => c.group === g && !c.hidden && (c.id !== "campaign" || user?.seesCampaign === true));
   // Kullanıcının gizlediği sütunlar çift çizgili dar şerit olarak yerinde kalır (yan yana olanlar tek şerit).
   const runs = (g: GroupId) => columnRuns(visibleCols(g), hiddenCols);
   const nHidden = groups.reduce(

@@ -39,7 +39,8 @@ const LEAD_COLS =
   // Ürünler (migration 0017): `products` jsonb; eski qty_*/roof_* sütunları yalnız yedek, okunmaz ve yazılmaz.
   "customer_status, products, " +
   "install_site, install_timeline, customer_profile, court_count_band, ad_surface, checked_warnings, contact_history_unknown, " +
-  "created_at, updated_at";
+  // Migration 0020: müşteriye özel çalışma para birimi.
+  "currency, created_at, updated_at";
 /** Okurken tarih sütunu metin olarak gelir (rows.ts: LeadRow.expected_close_date). */
 const LEAD_SELECT = LEAD_COLS.replace("expected_close_date", "expected_close_date::text AS expected_close_date");
 const LEAD_PLACEHOLDERS = LEAD_COLS.split(",")
@@ -62,6 +63,7 @@ const FIELD_COLUMN: Record<Exclude<keyof LeadFields, "products">, string> = {
   customerProfile: "customer_profile",
   courtCountBand: "court_count_band",
   adSurface: "ad_surface",
+  currency: "currency",
 };
 const PERSON_COLS =
   "id, full_name, email_normalized, phone_e164, country, company, organization_id, created_at, merged_into_id";
@@ -169,6 +171,7 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
         l.adSurface,
         [...l.checkedWarnings],
         l.contactHistoryUnknown,
+        l.currency,
         l.createdAt,
         l.updatedAt,
       ]);

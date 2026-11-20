@@ -15,12 +15,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { authDbEnabled, authDbLabel, checkLogin, checkTable, listDirectory, listTeam } from "./authDb.mjs";
 import { createLoginLimiter } from "./loginLimiter.mjs";
-import { adminAccess, canReadDirectory, marketingUsers, reportsAccess, sessionRole } from "./roles.mjs";
+import {
+  adminAccess,
+  campaignViewers,
+  canReadDirectory,
+  marketingUsers,
+  reportsAccess,
+  seesCampaign,
+  sessionRole,
+} from "./roles.mjs";
 import { emailsOf, USERS, userFor } from "./users.mjs";
 import { bootSalesPipeline } from "../src/bootstrap/salesPipeline.ts";
 import { bootLeadIntake } from "../src/bootstrap/leadIntake.ts";
 import { bootAdFeedback } from "../src/bootstrap/adFeedback.ts";
 import { bootSheetSync } from "../src/bootstrap/sheetSync.ts";
+import { fxRatesJob } from "../src/bootstrap/eurRates.ts";
+import { MINUTE, createScheduler } from "../src/modules/shared/kernel/index.ts";
 import { bootAdmin } from "../src/bootstrap/admin.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -311,6 +321,13 @@ const adFeedback = bootAdFeedback(salesPipeline, leadIntake.settings);
 const adminRouter = bootAdmin(salesPipeline, leadIntake, adFeedback);
 /* Form tablosu (Google E-Tablolar'daki Meta form dökümü) → CRM; SHEET_SYNC_CSV_URL yoksa kapalı. */
 const sheetSync = bootSheetSync(salesPipeline);
+/* Kurlar (2026-11-20): TCMB günlük bülteni 3 saatte bir; yönetim ekranında otomatik güncelleme kapatılabilir.
+   FX_AUTO_FETCH=0 işi hiç kurmaz (yerel testler, ağsız ortam). */
+const fxRates =
+  process.env.FX_AUTO_FETCH === "0"
+    ? null
+    : createScheduler([fxRatesJob(salesPipeline.eurRates, salesPipeline.logger, 180 * MINUTE)], salesPipeline.logger);
+fxRates?.start();
 
 /**
  * Sağlık denetimi (oturumsuz; Clever Cloud CC_HEALTH_CHECK_PATH=/health). Veritabanı yanıt vermiyorsa 503. `ok` yalnız
@@ -341,6 +358,7 @@ const publicUser = (s) => ({
   email: s.email,
   name: s.name,
   role: s.role,
+  seesCampaign: Boolean(s.seesCampaign),
   hasMailbox: MAIL_ENABLED && !s.local && s.email.includes("@"),
 });
 
@@ -427,6 +445,11 @@ app.post("/api/auth/login", async (req, res) => {
     userId: who.local ? "admin" : who.id || email,
     name: who.name,
     role: who.role,
+    // Kampanya adları yalnız CRM_CAMPAIGN_VIEWERS listesindekilere (server/roles.mjs); yerel Admin "admin" adıyla eşleşir.
+    seesCampaign: seesCampaign(
+      who.local ? { id: "admin", login: limitKey } : { id: who.id, login: limitKey, email },
+      campaignViewers(),
+    ),
     local: who.local,
     password: who.local ? "" : password,
     expires: Date.now() + SESSION_TTL,
@@ -695,6 +718,7 @@ async function shutdown(signal) {
   leadIntake.scheduler.stop();
   adFeedback.scheduler.stop();
   sheetSync?.scheduler.stop();
+  fxRates?.stop();
   server.close();
   await salesPipeline.close().catch(() => undefined);
   process.exit(0);

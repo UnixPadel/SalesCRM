@@ -50,7 +50,8 @@ export interface AdminRouterDeps {
   retentionDays: number;
   eurRates: {
     get(): Promise<EurRatesDto>;
-    save(rates: unknown): Promise<Result<EurRatesDto, RuleError>>;
+    save(rates: unknown, opts?: { auto?: boolean }): Promise<Result<EurRatesDto, RuleError>>;
+    refresh(): Promise<Result<EurRatesDto, RuleError>>;
   };
   now(): Date;
 }
@@ -360,10 +361,20 @@ export function createAdminRouter(deps: AdminRouterDeps): Router {
   });
 
   r.put("/eur-rates", async (req, res) => {
-    const saved = await deps.eurRates.save((req.body as { rates?: unknown } | undefined)?.rates);
+    const body = (req.body ?? {}) as { rates?: unknown; auto?: unknown };
+    const auto = typeof body.auto === "boolean" ? body.auto : undefined;
+    const saved = await deps.eurRates.save(body.rates, auto === undefined ? {} : { auto });
     if (!saved.ok) return fail(res, saved.error);
-    logger.info("EUR kurları kaydedildi", { changedBy: deps.actorIdOf(req) });
+    logger.info("EUR kurları kaydedildi", { changedBy: deps.actorIdOf(req), auto: saved.value.auto });
     res.json(saved.value);
+  });
+
+  // Kurları hemen TCMB'den çek (otomatik anahtardan bağımsız).
+  r.post("/eur-rates/refresh", async (req, res) => {
+    const fresh = await deps.eurRates.refresh();
+    if (!fresh.ok) return fail(res, fresh.error);
+    logger.info("kurlar elle TCMB'den güncellendi", { changedBy: deps.actorIdOf(req) });
+    res.json(fresh.value);
   });
 
   return r;

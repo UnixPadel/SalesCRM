@@ -1,7 +1,8 @@
 // Arayüz kabuğunun tipleri. Satış verisinin tipleri `src/modules/sales-pipeline/api/dto.ts` içindedir (API sözleşmesi);
 // eski JSON panonun Organization / Contact / Deal tipleri Faz 6d ile kaldırıldı.
 
-export type Currency = "EUR" | "USD" | "GBP" | "TRY";
+/** ISO 4217 kodu (EUR, USD, TRY, AED…); liste `/reference.currencies`ten gelir. */
+export type Currency = string;
 
 /**
  * admin: her şey · rep: kendi müşterileri + havuz · viewer: salt okunur (muhasebe, fabrika, lojistik, gözlemci) ·
@@ -23,6 +24,8 @@ export interface User {
   email: string;
   name: string;
   role: Role;
+  /** Reklam kampanyası adlarını görebilir (sunucu CRM_CAMPAIGN_VIEWERS listesi; 2026-11-20). */
+  seesCampaign?: boolean;
   /** Yerel Admin için false: kendi posta kutusu yok. */
   hasMailbox: boolean;
 }

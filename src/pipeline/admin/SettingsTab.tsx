@@ -3,7 +3,7 @@ import { Button, Field, IconButton, Skeleton, fmtDate } from "../../components/u
 import { useLang } from "../../i18n";
 import type { EurRatesDto, ProviderSettingsDto } from "../../modules/integration-settings/api/dto";
 import { useCrm } from "../../state/CrmContext";
-import { useErrorText } from "../hooks";
+import { refreshReference, useErrorText } from "../hooks";
 import { adminApi } from "./adminApi";
 import { LoadError, SecretList, SectionHead, useAdminCanWrite, useLoad, useProviderName, Write } from "./bits";
 import type { ProviderOption } from "./MappingsTab";
@@ -154,6 +154,32 @@ function EurRates() {
   const [draft, setRows] = useState<RateRow[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [fetching, setFetching] = useState(false);
+
+  // TCMB'den hemen çek ya da otomatik güncellemeyi aç/kapat (2026-11-20).
+  const refresh = async () => {
+    setFetching(true);
+    setProblem(null);
+    try {
+      setData(await adminApi.refreshEurRates());
+      setRows(null);
+      refreshReference();
+      toast(t("set.eur.refreshed"));
+    } catch (e) {
+      setProblem(errText(e));
+    } finally {
+      setFetching(false);
+    }
+  };
+  const toggleAuto = async (auto: boolean) => {
+    setProblem(null);
+    try {
+      setData(await adminApi.setEurRatesAuto(auto));
+      toast(t("admin.saved"));
+    } catch (e) {
+      setProblem(errText(e));
+    }
+  };
 
   const toRows = (d: EurRatesDto): RateRow[] =>
     Object.entries(d.rates)
@@ -179,6 +205,7 @@ function EurRates() {
       const rates = Object.fromEntries(rows.map((r) => [r.cur.trim().toUpperCase(), Number(r.rate.replace(",", "."))]));
       setData(await adminApi.saveEurRates(rates));
       setRows(null);
+      refreshReference();
       toast(t("admin.saved"));
     } catch (e) {
       setProblem(errText(e));
@@ -198,6 +225,17 @@ function EurRates() {
         )
       ) : (
         <fieldset className="adm-fs" disabled={!canWrite}>
+          <div className="adm-actions">
+            <label className="cd-check">
+              <input type="checkbox" checked={data.auto} onChange={(e) => void toggleAuto(e.target.checked)} />{" "}
+              {t("set.eur.auto")}
+            </label>
+            <Write>
+              <Button icon="refresh" loading={fetching} onClick={() => void refresh()}>
+                {t("set.eur.refresh")}
+              </Button>
+            </Write>
+          </div>
           <form
             className="adm-form"
             onSubmit={(e) => {
@@ -272,9 +310,15 @@ function EurRates() {
               </div>
             </Write>
             <p className="muted">
-              {data.source === "setting"
-                ? t("set.eur.source.setting", { when: data.updatedAt ? fmtDate(data.updatedAt, true) : "" })
-                : t(`set.eur.source.${data.source}`)}
+              {data.source === "tcmb"
+                ? t("set.eur.source.tcmb", {
+                    date: data.rateDate ? fmtDate(data.rateDate) : "",
+                    when: data.updatedAt ? fmtDate(data.updatedAt, true) : "",
+                  })
+                : data.source === "setting"
+                  ? t("set.eur.source.setting", { when: data.updatedAt ? fmtDate(data.updatedAt, true) : "" })
+                  : t(`set.eur.source.${data.source}`)}
+              {data.auto && data.source === "setting" && ` · ${t("set.eur.autoOverwrites")}`}
             </p>
           </form>
         </fieldset>

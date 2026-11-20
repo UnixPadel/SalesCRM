@@ -6,6 +6,7 @@ import { DEFAULT_EUR_RATES, QUALIFICATION_QUESTIONS, isStageCode, type EurRates 
 import { readLostReasons, readStageDefinitions } from "../infrastructure";
 import { registerAdminRoutes } from "./adminRoutes";
 import { attachmentRules, registerAttachmentRoutes } from "./attachmentRoutes";
+import { campaignRedaction } from "./campaignVisibility";
 import { registerContactRoutes } from "./contactRoutes";
 import { parseLeadFilter, registerTrackingRoutes, trackingReference } from "./trackingRoutes";
 import { activityDto } from "./mappers";
@@ -47,17 +48,31 @@ export interface RouterDeps {
   /** Satış ekibinin saat dilimi; verilmezse Europe/Istanbul. */
   timeZone?: string | undefined;
   /** Oturumdan kişiyi çıkarır; yoksa undefined (401). `readOnly` görüntüleyici rolü. */
-  actorOf(req: Request): (Actor & { readOnly: boolean }) | undefined;
+  actorOf(req: Request): (Actor & { readOnly: boolean; seesCampaign?: boolean }) | undefined;
 }
 
-const CURRENCIES = ["EUR", "USD", "GBP", "TRY"];
+/** Seçim listelerinde önce gelenler; kalan para birimleri (kur tablosunda olanlar) alfabetik. */
+const PREFERRED_CURRENCIES = ["EUR", "USD", "TRY", "GBP", "AED", "SAR", "QAR", "KWD"];
+
+/** Kuru bilinen para birimleri (TCMB bülteni gelince Körfez para birimleri de dahil). */
+export function currencyList(rates: EurRates): string[] {
+  const known = Object.keys(rates).filter((c) => /^[A-Z]{3}$/.test(c));
+  const first = PREFERRED_CURRENCIES.filter((c) => known.includes(c) || ["EUR", "USD", "TRY", "GBP"].includes(c));
+  return [...first, ...known.filter((c) => !first.includes(c)).sort()];
+}
 
 /** Controller doğrular, çağırır, döner (Genel plan kural 3). İş kuralı yok. */
 export function createSalesPipelineRouter(deps: RouterDeps): Router {
   const r = Router();
   const { pipeline, logger } = deps;
+  // Kampanya adları yalnız izinli oturumlara (campaignVisibility.ts); diğerlerinin yanıtları süzülür.
+  r.use(campaignRedaction((req) => deps.actorOf(req)));
 
-  const actor = (req: Request, res: Response, write: boolean): (Actor & { readOnly: boolean }) | undefined => {
+  const actor = (
+    req: Request,
+    res: Response,
+    write: boolean,
+  ): (Actor & { readOnly: boolean; seesCampaign?: boolean }) | undefined => {
     const a = deps.actorOf(req);
     if (!a) {
       res.status(401).json(<ApiErrorDto>{ error: "Oturum açılmamış.", code: "unauthorized" });
@@ -102,7 +117,7 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
       })),
       lostReasons,
       qualificationQuestions: [...QUALIFICATION_QUESTIONS],
-      currencies: CURRENCIES,
+      currencies: currencyList(rates),
       undoWindowMinutes: deps.undoWindowMinutes,
       eurRates: { ...rates },
       attachments: attachmentRules(),

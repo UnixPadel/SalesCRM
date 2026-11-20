@@ -51,6 +51,8 @@ export interface ContactFormDto {
     currentStage: StageCodeDto;
     assignedUserId: string | null;
     customerStatus: string | null;
+    /** Müşteriye özel çalışma para birimi; teklif tutarı varsayılan olarak bu birimle açılır. */
+    currency?: string | null;
     createdAt: string;
   };
   /** Vade sırasıyla. */

@@ -200,6 +200,11 @@ export const AR_ADMIN: Record<keyof typeof ADMIN_DICT, string> = {
   "set.eur.remove": "إزالة سعر {cur}",
   "set.eur.source.setting": "أُدخل من هذه الشاشة · {when}",
   "set.eur.source.env": "من متغير البيئة (EUR_RATES)",
+  "set.eur.source.tcmb": "أسعار شراء العملات من البنك المركزي التركي · نشرة {date} · جُلبت {when}",
+  "set.eur.auto": "التحديث التلقائي من البنك المركزي التركي (كل 3 ساعات)",
+  "set.eur.refresh": "تحديث الآن",
+  "set.eur.refreshed": "تم تحديث الأسعار من البنك المركزي التركي",
+  "set.eur.autoOverwrites": "التحديث التلقائي مفعّل: تُستبدل الأسعار المُدخلة يدويًا عند الجلب التالي",
   "set.eur.source.default": "الجدول الافتراضي",
   "set.eur.invalid": "أدخل رمزًا من ثلاثة أحرف ورقمًا أكبر من صفر.",
 

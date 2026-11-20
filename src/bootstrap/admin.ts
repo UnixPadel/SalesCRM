@@ -107,7 +107,11 @@ export function bootAdmin(
     ],
     stageCodes: STAGE_CODES,
     retentionDays: app.config.intake.retentionDays,
-    eurRates: { get: () => app.eurRates.describe(), save: (rates) => app.eurRates.save(rates) },
+    eurRates: {
+      get: () => app.eurRates.describe(),
+      save: (rates, opts) => app.eurRates.save(rates, opts),
+      refresh: () => app.eurRates.refresh(),
+    },
     now: () => systemClock.now(),
   });
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, Empty, Skeleton, eur } from "../components/ui";
+import { useDisplayCurrency } from "../state/currency";
 import { countryName } from "../domain/constants";
 import { localeOf, useLang } from "../i18n";
 import type { ReportDto } from "../modules/sales-pipeline/api/dto";
@@ -69,6 +70,8 @@ export function ReportsPage({ params }: { params: URLSearchParams }) {
  */
 function StageReport() {
   const { t, lang } = useLang();
+  // Tutarlar sağ üstteki görünüm para biriminde; değişince yeniden çizilir.
+  useDisplayCurrency();
   const { stageName, reasonName } = useReference();
   const errText = useErrorText();
   const [months, setMonths] = useState<number>(() => {

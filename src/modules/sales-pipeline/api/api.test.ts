@@ -379,8 +379,24 @@ describe("fırsat alanları ve pano (Faz 6b)", () => {
       (await call("admin", "PATCH", "/api/pipeline/leads/00000000-0000-4000-8000-000000000000", { city: "X" })).status,
     ).toBe(404);
 
+    // Müşteriye özel çalışma para birimi (2026-11-20): yönetici girer, satışçı giremez, boş değer temizler.
+    const repCur = await call<ApiErrorDto>("rep1", "PATCH", `/api/pipeline/leads/${leadId}`, { currency: "USD" });
+    expect(repCur.status).toBe(403);
+    const cur = await call<LeadDto>("admin", "PATCH", `/api/pipeline/leads/${leadId}`, { currency: "usd" });
+    expect(cur.body.currency).toBe("USD");
+    const curBad = await call<ApiErrorDto>("admin", "PATCH", `/api/pipeline/leads/${leadId}`, { currency: "dolar" });
+    expect(curBad.body.code).toBe("lead.currency_invalid");
+
     const detail = await call<LeadDetailDto>("rep1", "GET", `/api/pipeline/leads/${leadId}`);
-    expect(detail.body.lead).toMatchObject({ courtCount: 4, expectedCloseDate: "2026-12-15", value: null });
+    expect(detail.body.lead).toMatchObject({
+      courtCount: 4,
+      expectedCloseDate: "2026-12-15",
+      value: null,
+      currency: "USD",
+    });
+    expect(
+      (await call<LeadDto>("admin", "PATCH", `/api/pipeline/leads/${leadId}`, { currency: "" })).body.currency,
+    ).toBe(null);
     expect(typeof detail.body.lead.stageEnteredAt).toBe("string");
   });
 
@@ -552,11 +568,13 @@ describe("actorFromSession", () => {
       userId: "a@b.co",
       isAdmin: true,
       readOnly: false,
+      seesCampaign: false,
     });
     expect(actorFromSession({ userId: "7", email: "a@b.co", role: "viewer" })).toEqual({
       userId: "7",
       isAdmin: true,
       readOnly: true,
+      seesCampaign: false,
     });
   });
 });

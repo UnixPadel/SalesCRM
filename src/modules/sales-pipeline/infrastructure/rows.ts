@@ -63,6 +63,8 @@ export interface LeadRow extends Record<string, unknown> {
   ad_surface: string | null;
   checked_warnings: string[] | string | null;
   contact_history_unknown: boolean;
+  /** Migration 0020; char(3) sürücüye göre boşlukla dolu gelebilir. */
+  currency: string | null;
   created_at: Date | string;
   updated_at: Date | string;
 }
@@ -120,6 +122,7 @@ export function leadFromRow(r: LeadRow): Lead {
     adSurface: r.ad_surface,
     checkedWarnings: textArray(r.checked_warnings),
     contactHistoryUnknown: r.contact_history_unknown,
+    currency: r.currency ? r.currency.trim() || null : null,
     createdAt: date(r.created_at),
     updatedAt: date(r.updated_at),
   };

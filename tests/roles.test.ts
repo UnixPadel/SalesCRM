@@ -2,13 +2,16 @@ import type { NextFunction, Request, Response } from "express";
 import { describe, expect, it, vi } from "vitest";
 import {
   adminAccess,
+  campaignViewers,
   canReadDirectory,
   canSeeReports,
   isReadOnlyRole,
   marketingUsers,
   reportsAccess,
+  seesCampaign,
   sessionRole,
 } from "../server/roles.mjs";
+import { redactCampaigns } from "../src/modules/sales-pipeline/api/campaignVisibility";
 import { actorFromSession } from "../src/bootstrap/salesPipeline";
 
 const run = (mw: (req: Request, res: Response, next: NextFunction) => void, role: string, method = "GET") => {
@@ -42,6 +45,7 @@ describe("pazarlama rolü (CRM_MARKETING_USERS)", () => {
       userId: "57",
       isAdmin: true,
       readOnly: true,
+      seesCampaign: false,
     });
     expect(isReadOnlyRole("marketing")).toBe(true);
     expect(canSeeReports("marketing")).toBe(false);
@@ -72,5 +76,52 @@ describe("pazarlama rolü (CRM_MARKETING_USERS)", () => {
       body: { code: "reports_forbidden" },
     });
     for (const role of ["admin", "rep", "viewer"]) expect(run(reportsAccess, role).passed).toBe(true);
+  });
+});
+
+describe("kampanya görünürlüğü (2026-11-20)", () => {
+  it("varsayılan liste: admin, eraymarcadm, elshan.rasulov; ad, e-posta ya da kimlikle eşleşir", () => {
+    const v = campaignViewers({});
+    expect([...v].sort()).toEqual(["admin", "elshan.rasulov", "eraymarcadm"]);
+    expect(seesCampaign({ login: "ElShan.Rasulov" }, v)).toBe(true);
+    expect(seesCampaign({ id: "admin", login: "admin" }, v)).toBe(true);
+    expect(seesCampaign({ id: "51", login: "amro", email: "amro@unixpadel.com" }, v)).toBe(false);
+  });
+
+  it("CRM_CAMPAIGN_VIEWERS listeyi değiştirir; boş değer kimseye açmaz", () => {
+    expect(seesCampaign({ email: "x@y.co" }, campaignViewers({ CRM_CAMPAIGN_VIEWERS: " X@Y.co , z" }))).toBe(true);
+    expect(seesCampaign({ login: "admin" }, campaignViewers({ CRM_CAMPAIGN_VIEWERS: "" }))).toBe(false);
+  });
+
+  it("oturumdaki izin aktöre geçer", () => {
+    expect(actorFromSession({ userId: "7", role: "rep", seesCampaign: true })?.seesCampaign).toBe(true);
+    expect(actorFromSession({ userId: "7", role: "rep" })?.seesCampaign).toBe(false);
+  });
+
+  it("yanıttaki kampanya bilgisi boşalır, diğer alanlar kalır", () => {
+    const body = {
+      leads: [
+        {
+          id: "l1",
+          fullName: "A",
+          campaign: { campaignId: "1", campaignName: "Kış", adsetId: null, adsetName: "S", adId: null, adName: "R" },
+        },
+      ],
+      scope: { campaign: "Kış", owner: null },
+      campaigns: ["Kış", "Yaz"],
+    };
+    const out = redactCampaigns(body);
+    expect(out.leads[0]?.campaign).toEqual({
+      campaignId: null,
+      campaignName: null,
+      adsetId: null,
+      adsetName: null,
+      adId: null,
+      adName: null,
+    });
+    expect(out.leads[0]?.fullName).toBe("A");
+    expect(out.scope).toEqual({ campaign: null, owner: null });
+    expect(out.campaigns).toEqual([]);
+    expect(body.campaigns).toHaveLength(2);
   });
 });

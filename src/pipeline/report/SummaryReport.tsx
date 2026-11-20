@@ -18,7 +18,7 @@ type Period = "all" | "month" | "30" | "custom";
  */
 export function SummaryReport() {
   const { t, lang } = useLang();
-  const { isAdmin } = useCrm();
+  const { isAdmin, user } = useCrm();
   const { ref } = useReference();
   const productName = productNamesOf(ref?.products);
   const { team, nameOf } = useTeamNames();
@@ -164,17 +164,19 @@ export function SummaryReport() {
           ))}
         </select>
       </label>
-      <label className="field">
-        <span className="field-l">{t("answer.campaign")}</span>
-        <select value={campaign} onChange={(e) => setCampaign(e.target.value)}>
-          <option value="">{t("common.all")}</option>
-          {(report?.campaigns ?? []).map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      </label>
+      {user?.seesCampaign === true && (
+        <label className="field">
+          <span className="field-l">{t("answer.campaign")}</span>
+          <select value={campaign} onChange={(e) => setCampaign(e.target.value)}>
+            <option value="">{t("common.all")}</option>
+            {(report?.campaigns ?? []).map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {isAdmin && (
         <label className="field">
           <span className="field-l">{t("board.filter.owner")}</span>

@@ -38,6 +38,8 @@ export interface SessionLike {
   userId?: string;
   email?: string;
   role?: string;
+  /** Kampanya adlarını görebilir (server/roles.mjs CRM_CAMPAIGN_VIEWERS). */
+  seesCampaign?: boolean;
 }
 
 export interface SalesPipelineApp {
@@ -65,7 +67,7 @@ export function actorFromSession(s: SessionLike | undefined) {
   if (!userId) return undefined;
   // Görüntüleyici ve pazarlama (server/roles.mjs): her lead'i görür (isAdmin görünürlüğü), hiçbir şeyi değiştiremez.
   const readOnly = s.role === "viewer" || s.role === "marketing";
-  return { userId, isAdmin: s.role === "admin" || readOnly, readOnly };
+  return { userId, isAdmin: s.role === "admin" || readOnly, readOnly, seesCampaign: s.seesCampaign === true };
 }
 
 export interface BootOptions {

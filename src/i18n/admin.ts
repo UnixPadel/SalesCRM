@@ -279,6 +279,17 @@ export const ADMIN_DICT = {
   "set.eur.remove": ["{cur} kurunu kaldır", "Remove the {cur} rate"],
   "set.eur.source.setting": ["Bu ekrandan girildi · {when}", "Entered on this screen · {when}"],
   "set.eur.source.env": ["Ortam değişkeninden (EUR_RATES)", "From the environment (EUR_RATES)"],
+  "set.eur.source.tcmb": [
+    "TCMB döviz alış kurları · bülten {date} · alındı {when}",
+    "CBRT forex buying rates · bulletin {date} · fetched {when}",
+  ],
+  "set.eur.auto": ["TCMB'den otomatik güncelle (3 saatte bir)", "Update automatically from the CBRT (every 3 hours)"],
+  "set.eur.refresh": ["Şimdi güncelle", "Update now"],
+  "set.eur.refreshed": ["Kurlar TCMB'den güncellendi", "Rates updated from the CBRT"],
+  "set.eur.autoOverwrites": [
+    "Otomatik güncelleme açık: elle girilen kurlar bir sonraki çekişte TCMB kurlarıyla değişir",
+    "Automatic update is on: rates entered by hand are replaced at the next fetch",
+  ],
   "set.eur.source.default": ["Varsayılan tablo", "Default table"],
   "set.eur.invalid": [
     "Üç harfli kod ve sıfırdan büyük bir sayı girin.",

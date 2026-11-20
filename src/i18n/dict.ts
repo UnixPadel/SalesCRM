@@ -19,6 +19,11 @@ export const DICT = {
   "nav.reports": ["Raporlar", "Reports"],
   "nav.contacts": ["Kişiler", "Contacts"],
   "nav.newLead": ["Yeni lead", "New lead"],
+  "currency.display": ["Görünüm para birimi", "Display currency"],
+  "currency.display.hint": [
+    "Tutarlar bu para biriminde, güncel kurla gösterilir. Çalışma para birimi olan müşteriler kendi biriminde kalır.",
+    "Amounts are shown in this currency at the current rate. Customers with a working currency keep their own.",
+  ],
   "common.cancel": ["Vazgeç", "Cancel"],
   "common.save": ["Kaydet", "Save"],
   "common.close": ["Kapat", "Close"],
@@ -78,6 +83,8 @@ export const DICT = {
   "lead.notes": ["Notlar", "Notes"],
   "lead.company": ["Firma", "Company"],
   "lead.city": ["Şehir", "City"],
+  "lead.currency": ["Çalışma para birimi", "Working currency"],
+  "lead.currency.auto": ["Görünüm para birimi", "Display currency"],
   "lead.product": ["İlgilenilen ürün", "Product of interest"],
   "lead.owner": ["Sorumlu", "Owner"],
   "lead.created": ["Oluşturulma", "Created"],
@@ -395,6 +402,10 @@ export const DICT = {
   "err.lead.organization_not_found": ["Kuruluş bulunamadı.", "Organization not found."],
   "err.person.email_taken": ["Bu e-posta başka bir kişiye kayıtlı.", "This email belongs to another person."],
   "err.person.phone_taken": ["Bu telefon başka bir kişiye kayıtlı.", "This phone belongs to another person."],
+  "err.lead.currency_invalid": [
+    "Para birimi 3 harfli kod olmalı (ör. USD).",
+    "The currency must be a 3-letter code (e.g. USD).",
+  ],
   "err.lead.court_count_invalid": [
     "Kort sayısı 0 ile 999 arasında bir tam sayı olmalı.",
     "The number of courts must be a whole number from 0 to 999.",

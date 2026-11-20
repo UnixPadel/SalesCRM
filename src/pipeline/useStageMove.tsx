@@ -2,6 +2,7 @@ import { useCallback, useState, type ReactNode } from "react";
 import { refName, useLang } from "../i18n";
 import type { ChangeStageBody, LeadDto, ReferenceDto, StageCodeDto } from "../modules/sales-pipeline/api/dto";
 import { useCrm } from "../state/CrmContext";
+import { displayCurrency } from "../state/currency";
 import { pipelineApi } from "./api";
 import { uploadAll } from "./attachments/attachmentApi";
 import { FilePicker } from "./attachments/FilePicker";
@@ -84,12 +85,15 @@ export function useStageMove(
     const confirm = async (body: ChangeStageBody) => {
       if (await submit(pending.lead, body, files)) close();
     };
+    // İlk sıradaki para birimi pencerenin varsayılanıdır: lead'in çalışma para birimi, yoksa görünüm para birimi.
+    const first = pending.lead.currency || displayCurrency();
+    const currencies = [first, ...ref.currencies.filter((c) => c !== first)];
     const extra = <FilePicker files={files} onChange={setFiles} rules={ref.attachments} disabled={saving} />;
     if (pending.target === "QUALIFIED")
       dialog = (
         <QualifiedDialog
           questions={ref.qualificationQuestions}
-          currencies={ref.currencies}
+          currencies={currencies}
           saving={saving}
           extra={extra}
           onCancel={close}
@@ -98,18 +102,12 @@ export function useStageMove(
       );
     else if (pending.target === "PROPOSAL")
       dialog = (
-        <ProposalDialog
-          currencies={ref.currencies}
-          saving={saving}
-          extra={extra}
-          onCancel={close}
-          onConfirm={confirm}
-        />
+        <ProposalDialog currencies={currencies} saving={saving} extra={extra} onCancel={close} onConfirm={confirm} />
       );
     else if (pending.target === "WON")
       dialog = (
         <WonDialog
-          currencies={ref.currencies}
+          currencies={currencies}
           initial={opts.lastValue?.(pending.lead) ?? null}
           saving={saving}
           extra={extra}

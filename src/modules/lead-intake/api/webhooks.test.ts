@@ -49,7 +49,7 @@ beforeAll(async () => {
   ex.use("/webhooks", li.webhooks);
   ex.use(express.json());
   ex.use((req, _res, next) => {
-    (req as express.Request & { session?: unknown }).session = { userId: "admin", role: "admin" };
+    (req as express.Request & { session?: unknown }).session = { userId: "admin", role: "admin", seesCampaign: true };
     next();
   });
   ex.use("/api/pipeline", sp.router);

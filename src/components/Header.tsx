@@ -6,6 +6,7 @@ import { NotificationsBell } from "../pipeline/NotificationsBell";
 import { pipelineApi } from "../pipeline/api";
 import { useReference, useTodayCount } from "../pipeline/hooks";
 import { useCrm, type Theme } from "../state/CrmContext";
+import { setDisplayCurrency, useDisplayCurrency } from "../state/currency";
 import { LangMenu } from "./LangMenu";
 import { WhatsNewDialog, useWhatsNew } from "./WhatsNew";
 import { Avatar, Button, Icon, IconButton } from "./ui";
@@ -89,6 +90,7 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
             {t("nav.newLead")}
           </Button>
         )}
+        <CurrencySwitch />
         <NotificationsBell />
         <UserMenu
           name={user?.name ?? ""}
@@ -367,5 +369,27 @@ function GlobalSearch() {
         </ul>
       )}
     </div>
+  );
+}
+
+/** Görünüm para birimi (2026-11-20): bütün tutarlar bu birimde, güncel kurla gösterilir. Çalışma para birimi olan
+ * lead'in tutarları kendi biriminde kalır. Seçim tarayıcıda saklanır. */
+function CurrencySwitch() {
+  const { t } = useLang();
+  const { ref } = useReference();
+  const current = useDisplayCurrency();
+  const list = ref?.currencies ?? ["EUR", "USD", "TRY", "GBP"];
+  const options = list.includes(current) ? list : [current, ...list];
+  return (
+    <label className="hdr-cur" title={t("currency.display.hint")}>
+      <span className="sr-only">{t("currency.display")}</span>
+      <select value={current} onChange={(e) => setDisplayCurrency(e.target.value)} aria-label={t("currency.display")}>
+        {options.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

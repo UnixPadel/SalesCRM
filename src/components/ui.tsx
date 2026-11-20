@@ -2,10 +2,14 @@ import { useEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode } f
 import type { Currency } from "../domain/types";
 import { useLang } from "../i18n";
 import { activeLang, activeLocale } from "../i18n/lang";
+import { convert, displayCurrency } from "../state/currency";
 
 /* ---------------- formatting ---------------- */
 
-const SYMBOL: Record<Currency, string> = { EUR: "€", USD: "$", GBP: "£", TRY: "₺" };
+const SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", TRY: "₺" };
+/** Simgesi olmayan para birimi kodla yazılır ("AED 12.500"). */
+const sign = (cur: string) => SYMBOL[cur] ?? `${cur}\u00a0`;
+/** Tutarı verilen para biriminde yazar (çeviri yapmaz). */
 export function money(v: number, cur: Currency = "EUR", compact = false) {
   if (compact && Math.abs(v) >= 1000) {
     const [n, unit] = Math.abs(v) >= 1e6 ? [v / 1e6, "M"] : [v / 1e3, "K"];
@@ -16,11 +20,31 @@ export function money(v: number, cur: Currency = "EUR", compact = false) {
             .toFixed(1)
             .replace(/\.0$/, "")
             .replace(".", activeLang() === "tr" ? "," : ".");
-    return `${SYMBOL[cur]}${s}${unit}`;
+    return `${sign(cur)}${s}${unit}`;
   }
-  return `${SYMBOL[cur]}${Math.round(v).toLocaleString(activeLocale())}`;
+  return `${sign(cur)}${Math.round(v).toLocaleString(activeLocale())}`;
 }
-export const eur = (v: number, compact = false) => money(v, "EUR", compact);
+/** Sunucunun EUR toplamını görünüm para biriminde yazar (sağ üst seçici). */
+export const eur = (v: number, compact = false) => {
+  const to = displayCurrency();
+  const c = convert(v, "EUR", to);
+  return c === null ? money(v, "EUR", compact) : money(c, to, compact);
+};
+/**
+ * Lead tutarı: lead'in çalışma para birimi varsa onda, yoksa görünüm para biriminde (güncel kurla). Kuru bilinmeyen
+ * para biriminde girildiği gibi kalır. `original` çeviri yapıldıysa girilen tutarı da verir (ipucu metni için).
+ */
+export function leadMoney(
+  v: number,
+  cur: Currency,
+  leadCurrency: string | null | undefined,
+  compact = false,
+): { text: string; original: string | null } {
+  const to = leadCurrency || displayCurrency();
+  const c = convert(v, cur, to);
+  if (c === null || to === cur) return { text: money(v, cur, compact), original: null };
+  return { text: money(c, to, compact), original: money(v, cur) };
+}
 
 const parse = (iso: string) => new Date(iso.length === 10 ? iso + "T00:00:00" : iso);
 export function fmtDate(iso: string | null | undefined, withTime = false) {

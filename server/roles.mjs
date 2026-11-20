@@ -37,6 +37,36 @@ export function sessionRole(baseRole, ids, marketing) {
   return keys.some((k) => marketing.has(k)) ? "marketing" : baseRole;
 }
 
+/**
+ * Reklam kampanyası adlarını (Lead listesi Kampanya sütunu, rapor kampanya süzgeci) görebilenler. Rolden bağımsız,
+ * kişi bazında: CRM_CAMPAIGN_VIEWERS (virgülle: kullanıcı adı, e-posta ya da KullaniciID; büyük/küçük harf fark
+ * etmez). Değişken hiç tanımlı değilse varsayılan liste geçerlidir (2026-11-20 karar).
+ * @param {Record<string, string | undefined>} env
+ */
+export function campaignViewers(env = process.env) {
+  const raw = env.CRM_CAMPAIGN_VIEWERS ?? "admin,eraymarcadm,elshan.rasulov";
+  return new Set(
+    String(raw)
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+/**
+ * @param {{ id?: unknown; login?: unknown; email?: unknown }} ids
+ * @param {Set<string>} viewers
+ */
+export function seesCampaign(ids, viewers) {
+  return [ids.id, ids.login, ids.email]
+    .map((v) =>
+      String(v ?? "")
+        .trim()
+        .toLowerCase(),
+    )
+    .some((k) => k && viewers.has(k));
+}
+
 /** Hiçbir lead / kişi / aktivite verisini değiştiremeyen roller. */
 export const isReadOnlyRole = (role) => role === "viewer" || role === "marketing";
 /** Yönetim panelini okuyabilir (GET). */

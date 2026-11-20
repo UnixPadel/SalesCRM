@@ -9,6 +9,7 @@ import type {
   TrackingReferenceDto,
 } from "../../modules/sales-pipeline/api/dto";
 import type { ContactFormDto, LogContactBody, StageLineModeDto } from "../../modules/sales-pipeline/api/dto.contact";
+import { displayCurrency } from "../../state/currency";
 
 export type ContactRules = TrackingReferenceDto["contactRules"];
 
@@ -85,7 +86,8 @@ export function initialState(
       stageChecked: false,
       lostChecked: false,
       amount: "",
-      currency: "EUR",
+      // Lead'in çalışma para birimi, yoksa sağ üstteki görünüm para birimi.
+      currency: form.lead.currency || displayCurrency(),
       lostReason: "",
     },
     form,
