@@ -2,7 +2,9 @@ import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } fr
 import { Button, Empty, Skeleton, fmtDate } from "../../components/ui";
 import { useLang } from "../../i18n";
 import type { ActionLogDto, ActionLogPageDto, ActionTypeDto } from "../../modules/sales-pipeline/api/dto.actionLog";
+import { useCrm } from "../../state/CrmContext";
 import { useErrorText, useReference, useTeamNames } from "../hooks";
+import { downloadCsv, toCsv } from "../list/csv";
 import { adminApi } from "./adminApi";
 import { LoadError, SectionHead } from "./bits";
 
@@ -29,6 +31,9 @@ const GROUPS: Record<string, readonly ActionTypeDto[]> = {
 };
 
 const PAGE = 100;
+/** İndirme: sunucunun sayfa üst sınırıyla çekilir; dosya en çok bu kadar satır taşır (Excel rahat açar). */
+const EXPORT_PAGE = 500;
+const EXPORT_MAX = 20000;
 /** Çeviride kullanıcı ve lead'in yerini tutan işaretler; cümle bunlardan bölünüp kalın ad ve bağlantı konur. */
 const USER = "";
 const LEAD = "";
@@ -41,6 +46,14 @@ function dayStart(day: string, plusDays = 0): string | undefined {
   d.setDate(d.getDate() + plusDays);
   return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
 }
+const pad = (n: number) => String(n).padStart(2, "0");
+const localDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+/** Dosyadaki tarih: yerel saat, Excel'in tarih diye tanıyıp sıraladığı biçim. */
+const localStamp = (iso: string) => {
+  const d = new Date(iso);
+  return `${localDay(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const groupOf = (action: ActionTypeDto) => Object.keys(GROUPS).find((g) => GROUPS[g]!.includes(action));
 
 export function LogsTab() {
   const { t } = useLang();
@@ -54,17 +67,19 @@ export function LogsTab() {
   const [page, setPage] = useState<ActionLogPageDto | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const { toast } = useCrm();
   const seq = useRef(0);
 
   const query = useCallback(
-    (before?: string) =>
+    (before?: string, limit = PAGE) =>
       adminApi.actionLogs({
         actor: actor || undefined,
         actions: group ? GROUPS[group] : undefined,
         from: dayStart(from),
         to: dayStart(to, 1),
         before,
-        limit: PAGE,
+        limit,
       }),
     [actor, group, from, to],
   );
@@ -106,7 +121,8 @@ export function LogsTab() {
     return out === key ? code : out;
   };
 
-  const sentence = (e: ActionLogDto): ReactNode => {
+  /** Cümle metni; kullanıcı ve lead'in yerinde USER / LEAD işaretleri durur. */
+  const phrase = (e: ActionLogDto): string => {
     const d = e.details;
     const vars: Record<string, string> = { user: USER, lead: LEAD };
     let key: string = e.action;
@@ -157,7 +173,11 @@ export function LogsTab() {
       default:
         break;
     }
-    const text = t(`logs.a.${key}`, vars);
+    return t(`logs.a.${key}`, vars);
+  };
+
+  const sentence = (e: ActionLogDto): ReactNode => {
+    const text = phrase(e);
     const leadName = e.leadName || t("logs.unnamedLead");
     return text.split(/([])/).map((part, i) =>
       part === USER ? (
@@ -180,10 +200,51 @@ export function LogsTab() {
     );
   };
 
+  /** Süzgece uyan bütün kayıtlar (yalnız ekrana yüklenenler değil) Excel'in açtığı CSV olarak iner. */
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const items: ActionLogDto[] = [];
+      let before: string | undefined;
+      do {
+        const p = await query(before, EXPORT_PAGE);
+        items.push(...p.items);
+        before = p.next ?? undefined;
+      } while (before && items.length < EXPORT_MAX);
+      const rows = items.map((e) => {
+        const leadName = e.leadName || t("logs.unnamedLead");
+        const g = groupOf(e.action);
+        return [
+          localStamp(e.occurredAt),
+          nameOf(e.actorUserId),
+          g ? t(`logs.group.${g}`) : e.action,
+          leadName,
+          phrase(e).split(USER).join(nameOf(e.actorUserId)).split(LEAD).join(leadName),
+        ];
+      });
+      const header = [
+        t("logs.col.date"),
+        t("logs.filter.user"),
+        t("logs.filter.action"),
+        t("logs.col.lead"),
+        t("logs.col.text"),
+      ];
+      downloadCsv(`loglar-${localDay(new Date())}.csv`, toCsv(header, rows));
+      toast(t(before ? "logs.downloadCapped" : "logs.downloaded", { n: items.length }));
+    } catch (e) {
+      toast(errText(e), { bad: true });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const filtered = Boolean(actor || group || from || to);
   return (
     <div className="adm-stack">
       <SectionHead title={t("logs.title")} help={t("logs.help")}>
+        <Button icon="download" onClick={() => void download()} disabled={!page?.items.length} loading={downloading}>
+          {t("logs.download")}
+        </Button>
         <Button icon="refresh" onClick={() => void reload()}>
           {t("admin.refresh")}
         </Button>
