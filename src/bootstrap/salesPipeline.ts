@@ -18,7 +18,11 @@ import {
   ActionLog,
   ActionLogQueries,
   LeadNotifier,
+  NotificationDelivery,
   NotificationQueries,
+  NotificationSweeps,
+  PushNotifier,
+  PushSubscriptions,
   createSalesPipeline,
   type EmailSender,
   type SalesPipeline,
@@ -30,9 +34,12 @@ import { pgSettingsRepository } from "../modules/integration-settings/infrastruc
 import {
   PgUnitOfWork,
   createSmtpEmailSender,
+  createWebPushTransport,
   loggingEmailSender,
   pgActionLogStore,
   pgNotificationStore,
+  pgPushSubscriptionStore,
+  pgSweepSource,
 } from "../modules/sales-pipeline/infrastructure";
 
 import { createEurRatesStore, type EurRatesStore } from "./eurRates";
@@ -51,6 +58,10 @@ export interface SalesPipelineApp {
   router: Router;
   pipeline: SalesPipeline;
   notifications: NotificationQueries;
+  /** Web Push açık mı (VAPID anahtarları tanımlı). */
+  pushEnabled: boolean;
+  /** Zamanlı bildirim taraması (iş vadesi, bekleyen sıcak lead); yöneticileri çağıran verir. */
+  notificationSweeps(managers: () => Promise<readonly string[]>): NotificationSweeps;
   /** E-posta gönderici (SMTP ya da log); ad-feedback dead-letter raporu da bunu kullanır. */
   email: EmailSender;
   db: Db;
@@ -111,17 +122,56 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
         )
       : loggingEmailSender(logger));
   const notificationStore = pgNotificationStore(db);
+  // Web Push (2026-11-23): VAPID anahtarları varsa her yeni bildirim abone tarayıcılara da gider.
+  const notifyLogger = logger.child({ module: "notifications" });
+  const pushStore = pgPushSubscriptionStore(db);
+  const vapidPrivate = readSecret(config.push.privateKeySecretName, env);
+  const pushEnabled = Boolean(config.push.publicKey && vapidPrivate && config.push.subject);
+  if (config.push.publicKey && !pushEnabled) {
+    logger.warn(
+      "web push kapalı: VAPID_PRIVATE_KEY ve VAPID_SUBJECT (ya da SMTP_FROM / https PUBLIC_BASE_URL) gerekli",
+    );
+  }
+  const push = pushEnabled
+    ? new PushNotifier({
+        store: pushStore,
+        transport: createWebPushTransport({
+          subject: config.push.subject,
+          publicKey: config.push.publicKey,
+          privateKey: vapidPrivate,
+        }),
+        logger: notifyLogger,
+      })
+    : null;
+  const pushSubscriptions = new PushSubscriptions({
+    store: pushStore,
+    clock: systemClock,
+    ids: uuidGenerator,
+    publicKey: pushEnabled ? config.push.publicKey : "",
+  });
   const notifier = new LeadNotifier({
     uow,
     notifications: notificationStore,
+    push,
     email,
     users: opts.users ?? { findById: async () => undefined },
     clock: systemClock,
     ids: uuidGenerator,
-    logger: logger.child({ module: "notifications" }),
+    logger: notifyLogger,
     publicBaseUrl: config.publicBaseUrl,
   });
   const notifications = new NotificationQueries(notificationStore, systemClock);
+  const notificationSweeps = (managers: () => Promise<readonly string[]>) =>
+    new NotificationSweeps({
+      source: pgSweepSource(db),
+      delivery: new NotificationDelivery({ notifications: notificationStore, push, logger: notifyLogger }),
+      managers,
+      clock: systemClock,
+      ids: uuidGenerator,
+      logger: notifyLogger,
+      hotRepHours: config.notify.hotRepHours,
+      hotManagerHours: config.notify.hotManagerHours,
+    });
 
   const eurRates = createEurRatesStore({
     settings: pgSettingsRepository(db),
@@ -161,6 +211,7 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
   const router = createSalesPipelineRouter({
     pipeline,
     notifications,
+    push: pushSubscriptions,
     actionLog: new ActionLogQueries(actionStore),
     db,
     logger,
@@ -173,6 +224,19 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
     db: config.databaseUrl ? "postgres" : "pglite",
     providers: config.enabledProviders,
     email: opts.email ? "custom" : config.smtp.host ? "smtp" : "log",
+    push: pushEnabled,
   });
-  return { router, pipeline, notifications, email, db, config, logger, eurRates, close: () => db.close() };
+  return {
+    router,
+    pipeline,
+    notifications,
+    pushEnabled,
+    notificationSweeps,
+    email,
+    db,
+    config,
+    logger,
+    eurRates,
+    close: () => db.close(),
+  };
 }

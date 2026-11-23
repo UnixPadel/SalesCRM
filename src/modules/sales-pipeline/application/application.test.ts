@@ -298,7 +298,8 @@ describe("CreateLead", () => {
       expect(s.persons).toHaveLength(1);
       expect(s.events).toHaveLength(1);
       expect(s.outbox).toHaveLength(outboxBefore);
-      expect(h.events.published).toEqual([]);
+      // Yeni lead olayı yok; yalnız sahibine "formu tekrar doldurdu" bildirimi için olay (havuzda: sahipsiz).
+      expect(h.events.published.map((e) => e.type)).toEqual(["LeadFormResubmitted"]);
       // Dolu alan değişmez (CRM esastır), boş alan dolar; geri bildirim kimliği ilk gönderimde kalır.
       expect(s.leads[0]).toMatchObject({
         platformLeadId: "m-1",

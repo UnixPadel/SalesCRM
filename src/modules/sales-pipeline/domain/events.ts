@@ -41,4 +41,12 @@ export interface LeadAssigned {
   occurredAt: Date;
 }
 
-export type DomainEvent = LeadCreated | LeadStageChanged | LeadStageChangeUndone | LeadAssigned;
+/** Aynı kişi formu yeniden doldurdu; gönderim açık lead'ine işlendi (yeni lead açılmadı). */
+export interface LeadFormResubmitted {
+  type: "LeadFormResubmitted";
+  leadId: string;
+  assignedUserId: string | null;
+  occurredAt: Date;
+}
+
+export type DomainEvent = LeadCreated | LeadStageChanged | LeadStageChangeUndone | LeadAssigned | LeadFormResubmitted;

@@ -7,5 +7,8 @@ export { pgAttachmentRepository } from "./attachmentRepository";
 export { pgOrganizationRepository } from "./organizationRepository";
 export { readStageDefinitions, readLostReasons, type StageDefinition, type LostReason } from "./referenceData";
 export { pgNotificationStore } from "./notifications";
+export { pgPushSubscriptionStore } from "./pushSubscriptions";
+export { pgSweepSource } from "./sweepSource";
+export { createWebPushTransport, type VapidKeys } from "./webPushTransport";
 export { pgActionLogStore } from "./actionLogStore";
 export { createSmtpEmailSender, loggingEmailSender } from "./smtpEmailSender";

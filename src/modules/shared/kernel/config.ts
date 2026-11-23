@@ -24,6 +24,8 @@ export interface AppConfig {
   smtp: SmtpConfig;
   /** E-posta ve bildirimlerdeki bağlantıların kökü (ör. https://crm.example.com). */
   publicBaseUrl: string;
+  push: PushConfig;
+  notify: NotifyConfig;
   /** Pano toplamları için kurlar, JSON metni ({"USD":0.92,…}); boşsa modülün varsayılanı. Faz 7'de ekrandan. */
   eurRatesJson: string;
   /**
@@ -90,6 +92,26 @@ export interface SmtpConfig {
   passwordSecretName: string;
 }
 
+/** Web Push (VAPID). Açık anahtar boşsa push kapalıdır; zil çalışmaya devam eder. */
+export interface PushConfig {
+  /** Tarayıcıya verilen açık anahtar (VAPID_PUBLIC_KEY); gizli değildir. */
+  publicKey: string;
+  /** Gizli anahtar secret olarak ayrıca okunur (VAPID_PRIVATE_KEY); burada yalnız adı. */
+  privateKeySecretName: string;
+  /** Push servisinin sorun olursa ulaşacağı adres: `mailto:…` ya da https (VAPID_SUBJECT). */
+  subject: string;
+}
+
+/** Zamanlı bildirimler (iş vadesi, bekleyen sıcak lead). */
+export interface NotifyConfig {
+  /** Tarama aralığı (dakika). */
+  sweepMinutes: number;
+  /** Sıcak lead'e bu kadar saat dokunulmazsa sorumlusuna bildirim; 0 = kapalı. */
+  hotRepHours: number;
+  /** Bu kadar saati de geçerse yöneticilere bildirim; 0 = kapalı. */
+  hotManagerHours: number;
+}
+
 export type Env = Readonly<Record<string, string | undefined>>;
 
 const num = (v: string | undefined, fallback: number): number => {
@@ -135,6 +157,16 @@ export function loadConfig(env: Env = process.env): AppConfig {
       passwordSecretName: "SMTP_PASSWORD",
     },
     publicBaseUrl: (env["PUBLIC_BASE_URL"] ?? "").replace(/\/+$/, ""),
+    push: {
+      publicKey: (env["VAPID_PUBLIC_KEY"] ?? "").trim(),
+      privateKeySecretName: "VAPID_PRIVATE_KEY",
+      subject: pushSubject(env),
+    },
+    notify: {
+      sweepMinutes: Math.max(1, num(env["NOTIFY_SWEEP_MINUTES"], 5)),
+      hotRepHours: Math.max(0, num(env["HOT_LEAD_REP_HOURS"], 24)),
+      hotManagerHours: Math.max(0, num(env["HOT_LEAD_MANAGER_HOURS"], 48)),
+    },
     eurRatesJson: env["EUR_RATES"] ?? "",
     repsEditProducts: env["REPS_EDIT_PRODUCTS"] !== "0",
     sheetSync: {
@@ -158,6 +190,16 @@ const numList = (v: string | undefined, fallback: readonly number[]): number[] =
 };
 
 /** Secret'lar yalnız adıyla istenir; değer döner, kaydedilmez. Tanımsızsa boş string. */
+/** VAPID_SUBJECT; yoksa gönderen e-posta adresi, o da yoksa uygulamanın https adresi. */
+function pushSubject(env: Env): string {
+  const given = (env["VAPID_SUBJECT"] ?? "").trim();
+  if (/^(mailto:|https:\/\/)/.test(given)) return given;
+  const from = (env["SMTP_FROM"] ?? "").trim();
+  if (/^[^\s@<>]+@[^\s@<>]+$/.test(from)) return `mailto:${from}`;
+  const base = (env["PUBLIC_BASE_URL"] ?? "").replace(/\/+$/, "");
+  return base.startsWith("https://") ? base : "";
+}
+
 export function readSecret(name: string, env: Env = process.env): string {
   return env[name] ?? "";
 }

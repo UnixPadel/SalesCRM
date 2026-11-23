@@ -319,7 +319,15 @@ export class CreateLead {
             productInterest: (input.productInterest ?? "").trim(),
           },
         });
-        if (merged) return { lead: merged, created: false, personMatched: true, merged: true, domainEvents: [] };
+        if (merged) {
+          const resubmitted: DomainEvent = {
+            type: "LeadFormResubmitted",
+            leadId: merged.id,
+            assignedUserId: merged.assignedUserId,
+            occurredAt: now,
+          };
+          return { lead: merged, created: false, personMatched: true, merged: true, domainEvents: [resubmitted] };
+        }
       }
       const { person, matched } = await this.findOrCreatePerson(repos, {
         fullName,

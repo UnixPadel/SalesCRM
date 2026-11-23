@@ -3,17 +3,60 @@ import { Icon } from "../components/ui";
 import { useLang } from "../i18n";
 import type { NotificationDto, NotificationsDto } from "../modules/sales-pipeline/api/dto";
 import { navigate } from "../router";
+import { useCrm } from "../state/CrmContext";
 import { pipelineApi } from "./api";
-import { useSince } from "./hooks";
+import { useSince, useTeamNames } from "./hooks";
+import { disablePush, enablePush, onPushOpen, syncPush, type PushState } from "./push";
 
 const POLL_MS = 30_000;
 
-/** Başlıktaki zil: okunmamış sayısı, son 30 bildirim; tıklanınca lead açılır ve okundu olur. */
+/**
+ * Başlıktaki zil: okunmamış sayısı, son 30 bildirim; tıklanınca lead açılır ve okundu olur. Altındaki satır bu
+ * tarayıcıda anlık bildirimi (Web Push) açıp kapatır; sunucuda kapalıysa ya da tarayıcı desteklemiyorsa görünmez.
+ */
 export function NotificationsBell() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const { toast } = useCrm();
   const since = useSince();
+  const { nameOf } = useTeamNames();
   const [data, setData] = useState<NotificationsDto>({ items: [], unreadCount: 0 });
+  const [push, setPush] = useState<PushState>("unsupported");
+  const [pushBusy, setPushBusy] = useState(false);
   const ref = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    let live = true;
+    syncPush(lang)
+      .then((s) => live && setPush(s))
+      .catch(() => {
+        /* durum okunamadıysa satır görünmez; zil çalışmaya devam eder */
+      });
+    return () => {
+      live = false;
+    };
+  }, [lang]);
+
+  // Tarayıcı bildirimine tıklandı ve program zaten açık: o sekmede lead'e gidilir.
+  useEffect(
+    () =>
+      onPushOpen((hash) => {
+        window.location.hash = hash;
+      }),
+    [],
+  );
+
+  const togglePush = async () => {
+    setPushBusy(true);
+    try {
+      const next = push === "on" ? await disablePush() : await enablePush(lang);
+      setPush(next);
+      if (next === "on") toast(t("notif.push.enabled"));
+    } catch {
+      toast(t("notif.push.failed"), { bad: true });
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   const reload = useCallback(() => {
     pipelineApi
@@ -70,9 +113,11 @@ export function NotificationsBell() {
     pipelineApi.markAllRead().catch(() => reload());
   };
 
+  /** Sözlükte karşılığı olmayan tür (eski istemci, yeni sunucu) sunucunun düz başlığıyla görünür. */
   const label = (n: NotificationDto) => {
-    const name = String(n.body["leadName"] ?? "");
-    return n.type === "lead_assigned" ? t("notif.lead_assigned", { name }) : n.title;
+    const key = `notif.${n.type}`;
+    const out = t(key, { name: String(n.body["leadName"] ?? ""), hours: String(n.body["hours"] ?? "") });
+    return out === key ? n.title : out;
   };
 
   return (
@@ -111,6 +156,8 @@ export function NotificationsBell() {
                     <span className="t">{label(n)}</span>
                     <span className="m">
                       {[
+                        n.body["subject"] ? String(n.body["subject"]) : null,
+                        n.body["ownerId"] ? t("notif.owner", { name: nameOf(String(n.body["ownerId"])) }) : null,
                         n.body["company"] ? String(n.body["company"]) : null,
                         n.body["country"] ? String(n.body["country"]) : null,
                         n.body["isTest"] ? t("notif.test") : null,
@@ -124,6 +171,20 @@ export function NotificationsBell() {
               </li>
             ))}
           </ul>
+        )}
+        {(push === "on" || push === "off" || push === "denied") && (
+          <div className="notif-push">
+            {push === "denied" ? (
+              <span>{t("notif.push.denied")}</span>
+            ) : (
+              <>
+                <span>{t(push === "on" ? "notif.push.on" : "notif.push.off")}</span>
+                <button className="btn btn-ghost" type="button" onClick={() => void togglePush()} disabled={pushBusy}>
+                  {t(push === "on" ? "notif.push.disable" : "notif.push.enable")}
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
     </details>

@@ -31,6 +31,11 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    // Service worker (Web Push): kendi küresel kapsamı.
+    files: ["public/sw.js"],
+    languageOptions: { globals: globals.serviceworker },
+  },
+  {
     files: ["**/*.cjs"],
     languageOptions: { sourceType: "commonjs", globals: globals.node },
   },

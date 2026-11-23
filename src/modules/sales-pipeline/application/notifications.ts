@@ -1,13 +1,28 @@
 /**
- * Bildirimler: domain olaylarına abone olur, aşama motorunu çağırmaz (Genel plan). Faz 2 kapsamı:
- * `LeadCreated` olayında atanan satışçıya uygulama içi bildirim ve e-posta. Bildirim ve e-posta
+ * Bildirimler: domain olaylarına abone olur, aşama motorunu çağırmaz (Genel plan). Bildirim, e-posta ve push
  * hatası lead akışını bozmaz; loglanır (olaylar transaction sonrası yayınlanır).
+ *
+ * Olaydan doğanlar (bu dosya):
+ *   - `LeadCreated`: atanan satışçıya zil + e-posta (Faz 2).
+ *   - `LeadAssigned`: lead başka birine verildiyse yeni sorumluya zil (2026-11-23; elle atama ve devir).
+ *   - `LeadFormResubmitted`: açık lead'in sahibine "formu tekrar doldurdu".
+ * Zamana bağlı olanlar (iş vadesi, bekleyen sıcak lead) `notificationSweeps.ts`'tedir.
+ * Her yeni bildirim, kişinin abone tarayıcılarına Web Push olarak da gider (`push.ts`).
  */
 import type { Clock, IdGenerator, Logger } from "../../shared/kernel";
 import { isHotLead, type DomainEvent, type DomainEventPublisher, type Lead, type UnitOfWork } from "../domain";
 import type { Actor } from "./types";
 
-export type NotificationType = "lead_assigned";
+export const NOTIFICATION_TYPES = [
+  "lead_assigned",
+  "lead_transferred",
+  "form_resubmitted",
+  "activity_due",
+  "activity_overdue",
+  "hot_untouched",
+  "hot_untouched_manager",
+] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export interface Notification {
   id: string;
@@ -16,14 +31,17 @@ export interface Notification {
   leadId: string | null;
   /** Düz metin başlık (e-posta ve yedek görünüm için, TR). Arayüz `type` + `body` ile kendi dilinde yazar. */
   title: string;
-  /** JSON: { leadName, company, country, source } */
+  /** JSON: { leadName, company, country, source, isTest } + türe göre { subject, activityType, hours, ownerId, fromUserId } */
   body: string;
   createdAt: Date;
   readAt: Date | null;
+  /** Aynı kişiye aynı anahtarla ikinci bildirim yazılmaz (zamanlı işler); yoksa tekilleştirme yapılmaz. */
+  dedupeKey?: string | null | undefined;
 }
 
 export interface NotificationStore {
-  insert(n: Notification): Promise<void>;
+  /** false: aynı `dedupeKey` ile bildirim zaten var, satır yazılmadı. */
+  insert(n: Notification): Promise<boolean>;
   listForUser(userId: string, limit: number): Promise<Notification[]>;
   unreadCount(userId: string): Promise<number>;
   /** Yalnız sahibi okundu yapabilir; satır yoksa ya da başkasınınsa false. */
@@ -52,9 +70,36 @@ export interface UserDirectory {
   findById(userId: string): Promise<DirectoryUser | undefined>;
 }
 
+/** Anlık kanal (Web Push); bildirim satırı yazıldıktan sonra çağrılır. */
+export interface PushSender {
+  send(n: Notification): Promise<void>;
+}
+
+/** Bildirimi yazar; yeni satırsa push'a da verir. Push hatası yutulur ve loglanır. */
+export class NotificationDelivery {
+  constructor(
+    private readonly deps: { notifications: NotificationStore; push?: PushSender | null | undefined; logger: Logger },
+  ) {}
+
+  /** true: bildirim yazıldı (tekrar değil). */
+  async deliver(n: Notification): Promise<boolean> {
+    const { notifications, push, logger } = this.deps;
+    if (!(await notifications.insert(n))) return false;
+    logger.info("bildirim yazıldı", { leadId: n.leadId, userId: n.userId, type: n.type });
+    if (push) {
+      await push
+        .send(n)
+        .catch((error: unknown) => logger.warn("push gönderilemedi", { userId: n.userId, type: n.type, error }));
+    }
+    return true;
+  }
+}
+
 export interface LeadNotifierDeps {
   uow: UnitOfWork;
   notifications: NotificationStore;
+  /** Web Push; yoksa yalnız zil (ve e-posta). */
+  push?: PushSender | null | undefined;
   /** null: e-posta kapalı (SMTP yapılandırılmadı); yalnız uygulama içi. */
   email: EmailSender | null;
   users: UserDirectory;
@@ -69,36 +114,60 @@ export const leadLink = (baseUrl: string, leadId: string): string =>
   baseUrl ? `${baseUrl}/#/lead/${leadId}` : `#/lead/${leadId}`;
 
 export class LeadNotifier implements DomainEventPublisher {
-  constructor(private readonly deps: LeadNotifierDeps) {}
+  private readonly delivery: NotificationDelivery;
+
+  constructor(private readonly deps: LeadNotifierDeps) {
+    this.delivery = new NotificationDelivery(deps);
+  }
 
   async publish(events: readonly DomainEvent[]): Promise<void> {
+    // Yeni lead'in ilk ataması `LeadCreated` ile bildirilir; aynı partideki `LeadAssigned` ikinci bildirim açmaz.
+    const created = new Set(events.filter((e) => e.type === "LeadCreated").map((e) => e.leadId));
     for (const e of events) {
+      // Kişinin kendi yaptığı işlem (kendi açtığı lead, havuzdan üstlenme) için bildirim gitmez.
       if (e.type === "LeadCreated" && e.assignedUserId && e.assignedUserId !== e.actorUserId) {
-        await this.notifyAssigned(e.leadId, e.assignedUserId).catch((err: unknown) =>
-          this.deps.logger.error("bildirim yazılamadı", { leadId: e.leadId, userId: e.assignedUserId, error: err }),
+        const userId = e.assignedUserId;
+        await this.guard(e.leadId, userId, async () => {
+          const lead = await this.notify(e.leadId, userId, "lead_assigned");
+          if (lead) await this.sendEmail(lead, userId);
+        });
+      } else if (e.type === "LeadAssigned" && e.to && e.to !== e.actorUserId && !created.has(e.leadId)) {
+        const userId = e.to;
+        const extra = e.from ? { fromUserId: e.from } : {};
+        await this.guard(e.leadId, userId, () =>
+          this.notify(e.leadId, userId, e.from ? "lead_transferred" : "lead_assigned", extra),
         );
+      } else if (e.type === "LeadFormResubmitted" && e.assignedUserId) {
+        const userId = e.assignedUserId;
+        await this.guard(e.leadId, userId, () => this.notify(e.leadId, userId, "form_resubmitted"));
       }
     }
   }
 
-  private async notifyAssigned(leadId: string, userId: string): Promise<void> {
-    const { uow, notifications, clock, ids, logger } = this.deps;
+  private guard(leadId: string, userId: string, fn: () => Promise<unknown>): Promise<unknown> {
+    return fn().catch((error: unknown) => this.deps.logger.error("bildirim yazılamadı", { leadId, userId, error }));
+  }
+
+  private async notify(
+    leadId: string,
+    userId: string,
+    type: NotificationType,
+    extra: Record<string, unknown> = {},
+  ): Promise<Lead | undefined> {
+    const { uow, clock, ids } = this.deps;
     const lead = await uow.run((repos) => repos.leads.findById(leadId));
-    if (!lead) return;
-    const now = clock.now();
-    const n: Notification = {
+    if (!lead) return undefined;
+    await this.delivery.deliver({
       id: ids.next(),
       userId,
-      type: "lead_assigned",
+      type,
       leadId: lead.id,
-      title: `${titlePrefix(lead)}: ${lead.fullName}`,
-      body: JSON.stringify(bodyOf(lead)),
-      createdAt: now,
+      title: `${TITLE[type] ?? titlePrefix(lead)}: ${lead.fullName}`,
+      body: JSON.stringify({ ...bodyOf(lead), ...extra }),
+      createdAt: clock.now(),
       readAt: null,
-    };
-    await notifications.insert(n);
-    logger.info("bildirim yazıldı", { leadId: lead.id, userId, type: n.type });
-    await this.sendEmail(lead, userId);
+    });
+    return lead;
   }
 
   private async sendEmail(lead: Lead, userId: string): Promise<void> {
@@ -127,6 +196,12 @@ export class LeadNotifier implements DomainEventPublisher {
     }
   }
 }
+
+/** Düz metin başlık öneki (TR; yedek görünüm). `lead_assigned` lead'e göre "Yeni lead" / "Sıcak lead" alır. */
+const TITLE: Partial<Record<NotificationType, string>> = {
+  lead_transferred: "Lead size devredildi",
+  form_resubmitted: "Formu tekrar doldurdu",
+};
 
 /** Faz 7g (§4.8): kurulumu "3 ay içinde" olan açık lead "Sıcak lead:" ile başlar; başka değişiklik yok. */
 export const titlePrefix = (lead: Lead): string => (isHotLead(lead) ? "Sıcak lead" : "Yeni lead");
@@ -166,7 +241,9 @@ export class NotificationQueries {
 export class InMemoryNotificationStore implements NotificationStore {
   rows: Notification[] = [];
   async insert(n: Notification) {
+    if (n.dedupeKey && this.rows.some((r) => r.userId === n.userId && r.dedupeKey === n.dedupeKey)) return false;
     this.rows.push({ ...n });
+    return true;
   }
   async listForUser(userId: string, limit: number) {
     return this.rows

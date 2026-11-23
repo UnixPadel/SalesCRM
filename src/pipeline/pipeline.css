@@ -610,6 +610,21 @@ a.pl-row:focus-visible {
   color: var(--text-3);
   text-align: center;
 }
+/* Anlık bildirim (Web Push) satırı: listenin altında, bu tarayıcı için aç / kapat. */
+.notif-push {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  border-block-start: 1px solid var(--border);
+  font-size: var(--t-xs);
+  color: var(--text-2);
+}
+.notif-push .btn {
+  font-size: var(--t-xs);
+  flex: none;
+}
 
 /* ---- aktiviteler (Faz 6a) ---- */
 .kb-foot {

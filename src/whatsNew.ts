@@ -23,6 +23,42 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-23-2",
+    date: "2026-11-23",
+    items: {
+      tr: [
+        {
+          title: "Daha fazla bildirim",
+          text: "Zil artık şunlarda da haber verir: size bir lead atandığında ya da devredildiğinde, açık lead'inizdeki kişi formu tekrar doldurduğunda, planladığınız işin saati geldiğinde ya da iş geciktiğinde, sıcak bir lead'inize bir gündür işlem yapılmadığında.",
+        },
+        {
+          title: "Program kapalıyken de bildirim",
+          text: 'Zile tıklayın ve en alttaki "Bu Cihazda Aç" düğmesine basın, tarayıcı sorduğunda izin verin. Artık program kapalıyken de bilgisayarınıza ya da telefonunuza bildirim düşer; bildirime tıklayınca lead açılır. Her cihazda bir kez açmanız yeterli. iPhone\'da önce programı ana ekrana eklemeniz gerekir.',
+        },
+      ],
+      en: [
+        {
+          title: "More notifications",
+          text: "The bell now also tells you when a lead is assigned or handed over to you, when the person on one of your open leads fills in the form again, when a task you planned is due or overdue, and when one of your hot leads has had no action for a day.",
+        },
+        {
+          title: "Notifications when the app is closed",
+          text: 'Click the bell, press "Turn On Here" at the bottom and allow notifications when the browser asks. You will then get notifications on your computer or phone even when the app is closed; click one to open the lead. Turn it on once per device. On iPhone, add the app to the home screen first.',
+        },
+      ],
+      ar: [
+        {
+          title: "إشعارات أكثر",
+          text: "الجرس ينبّهك الآن أيضًا عند إسناد عميل محتمل إليك أو تحويله إليك، وعندما يعيد صاحب أحد عملائك المحتملين المفتوحين تعبئة النموذج، وعند حلول موعد مهمة خططت لها أو تأخرها، وعندما يمرّ يوم دون أي إجراء على أحد عملائك المحتملين الساخنين.",
+        },
+        {
+          title: "إشعارات والبرنامج مغلق",
+          text: "انقر على الجرس ثم اضغط «تفعيل على هذا الجهاز» في الأسفل واسمح بالإشعارات عندما يسألك المتصفح. ستصلك الإشعارات على حاسوبك أو هاتفك حتى والبرنامج مغلق، وبالنقر على الإشعار يُفتح العميل المحتمل. يكفي التفعيل مرة واحدة لكل جهاز. على iPhone أضف البرنامج إلى الشاشة الرئيسية أولًا.",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-23",
     date: "2026-11-23",
     items: {

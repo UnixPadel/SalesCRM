@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { api, ApiError, UNAUTHORIZED_EVENT } from "../data/api";
 import type { User } from "../domain/types";
+import { releasePush } from "../pipeline/push";
 
 /**
  * Uygulama kabuğu durumu: oturum, tema, bildirim balonları. Veri artık burada değil; her sayfa kendi verisini
@@ -107,6 +108,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    // Oturum kapanmadan: bu tarayıcıya artık bu kişi adına anlık bildirim gitmesin.
+    await releasePush();
     try {
       await api<void>("POST", "/api/auth/logout");
     } catch {

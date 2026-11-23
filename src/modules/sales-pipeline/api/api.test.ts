@@ -223,7 +223,9 @@ describe("bildirimler", () => {
       readAt: null,
       body: { leadName: "Bildirim Test", country: "TR" },
     });
-    expect((await call("rep1", "GET", "/api/pipeline/notifications")).body).toMatchObject({ unreadCount: 0 });
+    // Başkasının bildirimi görünmez (rep1'in kendi bildirimleri olabilir: önceki testlerde ona lead atandı).
+    const others = await call<NotificationsDto>("rep1", "GET", "/api/pipeline/notifications");
+    expect(others.body.items.some((x) => x.leadId === created.body.lead.id)).toBe(false);
     expect((await call("rep1", "POST", `/api/pipeline/notifications/${n.id}/read`)).status).toBe(404);
     expect((await call("rep2", "POST", `/api/pipeline/notifications/${n.id}/read`)).status).toBe(200);
     const after = await call<NotificationsDto>("rep2", "GET", "/api/pipeline/notifications");

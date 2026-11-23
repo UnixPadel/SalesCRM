@@ -70,6 +70,41 @@ export const DICT = {
   "notif.empty": ["Bildirim yok.", "No notifications."],
   "notif.markAll": ["Tümünü okundu olarak işaretle", "Mark all as read"],
   "notif.lead_assigned": ["Yeni lead atandı: {name}", "New lead assigned: {name}"],
+  // Aynı cümleler push bildiriminde de geçer: src/modules/sales-pipeline/application/notificationText.ts.
+  "notif.lead_transferred": ["Lead size devredildi: {name}", "A lead was handed over to you: {name}"],
+  "notif.form_resubmitted": ["{name} formu tekrar doldurdu", "{name} filled in the form again"],
+  "notif.activity_due": ["İş zamanı geldi: {name}", "Task due now: {name}"],
+  "notif.activity_overdue": ["Geciken iş: {name}", "Overdue task: {name}"],
+  "notif.hot_untouched": [
+    "Sıcak lead bekliyor: {name} · {hours} saattir işlem yok",
+    "Hot lead waiting: {name} · no action for {hours} h",
+  ],
+  "notif.hot_untouched_manager": [
+    "Sıcak lead'e {hours} saattir dokunulmadı: {name}",
+    "Hot lead untouched for {hours} h: {name}",
+  ],
+  "err.push.disabled": [
+    "Anlık bildirimler bu sunucuda kapalı.",
+    "Instant notifications are turned off on this server.",
+  ],
+  "err.push.invalid_subscription": [
+    "Bu tarayıcının bildirim aboneliği kabul edilmedi.",
+    "This browser's notification subscription was not accepted.",
+  ],
+  "notif.owner": ["Sorumlu: {name}", "Owner: {name}"],
+  "notif.push.off": ["Program kapalıyken de haber verilsin", "Get notified when the app is closed too"],
+  "notif.push.on": ["Bu cihazda anlık bildirim açık", "Instant notifications are on for this device"],
+  "notif.push.enable": ["Bu Cihazda Aç", "Turn On Here"],
+  "notif.push.disable": ["Kapat", "Turn Off"],
+  "notif.push.enabled": ["Anlık bildirimler bu cihazda açıldı.", "Instant notifications are now on for this device."],
+  "notif.push.failed": [
+    "Anlık bildirim açılamadı. Biraz sonra tekrar deneyin.",
+    "Instant notifications could not be turned on. Try again shortly.",
+  ],
+  "notif.push.denied": [
+    "Tarayıcı bu site için bildirimi engellemiş. Adres çubuğundaki kilit simgesinden izin verin.",
+    "The browser is blocking notifications for this site. Allow them from the lock icon in the address bar.",
+  ],
   "notif.test": ["TEST", "TEST"],
   "lead.title": ["Lead", "Lead"],
   "lead.notFound": [

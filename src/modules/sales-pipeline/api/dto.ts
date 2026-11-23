@@ -414,12 +414,21 @@ export interface ApiErrorDto {
   details?: Record<string, unknown>;
 }
 
+export type NotificationTypeDto =
+  | "lead_assigned"
+  | "lead_transferred"
+  | "form_resubmitted"
+  | "activity_due"
+  | "activity_overdue"
+  | "hot_untouched"
+  | "hot_untouched_manager";
+
 export interface NotificationDto {
   id: string;
-  type: "lead_assigned";
+  type: NotificationTypeDto;
   leadId: string | null;
   title: string;
-  /** { leadName, company, country, source, isTest } */
+  /** { leadName, company, country, source, isTest } + türe göre { subject, activityType, hours, ownerId, fromUserId } */
   body: Record<string, unknown>;
   createdAt: string;
   readAt: string | null;
@@ -428,6 +437,12 @@ export interface NotificationDto {
 export interface NotificationsDto {
   items: NotificationDto[];
   unreadCount: number;
+}
+
+/** Web Push: sunucuda açık mı ve tarayıcının abone olurken kullanacağı açık anahtar (gizli değildir). */
+export interface PushConfigDto {
+  enabled: boolean;
+  publicKey: string;
 }
 
 /* ---------------- Faz 7b: bölge kuralları (yalnız yönetici) ---------------- */

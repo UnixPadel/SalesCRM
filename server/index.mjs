@@ -331,6 +331,30 @@ const fxRates =
     : createScheduler([fxRatesJob(salesPipeline.eurRates, salesPipeline.logger, 180 * MINUTE)], salesPipeline.logger);
 fxRates?.start();
 
+/* Zamanlı bildirimler (2026-11-23): planlı işin saati geldi / gecikti, sıcak lead'e dokunulmadı (önce sorumlusuna,
+   sonra yöneticilere). Yöneticiler: yerel Admin hesabı + kullanıcı tablosundaki aktif yöneticiler. Aynı bildirim
+   iki kez yazılmaz (user_notifications.dedupe_key), birden fazla sunucu kopyası sorun olmaz. NOTIFY_SWEEPS=0 kapatır. */
+const managerIds = async () => {
+  const rows = (await team.rows()) ?? [];
+  return [...new Set(["admin", ...rows.filter((u) => u.active && u.role === "admin").map((u) => String(u.id))])];
+};
+const notificationSweeps = salesPipeline.notificationSweeps(managerIds);
+const notifyJobs =
+  process.env.NOTIFY_SWEEPS === "0"
+    ? null
+    : createScheduler(
+        [
+          {
+            name: "notification-sweep",
+            everyMs: salesPipeline.config.notify.sweepMinutes * MINUTE,
+            runAtStart: true,
+            run: async () => void (await notificationSweeps.run()),
+          },
+        ],
+        salesPipeline.logger,
+      );
+notifyJobs?.start();
+
 /**
  * Sağlık denetimi (oturumsuz; Clever Cloud CC_HEALTH_CHECK_PATH=/health). Veritabanı yanıt vermiyorsa 503. `ok` yalnız
  * son web sitesi çekme turunun hatasız olup olmadığını söyler; kişisel veri ve sunucu adı içermez.
@@ -738,6 +762,7 @@ async function shutdown(signal) {
   adFeedback.scheduler.stop();
   sheetSync?.scheduler.stop();
   fxRates?.stop();
+  notifyJobs?.stop();
   server.close();
   await salesPipeline.close().catch(() => undefined);
   process.exit(0);

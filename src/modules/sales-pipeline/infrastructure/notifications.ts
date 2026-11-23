@@ -29,16 +29,13 @@ const COLS = "id, user_id, type, lead_id, title, body, created_at, read_at";
 export function pgNotificationStore(q: Queryable): NotificationStore {
   return {
     async insert(n) {
-      await q.query(`INSERT INTO user_notifications (${COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [
-        n.id,
-        n.userId,
-        n.type,
-        n.leadId,
-        n.title,
-        n.body,
-        n.createdAt,
-        n.readAt,
-      ]);
+      // Aynı (kişi, dedupe_key) ikinci kez yazılmaz (migration 0023, kısmi tekil indeks).
+      const r = await q.query<{ id: string }>(
+        `INSERT INTO user_notifications (${COLS}, dedupe_key) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING RETURNING id`,
+        [n.id, n.userId, n.type, n.leadId, n.title, n.body, n.createdAt, n.readAt, n.dedupeKey ?? null],
+      );
+      return r.length > 0;
     },
     async listForUser(userId, limit) {
       return (

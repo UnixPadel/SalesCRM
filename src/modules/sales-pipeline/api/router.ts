@@ -7,11 +7,13 @@ import type {
   ActivityWithLead,
   Notification,
   NotificationQueries,
+  PushSubscriptions,
   SalesPipeline,
 } from "../application";
 import { DEFAULT_EUR_RATES, QUALIFICATION_QUESTIONS, isStageCode, type EurRates } from "../domain";
 import { readLostReasons, readStageDefinitions } from "../infrastructure";
 import { registerActionLogRoutes } from "./actionLogRoutes";
+import { registerPushRoutes } from "./pushRoutes";
 import { registerAdminRoutes } from "./adminRoutes";
 import { attachmentRules, registerAttachmentRoutes } from "./attachmentRoutes";
 import { campaignRedaction } from "./campaignVisibility";
@@ -44,6 +46,8 @@ import type {
 export interface RouterDeps {
   pipeline: SalesPipeline;
   notifications: NotificationQueries;
+  /** Web Push abonelikleri; verilmezse uçlar açılmaz. */
+  push?: PushSubscriptions | undefined;
   /** İşlem günlüğü sorgusu (Yönetim > Loglar); verilmezse uç açılmaz. */
   actionLog?: ActionLogQueries | undefined;
   db: Db;
@@ -109,6 +113,7 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
   registerAttachmentRoutes(r, { pipeline, actor, sendError });
   // İşlem günlüğü (2026-11-20): yalnız izinli kişiler okur.
   if (deps.actionLog) registerActionLogRoutes(r, { actionLog: deps.actionLog, actor, sendError });
+  if (deps.push) registerPushRoutes(r, { push: deps.push, actor, sendError });
 
   r.get("/reference", async (req, res) => {
     if (!actor(req, res, false)) return;
