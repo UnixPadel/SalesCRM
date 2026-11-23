@@ -100,11 +100,14 @@ describe("kampanya görünürlüğü (2026-11-20)", () => {
     expect(actorFromSession({ userId: "7", role: "rep" })?.seesCampaign).toBe(false);
   });
 
-  it("işlem günlüğü (Loglar): varsayılan yalnız elshan.rasulov; CRM_LOG_VIEWERS değiştirir; izin aktöre geçer", () => {
+  it("işlem günlüğü (Loglar): varsayılan admin ve elshan.rasulov; CRM_LOG_VIEWERS değiştirir; izin aktöre geçer", () => {
     const v = logViewers({});
-    expect([...v]).toEqual(["elshan.rasulov"]);
+    expect([...v].sort()).toEqual(["admin", "elshan.rasulov"]);
     expect(seesCampaign({ login: "Elshan.Rasulov" }, v)).toBe(true);
-    expect(seesCampaign({ id: "admin", login: "admin" }, v)).toBe(false);
+    // Yerel Admin hesabı (kimlik "admin", giriş e-postayla da olabilir) ve tablodaki admin kullanıcısı (giriş adı "admin").
+    expect(seesCampaign({ id: "admin", login: "admin@unixpadel.com" }, v)).toBe(true);
+    expect(seesCampaign({ id: "88", login: "admin", email: "admin@unixpadel.com" }, v)).toBe(true);
+    expect(seesCampaign({ id: "32", login: "yusa", email: "yusa@unixpadel.com" }, v)).toBe(false);
     expect(seesCampaign({ login: "amro" }, logViewers({ CRM_LOG_VIEWERS: "amro, 51" }))).toBe(true);
     expect(seesCampaign({ login: "elshan.rasulov" }, logViewers({ CRM_LOG_VIEWERS: "" }))).toBe(false);
     expect(actorFromSession({ userId: "7", role: "rep", seesLogs: true })?.seesLogs).toBe(true);

@@ -70,11 +70,12 @@ export function seesCampaign(ids, viewers) {
 /**
  * İşlem günlüğünü (Yönetim > Loglar: hangi satışçı hangi lead'de ne yaptı) görebilenler. Rolden bağımsız, kişi
  * bazında: CRM_LOG_VIEWERS (virgülle: kullanıcı adı, e-posta ya da KullaniciID; büyük/küçük harf fark etmez).
- * Değişken hiç tanımlı değilse varsayılan liste geçerlidir (2026-11-20 karar). Eşleşme `seesCampaign` ile aynıdır.
+ * Değişken hiç tanımlı değilse varsayılan liste geçerlidir (2026-11-20 karar; Admin hesabı 2026-11-23 eklendi:
+ * "admin" hem yerel Admin hesabıyla hem tablodaki admin kullanıcısıyla eşleşir). Eşleşme `seesCampaign` ile aynıdır.
  * @param {Record<string, string | undefined>} env
  */
 export function logViewers(env = process.env) {
-  const raw = env.CRM_LOG_VIEWERS ?? "elshan.rasulov";
+  const raw = env.CRM_LOG_VIEWERS ?? "admin,elshan.rasulov";
   return new Set(
     String(raw)
       .split(",")
