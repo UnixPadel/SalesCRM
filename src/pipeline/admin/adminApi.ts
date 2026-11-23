@@ -108,4 +108,34 @@ export const adminApi = {
     call<MergePersonResultDto>("POST", `/persons/${enc(targetId)}/merge`, { sourceId }),
   archiveOrganization: (id: string, archived: boolean) =>
     call<OrganizationDto>("POST", `/organizations/${enc(id)}/${archived ? "archive" : "unarchive"}`),
+
+  // Geri yükleme noktaları (yalnız admin; src/bootstrap/checkpoints.ts).
+  checkpoints: () => admin<{ items: CheckpointDto[] }>("GET", "/checkpoints"),
+  checkpointPreview: (id: string) => admin<CheckpointPreviewDto>("GET", `/checkpoints/${enc(id)}`),
+  restoreCheckpoint: (id: string) => admin<CheckpointRestoreDto>("POST", `/checkpoints/${enc(id)}/restore`),
 };
+
+/** Sunucudaki `CheckpointListItem` (src/bootstrap/checkpoints.ts) ile aynı biçim. */
+export interface CheckpointDto {
+  id: string;
+  createdAt: string;
+  createdBy: string;
+  label: string;
+  source: string;
+  summary: { leads: { created: number; changed: number }; tables: Record<string, Record<string, number>> };
+  restoredAt: string | null;
+  restoredBy: string | null;
+}
+export interface CheckpointPreviewDto {
+  id: string;
+  restoredAt: string | null;
+  leads: { toDelete: number; toRevert: number };
+  changedSince: number;
+  addedSince: number;
+}
+export interface CheckpointRestoreDto {
+  deleted: number;
+  reinserted: number;
+  reverted: number;
+  keptPersons: number;
+}

@@ -6,6 +6,7 @@ import { useCrm } from "../../state/CrmContext";
 import { useErrorText } from "../hooks";
 import { adminApi } from "./adminApi";
 import { AdminWriteCtx, LoadError, useAdminCanWrite, useLoad } from "./bits";
+import { CheckpointsTab } from "./CheckpointsTab";
 import { HealthTab } from "./HealthTab";
 import { LogsTab } from "./LogsTab";
 import { MappingsTab } from "./MappingsTab";
@@ -21,10 +22,12 @@ import { TerritoriesTab } from "./TerritoriesTab";
  *
  * Loglar sekmesi (işlem günlüğü) Ürün listesinin yanındadır ve yalnız oturumu `seesLogs` olan kişiye görünür
  * (server/roles.mjs CRM_LOG_VIEWERS). Bu kişi yönetici değilse panelde yalnız Loglar sekmesini görür.
+ *
+ * Teknik > Geri yükleme noktaları (2026-11-23) yalnız `admin` rolüne görünür; pazarlama rolü de görmez.
  */
 
 const MAIN_TABS = ["territories", "products"] as const;
-const TECH_TABS = ["health", "mappings", "settings"] as const;
+const TECH_TABS = ["health", "mappings", "settings", "checkpoints"] as const;
 const TABS = [...MAIN_TABS, "logs", ...TECH_TABS] as const;
 type Tab = (typeof TABS)[number];
 const isTab = (v: string | null): v is Tab => (TABS as readonly string[]).includes(v ?? "");
@@ -46,7 +49,7 @@ export function AdminPage({ params }: { params: URLSearchParams }) {
     );
   }
   const asked = params.get("tab");
-  const allowed = isTab(asked) && (asked === "logs" ? seesLogs : panel);
+  const allowed = isTab(asked) && (asked === "logs" ? seesLogs : asked === "checkpoints" ? isAdmin : panel);
   return (
     <AdminWriteCtx.Provider value={isAdmin}>
       <AdminTabs
@@ -110,7 +113,7 @@ function AdminTabs({ tab, panel, seesLogs }: { tab: Tab; panel: boolean; seesLog
       </div>
       {isTech(tab) && (
         <div className="tabs adm-subtabs" role="tablist" aria-label={t("admin.tab.technical")}>
-          {TECH_TABS.map((k) => tabButton(k, t(`admin.tab.${k}`)))}
+          {TECH_TABS.filter((k) => k !== "checkpoints" || canWrite).map((k) => tabButton(k, t(`admin.tab.${k}`)))}
         </div>
       )}
       {!canWrite && tab !== "logs" && (
@@ -127,6 +130,8 @@ function AdminTabs({ tab, panel, seesLogs }: { tab: Tab; panel: boolean; seesLog
           <ProductsTab />
         ) : tab === "logs" ? (
           <LogsTab />
+        ) : tab === "checkpoints" ? (
+          <CheckpointsTab />
         ) : needsProviders && !data ? (
           error ? (
             <LoadError message={errText(error)} onRetry={() => void reload()} />

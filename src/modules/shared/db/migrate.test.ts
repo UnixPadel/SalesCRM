@@ -14,7 +14,7 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
   it("dosyaları sırayla uygular, ikinci çalıştırmada atlar", async () => {
     const files = readMigrations(MIGRATIONS_DIR);
     expect(files.map((f) => f.version)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
     ]);
     const first = await migrate(db, files);
     expect(first.applied).toEqual([
@@ -39,13 +39,14 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
       "0019_qualification_details",
       "0020_lead_currency",
       "0021_user_action_logs",
+      "0022_data_checkpoints",
     ]);
     const second = await migrate(db, files);
     expect(second.applied).toEqual([]);
-    expect(second.skipped).toHaveLength(21);
+    expect(second.skipped).toHaveLength(22);
   });
 
-  it("yirmi bir tablo ve seed verisi var", async () => {
+  it("yirmi üç tablo ve seed verisi var", async () => {
     const tables = (
       await db.query<{ table_name: string }>(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1",
@@ -54,6 +55,8 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
     expect(tables).toEqual([
       "activities",
       "contact_logs",
+      "data_checkpoint_rows",
+      "data_checkpoints",
       "form_field_mappings",
       "inbound_webhook_events",
       "integration_settings",

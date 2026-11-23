@@ -27,7 +27,8 @@
     "db:import-excel": "tsx scripts/import-excel.ts",
     "db:import-sheet": "tsx scripts/import-sheet.ts",
     "db:smoke": "tsx scripts/smoke-db.ts",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "db:sync-excel": "tsx scripts/sync-excel.ts"
   },
   "dependencies": {
     "express": "5.3.0",

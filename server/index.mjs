@@ -33,6 +33,7 @@ import { bootSheetSync } from "../src/bootstrap/sheetSync.ts";
 import { fxRatesJob } from "../src/bootstrap/eurRates.ts";
 import { MINUTE, createScheduler } from "../src/modules/shared/kernel/index.ts";
 import { bootAdmin } from "../src/bootstrap/admin.ts";
+import { createCheckpointRouter } from "../src/bootstrap/checkpoints.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /**
@@ -659,6 +660,17 @@ app.post("/api/sheet-sync/run", auth, async (req, res) => {
 });
 
 /* ---- yönetim paneli: okuma admin + pazarlama, değişiklik yalnız admin (server/roles.mjs) ---- */
+// Geri yükleme noktaları (toplu veri işlemlerinin geri alınması): okuma da yazma da yalnız admin.
+app.use(
+  "/api/admin/checkpoints",
+  auth,
+  createCheckpointRouter({
+    db: salesPipeline.db,
+    roleOf: (req) => req.session?.role,
+    actorIdOf: (req) => req.session?.userId || req.session?.email || "?",
+    now: () => new Date(),
+  }),
+);
 app.use("/api/admin", auth, adminAccess, adminRouter);
 
 /* Raporlar pazarlama rolüne kapalı; lead verisinin geri kalanı salt okunur (actorFromSession.readOnly). */
