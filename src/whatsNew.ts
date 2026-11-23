@@ -23,6 +23,30 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-23",
+    date: "2026-11-23",
+    items: {
+      tr: [
+        {
+          title: "Yeni yazı tipi",
+          text: "Programın yazı tipi değişti. Büyük İ harfi ve ₺ işareti artık diğer harflerle aynı görünür, tutarlar alt alta düzgün hizalanır, e-postalardaki I, l ve 1 birbirinden kolay ayrılır.",
+        },
+      ],
+      en: [
+        {
+          title: "New typeface",
+          text: "The app has a new typeface. The Turkish capital İ and the ₺ sign now match the other letters, amounts line up neatly in columns, and I, l and 1 in e-mail addresses are easier to tell apart.",
+        },
+      ],
+      ar: [
+        {
+          title: "خط جديد",
+          text: "تغيّر خط البرنامج. أصبح الحرف التركي İ وعلامة الليرة ₺ بنفس شكل باقي الحروف، وتصطف المبالغ بشكل مرتب في الأعمدة، ويسهل التمييز بين I و l و 1 في عناوين البريد الإلكتروني.",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-20",
     date: "2026-11-20",
     items: {

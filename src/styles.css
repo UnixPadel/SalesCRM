@@ -1,7 +1,8 @@
 /* =====================================================================
    Unixpadel Satış Panosu — design system
    Grid: 8pt (4pt for icon/label gaps). Type: Major Third (1.25), base 15px.
-   One typeface (Atkinson Hyperlegible) chosen for legibility at a glance.
+   One type family (IBM Plex Sans + Plex Sans Arabic): has İ and ₺, tabular figures
+   by default, and a serifed I / tailed l so e-mails and codes don't blur.
    Colours are semantic tokens; every text pair is checked to WCAG AA (scripts/contrast.mjs).
    Logical properties throughout so the layout can flip for RTL.
    ===================================================================== */
@@ -25,7 +26,7 @@
   --t-3xl: 34px;
   --lh-tight: 1.2;
   --lh-body: 1.5;
-  --f-body: "Atkinson Hyperlegible", system-ui, "Segoe UI", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, "Segoe UI", sans-serif;
   --f-mono: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
   /* shape + motion */
   --r-1: 4px;
@@ -4198,7 +4199,7 @@ select.bare {
 /* ---------------- Arabic (right-to-left) ----------------
    Yerleşim mantıksal özelliklerle yazıldığı için yön kendiliğinden döner; burada yalnız istisnalar var. */
 :root[lang="ar"] {
-  --f-body: "Atkinson Hyperlegible", "Noto Sans Arabic", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "IBM Plex Sans Arabic", "Segoe UI", system-ui, sans-serif;
 }
 /* Arap harfleri bitişik yazılır: harf aralığı bağlantıları koparır. */
 :root[lang="ar"] * {
