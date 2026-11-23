@@ -975,14 +975,10 @@
     transition: none;
   }
 }
-.th-hide,
 .ll-show-all {
   display: flex;
   align-items: center;
   gap: var(--s-2);
-}
-.th-hide {
-  border-block-end: 1px solid var(--border);
 }
 .ll-show-all {
   border-block-start: 1px solid var(--border);

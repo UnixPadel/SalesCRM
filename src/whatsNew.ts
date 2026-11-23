@@ -67,17 +67,29 @@ export const WHATS_NEW: readonly WhatsNewRelease[] = [
           title: "Yeni yazı tipi",
           text: "Programın yazı tipi değişti. Büyük İ harfi ve ₺ işareti artık diğer harflerle aynı görünür, tutarlar alt alta düzgün hizalanır, e-postalardaki I, l ve 1 birbirinden kolay ayrılır.",
         },
+        {
+          title: "Sütunu gizleme düğmesi başlıkta",
+          text: "Lead listesinde her sütun başlığında, süzgeç okunun yanında bir göz simgesi var. Tıklayınca sütun gizlenir. Bu seçenek artık süzgeç menüsünün içinde değil.",
+        },
       ],
       en: [
         {
           title: "New typeface",
           text: "The app has a new typeface. The Turkish capital İ and the ₺ sign now match the other letters, amounts line up neatly in columns, and I, l and 1 in e-mail addresses are easier to tell apart.",
         },
+        {
+          title: "Hide-column button in the header",
+          text: "In the lead list, every column header now has an eye icon next to the filter arrow. Click it to hide the column. This option is no longer inside the filter menu.",
+        },
       ],
       ar: [
         {
           title: "خط جديد",
           text: "تغيّر خط البرنامج. أصبح الحرف التركي İ وعلامة الليرة ₺ بنفس شكل باقي الحروف، وتصطف المبالغ بشكل مرتب في الأعمدة، ويسهل التمييز بين I و l و 1 في عناوين البريد الإلكتروني.",
+        },
+        {
+          title: "زر إخفاء العمود في رأس العمود",
+          text: "في قائمة العملاء المحتملين يوجد الآن رمز عين في رأس كل عمود بجانب سهم التصفية. انقر عليه لإخفاء العمود. لم يعد هذا الخيار داخل قائمة التصفية.",
         },
       ],
     },

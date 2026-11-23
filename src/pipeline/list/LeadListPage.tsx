@@ -1002,7 +1002,6 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
                                   text={f?.text}
                                   sort={dir}
                                   onSort={(d) => set({ sort: d === "asc" ? c.id : `-${c.id}` })}
-                                  {...(PINNED_COLUMNS.includes(c.id) ? {} : { onHide: () => hideCol(c) })}
                                   onApply={(v) =>
                                     set({
                                       [c.param]:
@@ -1014,6 +1013,17 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
                                     })
                                   }
                                 />
+                                {!PINNED_COLUMNS.includes(c.id) && (
+                                  <button
+                                    type="button"
+                                    className="th-btn"
+                                    aria-label={`${t(c.label)}: ${t("list.hideCol")}`}
+                                    title={t("list.hideCol")}
+                                    onClick={() => hideCol(c)}
+                                  >
+                                    <Icon name="eyeOff" size={14} />
+                                  </button>
+                                )}
                               </span>
                             </th>
                           );
