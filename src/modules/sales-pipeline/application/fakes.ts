@@ -107,12 +107,8 @@ function reposFor(s: MemoryState): Repositories {
     async list(f: LeadListFilter) {
       let rows = s.leads.filter((l) => f.includeTest || !l.isTest);
       if (f.visibleTo) {
-        const { userId, countries } = f.visibleTo;
-        rows = rows.filter(
-          (l) =>
-            l.assignedUserId === userId ||
-            (l.assignedUserId === null && (!l.country || countries.length === 0 || countries.includes(l.country))),
-        );
+        const { userId } = f.visibleTo;
+        rows = rows.filter((l) => l.assignedUserId === userId || l.assignedUserId === null);
       }
       // Çoklu değerli süzgeçler (Faz 7g): Postgres deposuyla aynı anlam (liste = bunlardan biri, boş = süzgeç yok).
       const stages = filterValues(f.stage);

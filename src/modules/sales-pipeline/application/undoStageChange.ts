@@ -1,7 +1,7 @@
 import { NotFoundError, RuleError, err, ok, type Result } from "../../shared/kernel";
 import { planUndo, type Lead, type StageCode } from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
-import { canAct, territoriesOf } from "./visibility";
+import { canAct } from "./visibility";
 
 export interface UndoStageChangeInput {
   leadId: string;
@@ -25,8 +25,7 @@ export class UndoStageChange {
     const outcome = await uow.run(async (repos): Promise<Result<UndoStageChangeResult, RuleError>> => {
       const lead = await repos.leads.findById(input.leadId);
       if (!lead) return err(new NotFoundError("Lead", input.leadId));
-      const myCountries = input.actor.isAdmin ? [] : territoriesOf(input.actor.userId, await repos.territories.all());
-      if (!canAct(lead, input.actor, myCountries)) {
+      if (!canAct(lead, input.actor)) {
         return err(new RuleError("lead.forbidden", "Bu lead başka bir satışçıya ait.", { leadId: lead.id }));
       }
       const now = clock.now();

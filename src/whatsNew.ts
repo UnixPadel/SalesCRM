@@ -23,6 +23,30 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-24-2",
+    date: "2026-11-24",
+    items: {
+      tr: [
+        {
+          title: "Ortak havuz herkese açık",
+          text: "Sorumlusu \"Ortak havuz\" olan lead'ler artık bütün satış ekibine görünür; ülkeniz ne olursa olsun. Havuzdaki bir lead'le ilgilenmek isterseniz aşamasını değiştirin ya da iletişim kaydı girin; lead size geçer ve artık havuzda görünmez.",
+        },
+      ],
+      en: [
+        {
+          title: "Shared pool visible to everyone",
+          text: 'Leads whose owner is "Shared pool" are now visible to the whole sales team, whatever your country. To work on a pool lead, change its stage or log a contact; the lead becomes yours and leaves the pool.',
+        },
+      ],
+      ar: [
+        {
+          title: "المجموعة المشتركة مرئية للجميع",
+          text: "العملاء المحتملون الذين مسؤولهم «المجموعة المشتركة» أصبحوا مرئيين الآن لفريق المبيعات بأكمله، أيًّا كانت دولتك. للعمل على عميل من المجموعة، غيّر مرحلته أو سجّل تواصلًا؛ فينتقل العميل إليك ويخرج من المجموعة.",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-24",
     date: "2026-11-24",
     items: {

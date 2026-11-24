@@ -53,3 +53,50 @@ export function planUndo(req: UndoRequest): Result<UndoPlan, RuleError> {
   }
   return ok({ changeId: last.changeId, eventIds: group.map((e) => e.id), revertTo: previous.stageCode });
 }
+
+export interface RollbackRequest {
+  /** Lead'in tüm aşama olayları (geri alınmışlar dahil), sıra önemsiz. */
+  events: readonly StageEvent[];
+  currentStage: StageCode;
+  target: StageCode;
+}
+
+export interface RollbackPlan {
+  /** Geri alınacak olay kimlikleri (hedef aşamadan sonraki bütün canlı olaylar). */
+  eventIds: string[];
+  /** O olayları üreten değişiklikler; açık otomatik takipleri de gider. */
+  changeIds: string[];
+  revertTo: StageCode;
+}
+
+/**
+ * Yönetici düzeltmesi (2026-11-24): lead daha önce geçtiği bir aşamaya süre sınırı olmadan geri çekilir; kazanılan ya
+ * da kaybedilen lead de yeniden açılır. Hedef aşamanın son canlı olayından sonraki olaylar silinmez, `undone_at` alır
+ * (10 dakikalık geri al ile aynı iz). Lead'in hiç geçmediği aşamaya geri çekme olmaz: o ileri geçiştir.
+ */
+export function planRollback(req: RollbackRequest): Result<RollbackPlan, RuleError> {
+  const live = req.events.filter((e) => !e.undoneAt).sort((a, b) => a.sequence - b.sequence);
+  const anchor = [...live].reverse().find((e) => e.stageCode === req.target);
+  if (req.target === req.currentStage || !anchor) {
+    return err(
+      new RuleError("stage.rollback_unreached", "Lead yalnız daha önce geçtiği bir aşamaya geri çekilir.", {
+        from: req.currentStage,
+        to: req.target,
+      }),
+    );
+  }
+  const later = live.filter((e) => e.sequence > anchor.sequence);
+  return ok({
+    eventIds: later.map((e) => e.id),
+    changeIds: [...new Set(later.map((e) => e.changeId))],
+    revertTo: req.target,
+  });
+}
+
+/** Yöneticinin geri çekebileceği aşamalar: lead'in canlı geçmişindeki önceki aşamalar, akış sırasıyla. */
+export function rollbackTargets(events: readonly StageEvent[], currentStage: StageCode): StageCode[] {
+  const live = events.filter((e) => !e.undoneAt).sort((a, b) => a.sequence - b.sequence);
+  const last = [...live].reverse().find((e) => e.stageCode === currentStage);
+  const before = last ? live.filter((e) => e.sequence < last.sequence) : live;
+  return [...new Set(before.map((e) => e.stageCode))].filter((s) => s !== currentStage);
+}

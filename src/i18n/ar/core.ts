@@ -150,6 +150,13 @@ export const AR_CORE = {
   "stage.backwardBlocked": `لا يمكن إعادة العميل المحتمل إلى مرحلة سابقة. إذا نقرت بالخطأ فاستخدم «تراجع» خلال ${MINUTES}.`,
   "stage.autoFill": "تلقائي",
   "stage.by": "بواسطة {who}",
+  "stage.rollback.title": "إعادة إلى مرحلة سابقة؟",
+  "stage.rollback.text":
+    "سيُعاد {lead} من «{from}» إلى «{to}». لا تُحذف قيود المراحل اللاحقة، بل تظهر في السجل على أنها «تم التراجع»، وتُزال المتابعات التلقائية المفتوحة. تبقى سجلات التواصل.",
+  "stage.rollback.confirm": "إعادة",
+  "stage.rollback.done": "أُعيد العميل المحتمل إلى «{stage}»",
+  "stage.rollback.menu": "إعادة",
+  "err.stage.rollback_unreached": "لا يمكن إعادة العميل المحتمل إلا إلى مرحلة مرّ بها من قبل.",
   "stage.undoneTag": "تم التراجع",
   "dialog.qualified.title": "هل هو مؤهَّل؟",
   "dialog.qualified.lede":

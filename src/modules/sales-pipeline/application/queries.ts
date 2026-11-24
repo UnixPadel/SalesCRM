@@ -3,6 +3,7 @@ import {
   DEFAULT_TIME_ZONE,
   aggregateContacts,
   allowedTransitions,
+  rollbackTargets,
   columnStats,
   feedbackIdentity,
   leadTracking,
@@ -28,7 +29,7 @@ import {
   type StageSummary,
 } from "../domain";
 import { currentEurRates, type Actor, type UseCaseDeps } from "./types";
-import { canSee, territoriesOf } from "./visibility";
+import { canSee } from "./visibility";
 
 /** Sıcak lead ön süzgeci (SQL); kesin tanım `isHotLead` (açık aşama da ister). */
 const hotTimelines: readonly InstallTimeline[] = ["m0_3"];
@@ -160,6 +161,8 @@ export interface LeadDetail {
   activities: Activity[];
   /** Arayüz aşama kuralını tekrar yazmaz; izinli geçişleri buradan okur. */
   allowedTransitions: readonly StageCode[];
+  /** Yalnız yönetici: lead'in daha önce geçtiği, geri çekilebileceği aşamalar; satışçıya boş. */
+  rollbackTargets: readonly StageCode[];
   /** `contactLogId`: son aşama değişikliği bir temas kaydıyla yapıldıysa o kayıt (Geri al ikisini birlikte alır). */
   undo: { available: boolean; reason?: string; untilIso?: string; contactLogId?: string | null };
 }
@@ -267,9 +270,7 @@ export class LeadQueries {
 
   async list(input: ListLeadsInput): Promise<LeadListItem[]> {
     return this.deps.uow.run(async (repos) => {
-      const visibleTo = input.actor.isAdmin
-        ? undefined
-        : { userId: input.actor.userId, countries: territoriesOf(input.actor.userId, await repos.territories.all()) };
+      const visibleTo = input.actor.isAdmin ? undefined : { userId: input.actor.userId };
       const leads = await repos.leads.list({
         visibleTo,
         stage: input.stage,
@@ -294,9 +295,7 @@ export class LeadQueries {
   async board(input: BoardInput): Promise<Board> {
     const rates = await currentEurRates(this.deps);
     return this.deps.uow.run(async (repos) => {
-      const visibleTo = input.actor.isAdmin
-        ? undefined
-        : { userId: input.actor.userId, countries: territoriesOf(input.actor.userId, await repos.territories.all()) };
+      const visibleTo = input.actor.isAdmin ? undefined : { userId: input.actor.userId };
       const leads = await withSummaries(
         repos,
         await repos.leads.list({
@@ -331,8 +330,7 @@ export class LeadQueries {
     return this.deps.uow.run(async (repos) => {
       const lead = await repos.leads.findById(leadId);
       if (!lead) return err(new NotFoundError("Lead", leadId));
-      const myCountries = actor.isAdmin ? [] : territoriesOf(actor.userId, await repos.territories.all());
-      if (!canSee(lead, actor, myCountries)) return err(new NotFoundError("Lead", leadId));
+      if (!canSee(lead, actor)) return err(new NotFoundError("Lead", leadId));
       const events = await repos.stageEvents.listByLead(lead.id);
       const activities = await repos.activities.listByLead(lead.id);
       const organization = lead.organizationId ? await repos.organizations.findById(lead.organizationId) : undefined;
@@ -379,6 +377,7 @@ export class LeadQueries {
         organization: organization ?? null,
         activities,
         allowedTransitions: allowedTransitions(lead.currentStage),
+        rollbackTargets: actor.isAdmin ? rollbackTargets(events, lead.currentStage) : [],
         undo: undo.ok
           ? {
               available: true,

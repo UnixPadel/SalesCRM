@@ -238,7 +238,7 @@ describe("Postgres repository'leri + transaction", () => {
     expect(detail.events).toHaveLength(2);
   });
 
-  it("liste ve görünürlük: ülke kuralı, havuz, arama, test lead'i", async () => {
+  it("liste ve görünürlük: bütün havuz (ülke kuralı süzmez), arama, test lead'i", async () => {
     await db.query("INSERT INTO territory_rules (country_code, assigned_user_id) VALUES ('GB', 'rep-2')");
     const mine = unwrap(await manual()).lead;
     const poolTr = unwrap(await manual({ assignedUserId: null, email: "p1@a.com", phone: "", country: "TR" })).lead;
@@ -249,7 +249,7 @@ describe("Postgres repository'leri + transaction", () => {
     const ids = async (actor: typeof REP, extra: Record<string, unknown> = {}) =>
       (await sp.queries.list({ actor, ...extra })).map((l) => l.id).sort();
     expect(await ids(REP)).toEqual([mine.id, poolGb.id, poolTr.id].sort());
-    expect(await ids({ userId: "rep-2", isAdmin: false })).toEqual([poolGb.id, theirs.id].sort());
+    expect(await ids({ userId: "rep-2", isAdmin: false })).toEqual([poolGb.id, poolTr.id, theirs.id].sort());
     expect(await ids(ADMIN)).toHaveLength(4);
     expect(await ids(ADMIN, { includeTest: true })).toHaveLength(5);
     expect(await ids(ADMIN, { search: "P3@" })).toEqual([theirs.id]);

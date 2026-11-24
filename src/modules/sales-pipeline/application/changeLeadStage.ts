@@ -6,7 +6,10 @@ import {
   PROPOSAL_FOLLOW_UP,
   followUpFor,
   impliesContact,
+  isTerminal,
+  planRollback,
   planStageChange,
+  stageIndex,
   validateStageContact,
   type Activity,
   type DomainEvent,
@@ -17,7 +20,7 @@ import {
   type ValidContact,
 } from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
-import { canAct, territoriesOf } from "./visibility";
+import { canAct } from "./visibility";
 
 export interface ChangeLeadStageInput {
   leadId: string;
@@ -49,6 +52,8 @@ export interface ChangeLeadStageResult {
   followUp: Activity | null;
   /** Aşama kapısının yazdığı temas; kapı çalışmadıysa null. */
   contact: Activity | null;
+  /** Yönetici geri çekmesi: sonraki aşama olayları geri alındı; 10 dakikalık "Geri al" bunu geri getirmez. */
+  rolledBack: boolean;
 }
 
 /**
@@ -63,13 +68,51 @@ export class ChangeLeadStage {
     const { uow, clock, ids, platforms, undoWindowMs } = this.deps;
 
     const outcome = await uow.run(
-      async (repos): Promise<Result<ChangeLeadStageResult & { domainEvents: DomainEvent[] }, RuleError>> => {
+      async (
+        repos,
+      ): Promise<Result<ChangeLeadStageResult & { domainEvents: DomainEvent[]; fromStage: StageCode }, RuleError>> => {
         const lead = await repos.leads.findById(input.leadId);
         if (!lead) return err(new NotFoundError("Lead", input.leadId));
 
-        const myCountries = input.actor.isAdmin ? [] : territoriesOf(input.actor.userId, await repos.territories.all());
-        if (!canAct(lead, input.actor, myCountries)) {
+        if (!canAct(lead, input.actor)) {
           return err(new RuleError("lead.forbidden", "Bu lead başka bir satışçıya ait.", { leadId: lead.id }));
+        }
+
+        // Yönetici geriye (ya da kapanmış lead'den önceki aşamaya) çekebilir; satışçı için kural aynı kalır.
+        const backward =
+          input.target !== lead.currentStage &&
+          (isTerminal(lead.currentStage) || stageIndex(input.target) < stageIndex(lead.currentStage));
+        if (input.actor.isAdmin && backward) {
+          const rollback = planRollback({
+            events: await repos.stageEvents.listByLead(lead.id),
+            currentStage: lead.currentStage,
+            target: input.target,
+          });
+          if (!rollback.ok) return rollback;
+          const now = clock.now();
+          await repos.stageEvents.markUndone(rollback.value.eventIds, now, input.actor.userId);
+          await repos.outbox.skipForEvents(rollback.value.eventIds, "undone");
+          // O değişikliklerle açılan, henüz yapılmamış otomatik takipler gider; gerçek temas kayıtları kalır.
+          for (const id of rollback.value.changeIds) await repos.activities.removeAutoCreatedByChange(id);
+          await repos.leads.updateStage(lead.id, rollback.value.revertTo, now);
+          return ok({
+            lead: { ...lead, currentStage: rollback.value.revertTo, updatedAt: now },
+            changeId: ids.next(),
+            events: [],
+            assignedTo: lead.assignedUserId,
+            followUp: null,
+            contact: null,
+            rolledBack: true,
+            fromStage: lead.currentStage,
+            domainEvents: rollback.value.changeIds.map((changeId) => ({
+              type: "LeadStageChangeUndone" as const,
+              leadId: lead.id,
+              changeId,
+              revertedTo: rollback.value.revertTo,
+              actorUserId: input.actor.userId,
+              occurredAt: now,
+            })),
+          });
         }
 
         const plan = planStageChange({
@@ -210,6 +253,8 @@ export class ChangeLeadStage {
           assignedTo,
           followUp,
           contact,
+          rolledBack: false,
+          fromStage: plan.value.from,
           domainEvents,
         });
       },
@@ -217,12 +262,15 @@ export class ChangeLeadStage {
 
     if (!outcome.ok) return outcome;
     await this.deps.events.publish(outcome.value.domainEvents);
-    const moved = outcome.value.domainEvents.find((e) => e.type === "LeadStageChanged");
     await this.deps.actions?.record({
       actor: input.actor,
       action: "stage.changed",
       lead: outcome.value.lead,
-      details: { from: moved?.type === "LeadStageChanged" ? moved.from : null, to: outcome.value.lead.currentStage },
+      details: {
+        from: outcome.value.fromStage,
+        to: outcome.value.lead.currentStage,
+        ...(outcome.value.rolledBack ? { rolledBack: true } : {}),
+      },
     });
     this.deps.logger.info("aşama değişti", {
       leadId: outcome.value.lead.id,
@@ -231,7 +279,7 @@ export class ChangeLeadStage {
       events: outcome.value.events.length,
       actorUserId: input.actor.userId,
     });
-    const { domainEvents: _d, ...result } = outcome.value;
+    const { domainEvents: _d, fromStage: _f, ...result } = outcome.value;
     return ok(result);
   }
 }

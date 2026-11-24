@@ -15,7 +15,7 @@ import {
 } from "../domain";
 import { requireAdmin } from "./permissions";
 import type { Actor, UseCaseDeps } from "./types";
-import { loadActionableLead as visibleLead, territoriesOf } from "./visibility";
+import { loadActionableLead as visibleLead } from "./visibility";
 
 /**
  * Aktiviteler (Faz 6a). Aşamayı değiştirmezler; yalnız lead'in yapılacaklarını tutarlar. Yetki lead'inkiyle
@@ -195,9 +195,7 @@ export class ActivityQueries {
    */
   async today(actor: Actor): Promise<TodayResult> {
     return this.deps.uow.run(async (repos) => {
-      const visibleTo = actor.isAdmin
-        ? undefined
-        : { userId: actor.userId, countries: territoriesOf(actor.userId, await repos.territories.all()) };
+      const visibleTo = actor.isAdmin ? undefined : { userId: actor.userId };
       const leads = await repos.leads.list({ visibleTo, includeTest: true });
       const byId = new Map(leads.map((l) => [l.id, l]));
       const open = await repos.activities.listOpenByLeads([...byId.keys()]);

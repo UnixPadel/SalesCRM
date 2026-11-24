@@ -14,7 +14,6 @@ import {
 } from "../domain";
 import { parseDayRange } from "./contactQueries";
 import { currentEurRates, type Actor, type UseCaseDeps } from "./types";
-import { territoriesOf } from "./visibility";
 
 export interface ReportInputDto {
   actor: Actor;
@@ -71,9 +70,7 @@ export class ReportQueries {
     const months = Math.min(36, Math.max(1, Math.floor(input.months ?? 12)));
     const rates = await currentEurRates(this.deps);
     return this.deps.uow.run(async (repos) => {
-      const visibleTo = input.actor.isAdmin
-        ? undefined
-        : { userId: input.actor.userId, countries: territoriesOf(input.actor.userId, await repos.territories.all()) };
+      const visibleTo = input.actor.isAdmin ? undefined : { userId: input.actor.userId };
       const leads = await repos.leads.list({ visibleTo, includeTest: false });
       const events = await repos.stageEvents.listByLeads(leads.map((l) => l.id));
       return buildReport({
@@ -99,9 +96,7 @@ export class ReportQueries {
     const teamIds = input.actor.isAdmin ? ((await this.deps.team?.activeSalesUserIds()) ?? null) : null;
     const now = this.deps.clock.now();
     return this.deps.uow.run(async (repos) => {
-      const visibleTo = input.actor.isAdmin
-        ? undefined
-        : { userId: input.actor.userId, countries: territoriesOf(input.actor.userId, await repos.territories.all()) };
+      const visibleTo = input.actor.isAdmin ? undefined : { userId: input.actor.userId };
       const visible = await repos.leads.list({ visibleTo, includeTest: false });
       const owner =
         input.owner === undefined || input.owner === "" ? undefined : input.owner === "pool" ? null : input.owner;

@@ -196,6 +196,18 @@ export const DICT = {
   ],
   "stage.autoFill": ["otomatik", "auto"],
   "stage.by": ["{who} tarafından", "by {who}"],
+  "stage.rollback.title": ["Önceki aşamaya geri çekilsin mi?", "Move back to an earlier stage?"],
+  "stage.rollback.text": [
+    "{lead} “{from}” aşamasından “{to}” aşamasına geri çekilecek. Sonraki aşama kayıtları silinmez, geçmişte “geri alındı” olarak görünür; açık otomatik takipler kapanır. İletişim kayıtları kalır.",
+    "{lead} will move back from “{from}” to “{to}”. Later stage entries are not deleted; they show as “undone” in the history and open automatic follow-ups are removed. Contact entries stay.",
+  ],
+  "stage.rollback.confirm": ["Geri çek", "Move back"],
+  "stage.rollback.done": ["Lead “{stage}” aşamasına geri çekildi", "Lead moved back to “{stage}”"],
+  "stage.rollback.menu": ["Geri çek", "Move back"],
+  "err.stage.rollback_unreached": [
+    "Lead yalnız daha önce geçtiği bir aşamaya geri çekilebilir.",
+    "A lead can only be moved back to a stage it has already been through.",
+  ],
   "stage.undoneTag": ["geri alındı", "undone"],
   "dialog.qualified.title": ["Nitelikli mi?", "Qualified?"],
   "dialog.qualified.lede": [

@@ -990,6 +990,59 @@ describe("Kuruluşlar ve kişiler (Faz 6d)", () => {
   });
 });
 
+describe("ChangeLeadStage: yönetici geri çekmesi", () => {
+  let leadId: string;
+  beforeEach(async () => {
+    leadId = unwrap(await manual()).lead.id;
+    unwrap(await sp.changeLeadStage.execute({ leadId, target: "CONTACTED", actor: REP }));
+    unwrap(await sp.changeLeadStage.execute({ leadId, target: "PROPOSAL", actor: REP }));
+    h.events.published = [];
+  });
+
+  it("süre geçse de önceki aşamaya çeker: sonraki olaylar undone, outbox skipped, açık takip gider", async () => {
+    h.clock.advance(3 * 24 * 60 * MINUTE);
+    expect(h.uow.state.activities.filter((a) => a.autoCreated && !a.doneAt)).toHaveLength(1);
+    const r = unwrap(await sp.changeLeadStage.execute({ leadId, target: "CONTACTED", actor: ADMIN }));
+    expect(r.rolledBack).toBe(true);
+    expect(r.lead.currentStage).toBe("CONTACTED");
+    const s = h.uow.state;
+    expect(s.leads[0]?.currentStage).toBe("CONTACTED");
+    expect(s.events).toHaveLength(4);
+    expect(s.events.filter((e) => e.undoneAt).map((e) => e.stageCode)).toEqual(["QUALIFIED", "PROPOSAL"]);
+    expect(s.events.find((e) => e.stageCode === "CONTACTED")?.undoneAt).toBeNull();
+    expect(s.activities.filter((a) => a.autoCreated && !a.doneAt)).toHaveLength(0);
+    expect(h.events.published.map((e) => e.type)).toEqual(["LeadStageChangeUndone"]);
+    const detail = unwrap(await sp.queries.get(leadId, ADMIN));
+    expect(detail.rollbackTargets).toEqual(["NEW"]);
+    expect(detail.allowedTransitions).toContain("QUALIFIED");
+  });
+
+  it("satışçı için kural aynı; geçilmemiş aşamaya geri çekme olmaz", async () => {
+    const rep = await sp.changeLeadStage.execute({ leadId, target: "CONTACTED", actor: REP });
+    expect(!rep.ok && rep.error.code).toBe("stage.backward");
+    const lost = unwrap(await manual({ email: "x@example.com", phone: "0532 000 00 01" })).lead.id;
+    unwrap(
+      await sp.changeLeadStage.execute({ leadId: lost, target: "LOST", lostReasonCode: "competitor", actor: REP }),
+    );
+    const r = await sp.changeLeadStage.execute({ leadId: lost, target: "QUALIFIED", actor: ADMIN });
+    expect(!r.ok && r.error.code).toBe("stage.rollback_unreached");
+    expect(unwrap(await sp.queries.get(leadId, REP)).rollbackTargets).toEqual([]);
+  });
+
+  it("kapanmış lead yeniden açılır: Kazanıldı'dan Teklif'e", async () => {
+    unwrap(
+      await sp.changeLeadStage.execute({ leadId, target: "WON", value: { amount: 1000, currency: "EUR" }, actor: REP }),
+    );
+    const r = unwrap(await sp.changeLeadStage.execute({ leadId, target: "PROPOSAL", actor: ADMIN }));
+    expect(r.lead.currentStage).toBe("PROPOSAL");
+    expect(h.uow.state.events.filter((e) => e.undoneAt).map((e) => e.stageCode)).toEqual(["WON"]);
+    const again = unwrap(
+      await sp.changeLeadStage.execute({ leadId, target: "WON", value: { amount: 900, currency: "EUR" }, actor: REP }),
+    );
+    expect(again.lead.currentStage).toBe("WON");
+  });
+});
+
 describe("UndoStageChange", () => {
   let leadId: string;
   beforeEach(async () => {
@@ -1052,7 +1105,7 @@ describe("AssignLead", () => {
 });
 
 describe("LeadQueries", () => {
-  it("görünürlük: kendi + bölgesindeki havuz; admin hepsi; detay izinli geçişleri ve geri al durumunu verir", async () => {
+  it("görünürlük: kendi + bütün ortak havuz (bölge kuralı süzmez); admin hepsi; detay izinli geçişleri ve geri al durumunu verir", async () => {
     h.uow.state.territories.push({ countryCode: "GB", assignedUserId: "rep-2", fallbackUserId: null });
     const mine = unwrap(await manual()).lead;
     const poolTr = unwrap(await manual({ assignedUserId: null, email: "p1@a.com", phone: "", country: "TR" })).lead;
@@ -1064,8 +1117,10 @@ describe("LeadQueries", () => {
     expect(rep1).toEqual(expect.arrayContaining([mine.id, poolTr.id, poolGb.id]));
     expect(rep1).not.toContain(theirs.id);
     const rep2 = (await sp.queries.list({ actor: REP2 })).map((l) => l.id);
-    expect(rep2).toEqual(expect.arrayContaining([theirs.id, poolGb.id]));
-    expect(rep2).not.toContain(poolTr.id);
+    // rep-2 yalnız GB kuralında olsa da TR havuz lead'ini de görür ve açabilir.
+    expect(rep2).toEqual(expect.arrayContaining([theirs.id, poolGb.id, poolTr.id]));
+    expect(rep2).not.toContain(mine.id);
+    expect((await sp.queries.get(poolTr.id, REP2)).ok).toBe(true);
     expect(await sp.queries.list({ actor: ADMIN })).toHaveLength(4);
     expect(await sp.queries.list({ actor: ADMIN, includeTest: true })).toHaveLength(5);
     expect((await sp.queries.list({ actor: ADMIN, search: "p3@" })).map((l) => l.id)).toEqual([theirs.id]);

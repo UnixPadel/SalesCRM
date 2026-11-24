@@ -91,12 +91,7 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
       };
       if (!f.includeTest) where.push("is_test = false");
       if (f.visibleTo) {
-        const countries = f.visibleTo.countries.map((c) => c.toUpperCase());
-        where.push(
-          `(assigned_user_id = ${p(f.visibleTo.userId)} OR (assigned_user_id IS NULL AND (country IS NULL OR ${
-            countries.length ? `country = ANY(${p(countries)}::text[])` : "true"
-          })))`,
-        );
+        where.push(`(assigned_user_id = ${p(f.visibleTo.userId)} OR assigned_user_id IS NULL)`);
       }
       // Çoklu değerli süzgeçler (Faz 7g): tek değer de liste gibi işlenir; `visibleTo` yukarıda aynen kalır.
       const stages = filterValues(f.stage);

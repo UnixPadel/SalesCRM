@@ -14,7 +14,7 @@ import {
 import { requireAdmin } from "./permissions";
 import { withSummaries, type LeadListItem } from "./queries";
 import { currentEurRates, type Actor, type UseCaseDeps } from "./types";
-import { loadActionableLead, territoriesOf } from "./visibility";
+import { loadActionableLead } from "./visibility";
 
 /**
  * Kuruluşlar ve kişiler (Faz 6d). Kuruluş ve kişi kayıtları ekibin ortak defteridir: herkes görür; **yalnız yönetici
@@ -240,9 +240,7 @@ export class PeopleQueries {
   constructor(private readonly deps: UseCaseDeps) {}
 
   private async visibleLeads(repos: Repositories, actor: Actor, extra: { search?: string; limit?: number } = {}) {
-    const visibleTo = actor.isAdmin
-      ? undefined
-      : { userId: actor.userId, countries: territoriesOf(actor.userId, await repos.territories.all()) };
+    const visibleTo = actor.isAdmin ? undefined : { userId: actor.userId };
     return repos.leads.list({ visibleTo, includeTest: false, search: extra.search, limit: extra.limit });
   }
 

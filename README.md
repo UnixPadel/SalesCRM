@@ -30,7 +30,7 @@ Lead'ler, aşamalar ve aşama geçmişi `src/modules/sales-pipeline` altında, P
   (olay silinmez, `undone_at` alır; outbox satırları `skipped` olur).
 - Aşama değişikliği + aşama olayı + etkin platform başına outbox satırı **tek transaction**. Faz 1'de
   platform yok (`ENABLED_PROVIDERS` boş), outbox satırı yazılmaz.
-- Satışçı kendi lead'lerini ve bölgesindeki (ülke kuralı) havuz lead'lerini görür; havuzdaki lead'i
+- Satışçı kendi lead'lerini ve bütün ortak havuzu görür (ülke kuralı süzmez); havuzdaki lead'i
   değiştiren onu üstlenir. Admin hepsini görür ve atar; görüntüleyici salt okunur.
 - Mükerrer kişi: aynı normalize e-posta ya da E.164 telefon → aynı kişiye bağlı yeni lead.
 - Görünen adlar ve kayıp nedenleri `stage_definitions` / `lost_reasons` tablolarından (TR/EN); dil
@@ -294,7 +294,7 @@ Faz 2: `INBOX_ENCRYPTION_KEY`, `META_*`, `GOOGLE_LEAD_FORM_KEY`, `SMTP_*`, `PUBL
 
 - **Admin:** tüm lead'leri görür (pano filtresi "Tüm sorumlular"), her lead'in aşamasını, sorumlusunu ve
   alanlarını değiştirir. Sunucu da bunu uygular (403).
-- **Satışçı:** kendi lead'leri + ortak havuz (bölge kuralına göre). Başkasının lead'ini görmez; havuzdakini üstlenir.
+- **Satışçı:** kendi lead'leri + bütün ortak havuz (ülkeye göre süzülmez). Başkasının lead'ini görmez; havuzdakini üstlenir.
 - **Görüntüleyici:** her şeyi okur, hiçbir şeyi değiştiremez.
 - **Pazarlama:** lead'leri, panoyu ve kişileri salt okunur görür; Raporlar kapalı; Yönetim panelini görür ama
   değiştiremez (`server/roles.mjs`, sunucu 403 ile uygular). Tablodaki rolü ne olursa olsun `CRM_MARKETING_USERS`

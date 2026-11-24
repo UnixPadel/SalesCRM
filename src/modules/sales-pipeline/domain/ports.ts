@@ -17,8 +17,8 @@ import type { StageCode } from "./stage";
  * başlık menüleri); liste "bunlardan biri" demektir, boş liste süzgeç yok demektir (`filterValues`, filter.ts).
  */
 export interface LeadListFilter {
-  /** Satışçı görünürlüğü: bu kullanıcıya atanmış + havuz; undefined = hepsi (admin). */
-  visibleTo?: { userId: string; countries: readonly string[] } | undefined;
+  /** Satışçı görünürlüğü: bu kullanıcıya atanmış + bütün ortak havuz (ülkeye göre süzülmez); undefined = hepsi (admin). */
+  visibleTo?: { userId: string } | undefined;
   stage?: StageCode | readonly StageCode[] | undefined;
   /** Sorumlu: kullanıcı kimliği; null = ortak havuz; listede null havuzu kapsar; undefined = hepsi. */
   owner?: string | null | readonly (string | null)[] | undefined;

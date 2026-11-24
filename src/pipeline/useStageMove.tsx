@@ -1,4 +1,5 @@
 import { useCallback, useState, type ReactNode } from "react";
+import { Button, Modal } from "../components/ui";
 import { refName, useLang } from "../i18n";
 import type {
   ActivityTypeDto,
@@ -48,6 +49,8 @@ export function useStageMove(
   const [saving, setSaving] = useState(false);
   // Aşama penceresinde seçilen dosyalar; aşama değişince lead'e yüklenir (2026-11-19).
   const [files, setFiles] = useState<File[]>([]);
+  // Yönetici geri çekmesi (2026-11-24): onay penceresi; ek bilgi istenmez.
+  const [back, setBack] = useState<{ lead: LeadDto; target: StageCodeDto } | null>(null);
 
   const submit = useCallback(
     async (lead: LeadDto, body: ChangeStageBody, attach: readonly File[] = []): Promise<boolean> => {
@@ -104,8 +107,51 @@ export function useStageMove(
     [submit, ref],
   );
 
+  const stageName = (code: StageCodeDto) => {
+    const s = ref?.stages.find((x) => x.code === code);
+    return s ? refName(lang, "stage", s) : code;
+  };
+
+  /** Yalnız yönetici: lead'i daha önce geçtiği bir aşamaya geri çeker (sunucu aynı kuralı uygular). */
+  const rollback = useCallback((lead: LeadDto, target: StageCodeDto) => {
+    if (lead.currentStage !== target) setBack({ lead, target });
+  }, []);
+
+  const confirmRollback = async () => {
+    if (!back) return;
+    setSaving(true);
+    try {
+      const r = await pipelineApi.changeStage(back.lead.id, { target: back.target });
+      toast(t("stage.rollback.done", { stage: stageName(back.target) }));
+      setBack(null);
+      onChanged(r.lead);
+    } catch (e) {
+      toast(errText(e), { bad: true });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   let dialog: ReactNode = null;
-  if (pending && ref) {
+  if (back) {
+    dialog = (
+      <Modal title={t("stage.rollback.title")} onClose={() => setBack(null)} width={440}>
+        <p>
+          {t("stage.rollback.text", {
+            lead: back.lead.fullName,
+            from: stageName(back.lead.currentStage),
+            to: stageName(back.target),
+          })}
+        </p>
+        <div className="modal-actions">
+          <Button onClick={() => setBack(null)}>{t("common.cancel")}</Button>
+          <Button variant="pri" loading={saving} onClick={() => void confirmRollback()}>
+            {t("stage.rollback.confirm")}
+          </Button>
+        </div>
+      </Modal>
+    );
+  } else if (pending && ref) {
     const close = () => setPending(null);
     const confirm = async (body: ChangeStageBody) => {
       const full: ChangeStageBody = pending.needContact
@@ -167,5 +213,5 @@ export function useStageMove(
       );
   }
 
-  return { move, dialog, saving };
+  return { move, rollback, dialog, saving };
 }

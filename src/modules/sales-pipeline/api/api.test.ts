@@ -174,6 +174,27 @@ describe("lead akışı: oluştur → aşama → geri al → kazan", () => {
     ).toBe("stage.terminal");
   });
 
+  it("POST /stage geriye: satışçı 422, yönetici kapanmış lead'i önceki aşamaya çeker", async () => {
+    const rep = await call<ApiErrorDto>("rep1", "POST", `/api/pipeline/leads/${id}/stage`, { target: "CONTACTED" });
+    expect(rep.body.code).toBe("stage.terminal");
+    const before = await call<LeadDetailDto>("admin", "GET", `/api/pipeline/leads/${id}`);
+    expect(before.body.rollbackTargets).toEqual(["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL"]);
+    const back = await call<{ lead: LeadDto; rolledBack: boolean }>(
+      "admin",
+      "POST",
+      `/api/pipeline/leads/${id}/stage`,
+      {
+        target: "CONTACTED",
+      },
+    );
+    expect(back.status).toBe(200);
+    expect(back.body.rolledBack).toBe(true);
+    expect(back.body.lead.currentStage).toBe("CONTACTED");
+    const d = await call<LeadDetailDto>("rep1", "GET", `/api/pipeline/leads/${id}`);
+    expect(d.body.allowedTransitions).toEqual(["QUALIFIED", "PROPOSAL", "WON", "LOST"]);
+    expect(d.body.rollbackTargets).toEqual([]);
+  });
+
   it("POST /assign: satışçı havuzdan üstlenir, admin devreder; bilinmeyen lead 404", async () => {
     const pool = await call<{ lead: LeadDto }>("admin", "POST", "/api/pipeline/leads", {
       fullName: "Havuz",

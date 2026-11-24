@@ -10,7 +10,6 @@ import {
   type Lead,
 } from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
-import { territoriesOf } from "./visibility";
 
 /**
  * Temas geçmişi (Faz 7g, Excel TEMAS GEÇMİŞİ sayfası; iş emri §4.2). Görünür lead'lerin tamamlanmış aktiviteleri,
@@ -95,9 +94,7 @@ export class ContactQueries {
     const outcome: ActivityOutcome | undefined = isActivityOutcome(input.outcome) ? input.outcome : undefined;
 
     return this.deps.uow.run(async (repos) => {
-      const visibleTo = input.actor.isAdmin
-        ? undefined
-        : { userId: input.actor.userId, countries: territoriesOf(input.actor.userId, await repos.territories.all()) };
+      const visibleTo = input.actor.isAdmin ? undefined : { userId: input.actor.userId };
       const owner =
         input.owner === undefined || input.owner === "" ? undefined : input.owner === "pool" ? null : input.owner;
       const leads = await repos.leads.list({

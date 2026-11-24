@@ -29,7 +29,8 @@ import { useStageMove } from "./useStageMove";
 
 /**
  * Kanban: sütunlar aşamalardır. Sürükle-bırak aynı komutu çağırır ve aynı pencereleri açar;
- * geriye sürükleme engellenir ve nedeni tek satırla söylenir (Genel plan, satışçı arayüzü 5).
+ * satışçı için geriye sürükleme engellenir ve nedeni tek satırla söylenir (Genel plan, satışçı arayüzü 5). Yönetici
+ * geriye (kapanmış lead'i de) sürükleyebilir: onay penceresi açılır, sunucu lead'in geçtiği aşama mı diye bakar.
  * İzinli hedefler sunucudan değil, sabit sıradan türetilir: ileri yönlü, terminalden çıkış yok.
  *
  * Faz 6b: filtreler (sorumlu · ülke · takipsiz) URL'de taşınır ve tarayıcıda hatırlanır; kolon başlığındaki
@@ -80,7 +81,7 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
   };
 
   const onChanged = useCallback(() => reload(), [reload]);
-  const { move, dialog } = useStageMove(ref, onChanged);
+  const { move, rollback, dialog } = useStageMove(ref, onChanged);
   const contact = useLogContact(onChanged);
   const take = async (l: LeadListDto) => {
     try {
@@ -103,6 +104,14 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
   }
 
   const allowed = (from: StageCodeDto, to: StageCodeDto) => forwardStages(ref?.stages ?? [], from).includes(to);
+  // Yönetici geri çekmesi: önceki sütunlar ya da kapanmış lead'den başka herhangi bir sütun; son kararı sunucu verir.
+  const backward = (from: StageCodeDto, to: StageCodeDto) => {
+    const stages = ref?.stages ?? [];
+    const i = stages.findIndex((x) => x.code === from);
+    const j = stages.findIndex((x) => x.code === to);
+    return from !== to && i >= 0 && j >= 0 && (stages[i]!.isTerminal || j < i);
+  };
+  const droppable = (from: StageCodeDto, to: StageCodeDto) => allowed(from, to) || (isAdmin && backward(from, to));
 
   const drop = (target: StageCodeDto) => {
     const lead = dragging;
@@ -114,6 +123,10 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
   const moveTo = (lead: LeadListDto, target: StageCodeDto) => {
     if (lead.currentStage === target || !ref) return;
     if (!allowed(lead.currentStage, target)) {
+      if (isAdmin) {
+        rollback(lead, target);
+        return;
+      }
       toast(t("stage.backwardBlocked", { n: ref.undoWindowMinutes }), { bad: true });
       return;
     }
@@ -256,7 +269,7 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
             {ref.stages.map((s, stageIdx) => {
               const cards = board.leads.filter((l) => l.currentStage === s.code);
               const st = statsOf(s.code);
-              const canDrop = dragging ? allowed(dragging.currentStage, s.code) : false;
+              const canDrop = dragging ? droppable(dragging.currentStage, s.code) : false;
               const blocked = dragging ? !canDrop && dragging.currentStage !== s.code : false;
               return (
                 <div
@@ -303,7 +316,7 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
                       <article
                         key={l.id}
                         className={"card kb-card" + (dragging?.id === l.id ? " dragging" : "")}
-                        draggable={!isViewer && !s.isTerminal}
+                        draggable={!isViewer && (!s.isTerminal || isAdmin)}
                         tabIndex={0}
                         onDragStart={(e) => {
                           e.dataTransfer.effectAllowed = "move";
@@ -399,7 +412,7 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
                               <Icon name="warn" size={13} /> {openWarnings(l.warnings).length}
                             </span>
                           )}
-                          {!isViewer && !s.isTerminal && (
+                          {!isViewer && (!s.isTerminal || isAdmin) && (
                             <label
                               className="kb-move"
                               title={t("board.moveTo")}
@@ -414,7 +427,7 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
                               >
                                 <option value="">{t("board.moveTo")}</option>
                                 {ref.stages
-                                  .filter((x) => allowed(s.code, x.code))
+                                  .filter((x) => droppable(s.code, x.code))
                                   .map((x) => (
                                     <option key={x.code} value={x.code}>
                                       {refName(lang, "stage", x)}

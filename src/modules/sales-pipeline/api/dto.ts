@@ -287,6 +287,8 @@ export interface LeadDetailDto {
   events: StageEventDto[];
   activities: ActivityDto[];
   allowedTransitions: StageCodeDto[];
+  /** Yalnız yönetici: geri çekilebilecek önceki aşamalar. */
+  rollbackTargets: StageCodeDto[];
   /** `contactLogId`: son aşama değişikliği temas kaydıyla yapıldıysa o kayıt; Geri al ikisini birlikte alır. */
   undo: { available: boolean; reason?: string; untilIso?: string; contactLogId?: string | null };
   /** Geri alınabilir temas kayıtları (Faz 7g). */

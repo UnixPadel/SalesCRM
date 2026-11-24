@@ -114,7 +114,7 @@ export {
   type ListActionsInput,
   type RecordActionInput,
 } from "./actionLog";
-export { canAct, canSee, loadActionableLead, territoriesOf } from "./visibility";
+export { canAct, canSee, loadActionableLead } from "./visibility";
 export {
   ADMIN_ONLY,
   REP_EDITABLE_LEAD_FIELDS,

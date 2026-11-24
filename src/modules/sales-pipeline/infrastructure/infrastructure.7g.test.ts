@@ -442,8 +442,8 @@ describe("Faz 7g: çoklu değerli list süzgeci (Postgres = bellek içi sahte)",
       expect(pg, label).toEqual(expected);
       expect(fake, label).toEqual(expected);
     }
-    // Görünürlük süzgeci bugünkü gibi: kendi + bütün havuz (kural yokken).
-    const visible = { visibleTo: { userId: "rep-1", countries: [] as string[] } };
+    // Görünürlük süzgeci: kendi + bütün havuz (ülkeye göre süzülmez).
+    const visible = { visibleTo: { userId: "rep-1" } };
     expect(names(pgIds, await uow.run((r) => r.leads.list(visible)))).toEqual(["a", "c", "d"]);
     expect(names(memIds, await mem.run((r) => r.leads.list(visible)))).toEqual(["a", "c", "d"]);
   });

@@ -58,7 +58,7 @@ export function LeadPage({ id }: { id: string }) {
       null,
     [detail],
   );
-  const { move, dialog, saving } = useStageMove(ref, onChanged, { lastValue });
+  const { move, rollback, dialog, saving } = useStageMove(ref, onChanged, { lastValue });
   const reloadAll = useCallback(() => {
     reload();
     reloadAttachments();
@@ -101,7 +101,7 @@ export function LeadPage({ id }: { id: string }) {
     );
   }
 
-  const { lead, organization, events, activities, allowedTransitions, undo, contactLogs } = detail;
+  const { lead, organization, events, activities, allowedTransitions, rollbackTargets, undo, contactLogs } = detail;
   const openActs = activities.filter((a) => a.doneAt === null);
   const doneActs = activities
     .filter((a) => a.doneAt !== null)
@@ -216,7 +216,7 @@ export function LeadPage({ id }: { id: string }) {
               {t("contact.log")}
             </Button>
           )}
-          {canAct && allowedTransitions.length > 0 ? (
+          {canAct && (allowedTransitions.length > 0 || rollbackTargets.length > 0) ? (
             <>
               <details
                 className="menu-dd"
@@ -240,6 +240,19 @@ export function LeadPage({ id }: { id: string }) {
                       }}
                     >
                       {stageName(s)}
+                    </button>
+                  ))}
+                  {/* Yalnız yönetici: lead'in daha önce geçtiği aşamalar, en yakını üstte. */}
+                  {[...rollbackTargets].reverse().map((s: StageCodeDto) => (
+                    <button
+                      key={`back-${s}`}
+                      className="menu-item"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        rollback(lead, s);
+                      }}
+                    >
+                      <Icon name="reset" size={14} /> {t("stage.rollback.menu")}: {stageName(s)}
                     </button>
                   ))}
                 </div>

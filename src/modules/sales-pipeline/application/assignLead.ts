@@ -1,7 +1,7 @@
 import { NotFoundError, RuleError, err, ok, type Result } from "../../shared/kernel";
 import type { Lead } from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
-import { canSee, territoriesOf } from "./visibility";
+import { canSee } from "./visibility";
 
 export interface AssignLeadInput {
   leadId: string;
@@ -22,8 +22,7 @@ export class AssignLead {
     const outcome = await uow.run(async (repos): Promise<Result<{ lead: Lead; from: string | null }, RuleError>> => {
       const lead = await repos.leads.findById(input.leadId);
       if (!lead) return err(new NotFoundError("Lead", input.leadId));
-      const myCountries = input.actor.isAdmin ? [] : territoriesOf(input.actor.userId, await repos.territories.all());
-      if (!canSee(lead, input.actor, myCountries)) {
+      if (!canSee(lead, input.actor)) {
         return err(new RuleError("lead.forbidden", "Bu lead başka bir satışçıya ait.", { leadId: lead.id }));
       }
       if (!input.actor.isAdmin) {
