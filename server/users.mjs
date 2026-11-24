@@ -7,6 +7,11 @@ export const USERS = [
   { name: "Salah", emails: ["export3@unixpadel.com"], role: "rep" },
   { name: "Yuşa", emails: ["yusa@unixpadel.com", "yusa.bedir@unixpadel.com"], role: "rep" },
   { name: "Ahlem", emails: ["export2@unixpadel.com"], role: "rep" },
+  { name: "Faruk", emails: ["balkan@unixpadel.com"], role: "rep" },
+  { name: "Mehmet", emails: ["mehmet@unixpadel.com"], role: "rep" },
+  { name: "Marius", emails: ["marius@unixpadel.com"], role: "rep" },
+  { name: "Simon", emails: ["simon@unixpadel.com"], role: "rep" },
+  { name: "Ayberk", emails: ["engineeringsupport@unixpadel.com"], role: "rep" },
 ];
 
 /** Login name → team member. Matches a full address or just its local part ("elshan" = elshan@…). */
