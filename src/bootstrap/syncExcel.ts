@@ -241,15 +241,34 @@ export async function planExcelSync(db: Db, lists: readonly SyncList[], opts: Sy
 
       // ---- Eşleştirme: önce bu listenin kimliği (yeniden çalıştırma), sonra kişi.
       const own = await uow.run((repos) => repos.leads.findByPlatformId("import", `excel:${list.name}:${r.no}`));
-      type Candidate = { id: string; created_at: unknown; email: string | null; phone_e164: string | null };
+      type Candidate = {
+        id: string;
+        created_at: unknown;
+        email: string | null;
+        phone_e164: string | null;
+        deleted: boolean;
+      };
       const found: Candidate[] = own
-        ? [{ id: own.id, created_at: own.createdAt, email: own.email, phone_e164: own.phoneE164 }]
+        ? [
+            {
+              id: own.id,
+              created_at: own.createdAt,
+              email: own.email,
+              phone_e164: own.phoneE164,
+              deleted: !!own.deletion,
+            },
+          ]
         : await db.query<Candidate>(
-            `SELECT id, created_at, email, phone_e164 FROM leads
+            `SELECT id, created_at, email, phone_e164, deleted_at IS NOT NULL AS deleted FROM leads
               WHERE NOT is_test AND ((email IS NOT NULL AND lower(email) = $1) OR (phone_e164 IS NOT NULL AND phone_e164 = $2))
               ORDER BY created_at, id`,
             [email, phone],
           );
+      // Yöneticinin sildiği lead (migration 0024): satır atlanır; ne güncellenir ne de yeniden açılır.
+      if (found.some((c) => c.deleted)) {
+        plan.reason = "lead_deleted";
+        continue;
+      }
       const candidates = found.filter((c) => !claimed.has(c.id));
 
       const derived = contactsFromRow({ ...r, no: key }, [], tz);

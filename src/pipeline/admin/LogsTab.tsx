@@ -17,7 +17,7 @@ import { LoadError, SectionHead } from "./bits";
 /** Süzgeçteki işlem grupları → işlem kodları. */
 const GROUPS: Record<string, readonly ActionTypeDto[]> = {
   stage: ["stage.changed", "stage.undone"],
-  info: ["lead.created", "lead.fields_updated", "lead.status_changed"],
+  info: ["lead.created", "lead.fields_updated", "lead.status_changed", "lead.deleted", "lead.restored"],
   contact: [
     "contact.logged",
     "contact.undone",
@@ -169,6 +169,9 @@ export function LogsTab() {
         break;
       case "attachment.deleted":
         vars["file"] = str(d["fileName"]);
+        break;
+      case "lead.deleted":
+        vars["reason"] = str(d["reason"]);
         break;
       default:
         break;

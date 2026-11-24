@@ -67,6 +67,10 @@ export interface LeadRow extends Record<string, unknown> {
   currency: string | null;
   created_at: Date | string;
   updated_at: Date | string;
+  /** Migration 0024 (lead silme). */
+  deleted_at?: Date | string | null;
+  deleted_by?: string | null;
+  delete_reason?: string | null;
 }
 
 const date = (v: Date | string): Date => (v instanceof Date ? v : new Date(v));
@@ -125,6 +129,10 @@ export function leadFromRow(r: LeadRow): Lead {
     currency: r.currency ? r.currency.trim() || null : null,
     createdAt: date(r.created_at),
     updatedAt: date(r.updated_at),
+    // Yalnız silinmiş lead'de alan bulunur; canlı lead nesnesi eskisi gibi kalır.
+    ...(r.deleted_at
+      ? { deletion: { at: date(r.deleted_at), by: r.deleted_by ?? null, reason: r.delete_reason ?? "" } }
+      : {}),
   };
 }
 

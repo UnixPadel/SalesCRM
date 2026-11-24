@@ -78,6 +78,15 @@ export {
   type DeleteAttachmentInput,
 } from "./attachments";
 export {
+  DeleteLead,
+  DeletedLeadQueries,
+  LEAD_DELETE_REASON_MIN,
+  RestoreLead,
+  validateLeadDeleteReason,
+  type DeleteLeadInput,
+  type RestoreLeadInput,
+} from "./deleteLead";
+export {
   CreateOrganization,
   PeopleQueries,
   UpdateLeadContact,
@@ -170,6 +179,7 @@ import { ContactQueries } from "./contactQueries";
 import { ContactFormQuery, LogContact, UndoLogContact } from "./contacts";
 import { CheckWarning, SetCustomerStatus } from "./leadStatus";
 import { CreateLead } from "./createLead";
+import { DeleteLead, DeletedLeadQueries, RestoreLead } from "./deleteLead";
 import { CreateOrganization, PeopleQueries, UpdateLeadContact, UpdateOrganization } from "./organizations";
 import { ArchiveOrganization, MergePersons } from "./peopleAdmin";
 import { ProductCatalog } from "./productCatalog";
@@ -213,6 +223,10 @@ export interface SalesPipeline {
   addAttachment: AddAttachment;
   deleteAttachment: DeleteAttachment;
   attachments: AttachmentQueries;
+  /** Lead silme ("çöp kutusu"), geri alma ve silinenler listesi: yalnız yönetici. */
+  deleteLead: DeleteLead;
+  restoreLead: RestoreLead;
+  deletedLeads: DeletedLeadQueries;
 }
 
 /** Modülün dışa açık yüzü: api katmanı ve diğer modüller bunu kullanır. */
@@ -248,5 +262,8 @@ export function createSalesPipeline(deps: UseCaseDeps): SalesPipeline {
     addAttachment: new AddAttachment(deps),
     deleteAttachment: new DeleteAttachment(deps),
     attachments: new AttachmentQueries(deps),
+    deleteLead: new DeleteLead(deps),
+    restoreLead: new RestoreLead(deps),
+    deletedLeads: new DeletedLeadQueries(deps),
   };
 }

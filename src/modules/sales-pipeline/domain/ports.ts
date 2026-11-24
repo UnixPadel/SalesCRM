@@ -4,7 +4,7 @@ import type { ContactAggregateRow } from "./contact";
 import type { CustomerStatus, InstallTimeline } from "./leadProfile";
 import type { TerritoryRule } from "./assignment";
 import type { DomainEvent } from "./events";
-import type { Lead, LeadAttribution, LeadConsent, LeadSource, Person, StageEvent } from "./lead";
+import type { Lead, LeadAttribution, LeadConsent, LeadDeletion, LeadSource, Person, StageEvent } from "./lead";
 import type { LeadFields } from "./opportunity";
 import type { Organization, OrganizationFields, OrganizationType } from "./organization";
 import type { CatalogImportPlan, CatalogProduct, CatalogRow } from "./products";
@@ -43,9 +43,17 @@ export interface LeadListFilter {
 }
 
 export interface LeadRepository {
+  /** Silinmiş lead gelmez (migration 0024); geri alma için `findByIdIncludingDeleted`. */
   findById(id: string): Promise<Lead | undefined>;
+  findByIdIncludingDeleted(id: string): Promise<Lead | undefined>;
+  /** Silinmiş lead de gelir (`deletion` dolu): aynı form/aktarım satırı tekrar gelince yeni kayıt açılmasın. */
   findByPlatformId(source: string, platformLeadId: string): Promise<Lead | undefined>;
+  /** Silinmiş lead gelmez. */
   list(filter: LeadListFilter): Promise<Lead[]>;
+  /** Yöneticinin "Silinenler" listesi, son silinen önce. */
+  listDeleted(): Promise<Lead[]>;
+  markDeleted(id: string, deletion: LeadDeletion, updatedAt: Date): Promise<void>;
+  restore(id: string, updatedAt: Date): Promise<void>;
   /** Faz 7d (kişi birleştirme): bir kişinin bütün lead'lerini başka kişiye bağlar; taşınan lead sayısı. */
   movePerson(fromPersonId: string, toPersonId: string, updatedAt: Date): Promise<number>;
   insert(lead: Lead): Promise<void>;

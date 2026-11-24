@@ -62,6 +62,8 @@ export interface ImportExcelReport {
     personConflicts: string[];
     renumbered: string[];
     noIdentity: string[];
+    /** Yöneticinin sildiği lead'e düşen satırlar (migration 0024): atlanır, yeniden açılmaz. */
+    deleted?: string[];
     failed: { no: string; code: string }[];
   };
   /** Bu koşuda yapılan aşama değişiklikleri (hedef aşamaya göre). */
@@ -471,12 +473,18 @@ export async function importExcel(db: Db, snap: ExcelSnapshot, opts: ImportExcel
     let lead: Lead | undefined = await uow.run((repos) =>
       repos.leads.findByPlatformId("import", `${PLATFORM_PREFIX}${r.no}`),
     );
+    let deleted = !!lead?.deletion;
     if (!lead) {
-      const byNo = await db.query<{ id: string }>(
-        "SELECT id FROM leads WHERE extra_answers->>'excel_no' = $1 LIMIT 1",
+      const byNo = await db.query<{ id: string; deleted: boolean }>(
+        "SELECT id, deleted_at IS NOT NULL AS deleted FROM leads WHERE extra_answers->>'excel_no' = $1 LIMIT 1",
         [r.no],
       );
-      if (byNo[0]) lead = await uow.run((repos) => repos.leads.findById(byNo[0]!.id));
+      if (byNo[0]?.deleted) deleted = true;
+      else if (byNo[0]) lead = await uow.run((repos) => repos.leads.findById(byNo[0]!.id));
+    }
+    if (deleted) {
+      (report.leads.deleted ??= []).push(r.no);
+      continue;
     }
     let mode: "rerun" | "enrich" | "create";
     if (lead) {

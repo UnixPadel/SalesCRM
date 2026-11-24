@@ -10,6 +10,7 @@ import { ACTIVITY_ICON, ActivityItem, AddActivityForm } from "./activityBits";
 import { PipelineError, pipelineApi } from "./api";
 import { AttachmentChips, AttachmentsPanel, useAttachments } from "./attachments/AttachmentsPanel";
 import { Age, Country, SourceBadge, StageTag } from "./bits";
+import { DeleteLeadDialog } from "./DeleteLeadDialog";
 import { LeadContactForm } from "./LeadContactForm";
 import { LeadFieldsForm } from "./LeadFieldsForm";
 import { useErrorText, useLeadDetail, useNow, useReference, useTeamNames } from "./hooks";
@@ -67,6 +68,7 @@ export function LeadPage({ id }: { id: string }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const moreRef = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const away = (e: MouseEvent) => {
@@ -261,8 +263,26 @@ export function LeadPage({ id }: { id: string }) {
           ) : allowedTransitions.length === 0 ? (
             <p className="muted">{t("stage.terminalHint")}</p>
           ) : null}
+          {/* Yalnız yönetici siler (sunucu da satışçıyı 403 ile reddeder); lead çöp kutusuna gider. */}
+          {isAdmin && (
+            <Button variant="ghost" icon="trash" onClick={() => setDeleting(true)}>
+              {t("lead.delete.button")}
+            </Button>
+          )}
         </div>
       </div>
+      {deleting && (
+        <DeleteLeadDialog
+          lead={lead}
+          errText={errText}
+          onClose={() => setDeleting(false)}
+          onDeleted={() => {
+            setDeleting(false);
+            toast(t("lead.delete.done"));
+            navigate("list");
+          }}
+        />
+      )}
 
       {isAdmin && <WarningsPanel lead={lead} onChanged={onChanged} />}
       <div className="lead-grid">

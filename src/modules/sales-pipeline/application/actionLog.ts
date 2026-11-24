@@ -21,6 +21,8 @@ export const ACTION_TYPES = [
   "activity.deleted",
   "attachment.added",
   "attachment.deleted",
+  "lead.deleted",
+  "lead.restored",
 ] as const;
 export type ActionType = (typeof ACTION_TYPES)[number];
 export const isActionType = (v: unknown): v is ActionType => (ACTION_TYPES as readonly unknown[]).includes(v);

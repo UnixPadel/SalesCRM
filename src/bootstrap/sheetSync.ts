@@ -214,6 +214,11 @@ export async function syncSheet(
     const surface = SURFACE[fold(r.platform)] ?? null;
 
     let lead: Lead | undefined = await uow.run((repos) => repos.leads.findByPlatformId("import", r.key));
+    // Yöneticinin sildiği lead (migration 0024): satır atlanır; ne güncellenir ne de yeniden açılır.
+    if (lead?.deletion) {
+      report.skipped.push({ rowNo: r.rowNo, reason: "silinmiş" });
+      continue;
+    }
     let createdNow = false;
     if (lead) report.rerun++;
     if (!lead) {

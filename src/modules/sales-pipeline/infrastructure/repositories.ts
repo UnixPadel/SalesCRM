@@ -42,7 +42,10 @@ const LEAD_COLS =
   // Migration 0020: müşteriye özel çalışma para birimi.
   "currency, created_at, updated_at";
 /** Okurken tarih sütunu metin olarak gelir (rows.ts: LeadRow.expected_close_date). */
-const LEAD_SELECT = LEAD_COLS.replace("expected_close_date", "expected_close_date::text AS expected_close_date");
+/** Okurken silme bilgisi de gelir (migration 0024); yazarken (`LEAD_COLS`) silme sütunlarına dokunulmaz. */
+const LEAD_SELECT =
+  LEAD_COLS.replace("expected_close_date", "expected_close_date::text AS expected_close_date") +
+  ", deleted_at, deleted_by, delete_reason";
 const LEAD_PLACEHOLDERS = LEAD_COLS.split(",")
   .map((c, i) => (c.trim() === "checked_warnings" ? `$${i + 1}::text[]` : `$${i + 1}`))
   .join(",");
@@ -71,8 +74,33 @@ const PERSON_COLS =
 export function pgLeadRepository(q: Queryable): LeadRepository {
   return {
     async findById(id) {
+      const r = await queryOne<LeadRow>(q, `SELECT ${LEAD_SELECT} FROM leads WHERE id = $1 AND deleted_at IS NULL`, [
+        id,
+      ]);
+      return r && leadFromRow(r);
+    },
+    async findByIdIncludingDeleted(id) {
       const r = await queryOne<LeadRow>(q, `SELECT ${LEAD_SELECT} FROM leads WHERE id = $1`, [id]);
       return r && leadFromRow(r);
+    },
+    async listDeleted() {
+      return (
+        await q.query<LeadRow>(
+          `SELECT ${LEAD_SELECT} FROM leads WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC, id`,
+        )
+      ).map(leadFromRow);
+    },
+    async markDeleted(id, d, updatedAt) {
+      await q.query(
+        "UPDATE leads SET deleted_at = $2, deleted_by = $3, delete_reason = $4, updated_at = $5 WHERE id = $1",
+        [id, d.at, d.by, d.reason, updatedAt],
+      );
+    },
+    async restore(id, updatedAt) {
+      await q.query(
+        "UPDATE leads SET deleted_at = NULL, deleted_by = NULL, delete_reason = NULL, updated_at = $2 WHERE id = $1",
+        [id, updatedAt],
+      );
     },
     async findByPlatformId(source, platformLeadId) {
       const r = await queryOne<LeadRow>(
@@ -83,7 +111,7 @@ export function pgLeadRepository(q: Queryable): LeadRepository {
       return r && leadFromRow(r);
     },
     async list(f: LeadListFilter) {
-      const where: string[] = [];
+      const where: string[] = ["deleted_at IS NULL"];
       const params: unknown[] = [];
       const p = (v: unknown) => {
         params.push(v);
@@ -418,7 +446,7 @@ export function pgStageEventRepository(q: Queryable): StageEventRepository {
              FROM lead_stage_events e JOIN leads l ON l.id = e.lead_id
             WHERE (l.source = ANY($2::text[])
                    OR (l.source = 'import' AND l.extra_answers->>'platform_source' = ANY($2::text[])))
-              AND l.is_test = false AND e.undone_at IS NULL AND e.occurred_at >= $1
+              AND l.is_test = false AND l.deleted_at IS NULL AND e.undone_at IS NULL AND e.occurred_at >= $1
             ORDER BY e.occurred_at, e.sequence`,
           [since, [...sources]],
         )

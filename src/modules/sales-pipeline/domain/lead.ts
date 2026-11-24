@@ -117,6 +117,17 @@ export interface Lead {
   contactHistoryUnknown: boolean;
   createdAt: Date;
   updatedAt: Date;
+  /**
+   * Yöneticinin silmesi (migration 0024, "çöp kutusu"): dolu = silinmiş. Silinen lead `findById` ve `list` ile gelmez;
+   * yalnız `findByPlatformId` (tekrar gelen form yeni kayıt açmasın) ve silinenler listesi döndürür.
+   */
+  deletion?: LeadDeletion | null;
+}
+
+export interface LeadDeletion {
+  at: Date;
+  by: string | null;
+  reason: string;
 }
 
 export type LeadTrackingFields = Pick<

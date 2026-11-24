@@ -7,6 +7,7 @@ import { useErrorText } from "../hooks";
 import { adminApi } from "./adminApi";
 import { AdminWriteCtx, LoadError, useAdminCanWrite, useLoad } from "./bits";
 import { CheckpointsTab } from "./CheckpointsTab";
+import { DeletedLeadsTab } from "./DeletedLeadsTab";
 import { HealthTab } from "./HealthTab";
 import { LogsTab } from "./LogsTab";
 import { MappingsTab } from "./MappingsTab";
@@ -24,11 +25,13 @@ import { TerritoriesTab } from "./TerritoriesTab";
  * (server/roles.mjs CRM_LOG_VIEWERS). Bu kişi yönetici değilse panelde yalnız Loglar sekmesini görür.
  *
  * Teknik > Geri yükleme noktaları (2026-11-23) yalnız `admin` rolüne görünür; pazarlama rolü de görmez.
+ *
+ * Silinenler (2026-11-24): yöneticinin sildiği lead'ler, geri alma düğmesiyle. Yalnız `admin` rolü görür.
  */
 
 const MAIN_TABS = ["territories", "products"] as const;
 const TECH_TABS = ["health", "mappings", "settings", "checkpoints"] as const;
-const TABS = [...MAIN_TABS, "logs", ...TECH_TABS] as const;
+const TABS = [...MAIN_TABS, "deleted", "logs", ...TECH_TABS] as const;
 type Tab = (typeof TABS)[number];
 const isTab = (v: string | null): v is Tab => (TABS as readonly string[]).includes(v ?? "");
 const isTech = (t: Tab) => (TECH_TABS as readonly string[]).includes(t);
@@ -49,7 +52,8 @@ export function AdminPage({ params }: { params: URLSearchParams }) {
     );
   }
   const asked = params.get("tab");
-  const allowed = isTab(asked) && (asked === "logs" ? seesLogs : asked === "checkpoints" ? isAdmin : panel);
+  const allowed =
+    isTab(asked) && (asked === "logs" ? seesLogs : asked === "checkpoints" || asked === "deleted" ? isAdmin : panel);
   return (
     <AdminWriteCtx.Provider value={isAdmin}>
       <AdminTabs
@@ -95,6 +99,7 @@ function AdminTabs({ tab, panel, seesLogs }: { tab: Tab; panel: boolean; seesLog
         </h1>
         <div className="tabs adm-tabs" role="tablist" aria-label={t("admin.title")}>
           {panel && MAIN_TABS.map((k) => tabButton(k, t(`admin.tab.${k}`)))}
+          {canWrite && tabButton("deleted", t("admin.tab.deleted"))}
           {seesLogs && tabButton("logs", t("admin.tab.logs"))}
           {panel && (
             <button
@@ -116,7 +121,7 @@ function AdminTabs({ tab, panel, seesLogs }: { tab: Tab; panel: boolean; seesLog
           {TECH_TABS.filter((k) => k !== "checkpoints" || canWrite).map((k) => tabButton(k, t(`admin.tab.${k}`)))}
         </div>
       )}
-      {!canWrite && tab !== "logs" && (
+      {!canWrite && tab !== "logs" && tab !== "deleted" && (
         <p className="adm-ro" role="note">
           {t("admin.readOnly")}
         </p>
@@ -132,6 +137,8 @@ function AdminTabs({ tab, panel, seesLogs }: { tab: Tab; panel: boolean; seesLog
           <LogsTab />
         ) : tab === "checkpoints" ? (
           <CheckpointsTab />
+        ) : tab === "deleted" ? (
+          <DeletedLeadsTab />
         ) : needsProviders && !data ? (
           error ? (
             <LoadError message={errText(error)} onRetry={() => void reload()} />

@@ -7,6 +7,7 @@ import type {
   BoardDto,
   ChangeStageBody,
   CreateLeadBody,
+  DeleteLeadBody,
   LeadDetailDto,
   LeadDto,
   LeadListDto,
@@ -134,6 +135,11 @@ export const pipelineApi = {
   undo: (id: string) =>
     call<{ lead: LeadDto; revertedTo: StageCodeDto }>("POST", `/leads/${encodeURIComponent(id)}/undo`),
   assign: (id: string, body: AssignBody) => call<LeadDto>("POST", `/leads/${encodeURIComponent(id)}/assign`, body),
+  // Lead silme (yalnız yönetici; "çöp kutusu", geri alınabilir).
+  deleteLead: (id: string, reason: string) =>
+    call<LeadDto>("DELETE", `/leads/${encodeURIComponent(id)}`, { reason } satisfies DeleteLeadBody),
+  restoreLead: (id: string) => call<LeadDto>("POST", `/leads/${encodeURIComponent(id)}/restore`),
+  deletedLeads: () => call<LeadDto[]>("GET", "/deleted-leads"),
   notifications: () => call<NotificationsDto>("GET", "/notifications?limit=30"),
   markRead: (id: string) => call<{ ok: true }>("POST", `/notifications/${encodeURIComponent(id)}/read`),
   markAllRead: () => call<{ marked: number }>("POST", "/notifications/read-all"),

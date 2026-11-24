@@ -66,6 +66,19 @@ export interface LeadDto {
   contactHistoryUnknown: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Yöneticinin silmesi (migration 0024); yalnız "Silinenler" listesinde dolu gelir. */
+  deletion?: LeadDeletionDto | null;
+}
+
+export interface LeadDeletionDto {
+  at: string;
+  by: string | null;
+  reason: string;
+}
+
+/** `DELETE /leads/:id` gövdesi: gerekçe zorunlu (en az 3 karakter). Yalnız yönetici. */
+export interface DeleteLeadBody {
+  reason: string;
 }
 
 /** Faz 7g kod listeleri; domain sabitleriyle eşliği `tests/types/dto-parity.test.ts` denetler. */

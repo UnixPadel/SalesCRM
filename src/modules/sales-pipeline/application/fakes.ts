@@ -97,6 +97,10 @@ export const TEST_CATALOG: readonly CatalogProduct[] = [
 function reposFor(s: MemoryState): Repositories {
   const leads: LeadRepository = {
     async findById(id) {
+      const l = s.leads.find((x) => x.id === id && !x.deletion);
+      return l ? { ...l } : undefined;
+    },
+    async findByIdIncludingDeleted(id) {
       const l = s.leads.find((x) => x.id === id);
       return l ? { ...l } : undefined;
     },
@@ -104,8 +108,22 @@ function reposFor(s: MemoryState): Repositories {
       const l = s.leads.find((x) => x.source === source && x.platformLeadId === pid);
       return l ? { ...l } : undefined;
     },
+    async listDeleted() {
+      return s.leads
+        .filter((l) => l.deletion)
+        .sort((a, b) => b.deletion!.at.getTime() - a.deletion!.at.getTime() || a.id.localeCompare(b.id))
+        .map((l) => ({ ...l }));
+    },
+    async markDeleted(id, deletion, updatedAt) {
+      const l = s.leads.find((x) => x.id === id);
+      if (l) Object.assign(l, { deletion: { ...deletion }, updatedAt });
+    },
+    async restore(id, updatedAt) {
+      const l = s.leads.find((x) => x.id === id);
+      if (l) Object.assign(l, { deletion: null, updatedAt });
+    },
     async list(f: LeadListFilter) {
-      let rows = s.leads.filter((l) => f.includeTest || !l.isTest);
+      let rows = s.leads.filter((l) => !l.deletion && (f.includeTest || !l.isTest));
       if (f.visibleTo) {
         const { userId } = f.visibleTo;
         rows = rows.filter((l) => l.assignedUserId === userId || l.assignedUserId === null);
@@ -334,7 +352,9 @@ function reposFor(s: MemoryState): Repositories {
     },
     async listSince(since, sources) {
       const leadOk = new Set(
-        s.leads.filter((l) => !l.isTest && sources.includes(feedbackIdentity(l).source)).map((l) => l.id),
+        s.leads
+          .filter((l) => !l.isTest && !l.deletion && sources.includes(feedbackIdentity(l).source))
+          .map((l) => l.id),
       );
       return s.events
         .filter((e) => leadOk.has(e.leadId) && !e.undoneAt && e.occurredAt >= since)

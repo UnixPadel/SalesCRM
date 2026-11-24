@@ -111,6 +111,23 @@ export const DICT = {
     "Lead bulunamadı ya da görüntüleme yetkiniz yok.",
     "Lead not found, or you don't have access to it.",
   ],
+  "lead.delete.button": ["Lead'i sil", "Delete lead"],
+  "lead.delete.title": ["Lead'i sil", "Delete lead"],
+  "lead.delete.lede": [
+    "{name} listeden, panodan ve raporlardan kalkacak. Geçmişi silinmez; Yönetim > Silinenler'den geri alabilirsiniz.",
+    "{name} will be removed from the list, the board and reports. Its history is kept; you can restore it from Admin > Deleted.",
+  ],
+  "lead.delete.reason": ["Silme nedeni", "Reason for deleting"],
+  "lead.delete.reasonPh": ["Ör. çift kayıt, test kaydı, yanlış kişi", "E.g. duplicate, test record, wrong person"],
+  "lead.delete.reasonHelp": [
+    "Zorunlu. Loglarda ve Silinenler listesinde görünür.",
+    "Required. Shown in the logs and the Deleted list.",
+  ],
+  "lead.delete.confirm": ["Sil", "Delete"],
+  "lead.delete.done": [
+    "Lead silindi. Yönetim > Silinenler'den geri alabilirsiniz.",
+    "Lead deleted. You can restore it from Admin > Deleted.",
+  ],
   "lead.contact": ["Kişi", "Contact"],
   "lead.project": ["Proje", "Project"],
   "lead.sourceDetail": ["Kaynak detayı", "Source details"],
@@ -426,6 +443,9 @@ export const DICT = {
   "err.not_found": ["Kayıt bulunamadı.", "Record not found."],
   "err.lead.forbidden": ["Bu lead başka bir satış temsilcisine ait.", "This lead belongs to another rep."],
   "err.admin_only": ["Bu bilgiyi yalnızca yönetici değiştirebilir.", "Only the admin can change this."],
+  "err.lead.delete_reason": ["Silme nedeni yazılmalı.", "Please write a reason for deleting."],
+  "err.lead.deleted": ["Bu lead zaten silinmiş.", "This lead has already been deleted."],
+  "err.lead.not_deleted": ["Bu lead silinmemiş.", "This lead is not deleted."],
   "err.assign.forbidden": [
     "Satış temsilcisi bir lead'i yalnızca üstlenebilir ya da havuza bırakabilir.",
     "A rep can only take a lead or release it to the pool.",

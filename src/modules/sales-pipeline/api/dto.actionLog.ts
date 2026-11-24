@@ -13,7 +13,9 @@ export type ActionTypeDto =
   | "activity.reopened"
   | "activity.deleted"
   | "attachment.added"
-  | "attachment.deleted";
+  | "attachment.deleted"
+  | "lead.deleted"
+  | "lead.restored";
 
 export interface ActionLogDto {
   id: string;

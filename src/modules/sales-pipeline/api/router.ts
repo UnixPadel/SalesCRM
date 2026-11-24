@@ -33,6 +33,7 @@ import type {
   SearchDto,
   UpdateContactBody,
   CreateLeadBody,
+  DeleteLeadBody,
   NotificationDto,
   NotificationsDto,
   ReferenceDto,
@@ -204,6 +205,26 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
     if (!a) return;
     const b = (req.body ?? {}) as UpdateLeadBody & Record<string, unknown>;
     send(res, await pipeline.updateLeadFields.execute({ leadId: String(req.params["id"]), fields: b, actor: a }));
+  });
+
+  // ---- Lead silme (2026-11-24): yalnız yönetici; kayıt "çöp kutusu"na gider, geri alınabilir (application katmanı).
+  r.delete("/leads/:id", async (req, res) => {
+    const a = actor(req, res, true);
+    if (!a) return;
+    const b = (req.body ?? {}) as Partial<DeleteLeadBody>;
+    send(res, await pipeline.deleteLead.execute({ leadId: String(req.params["id"]), actor: a, reason: b.reason }));
+  });
+
+  r.post("/leads/:id/restore", async (req, res) => {
+    const a = actor(req, res, true);
+    if (!a) return;
+    send(res, await pipeline.restoreLead.execute({ leadId: String(req.params["id"]), actor: a }));
+  });
+
+  r.get("/deleted-leads", async (req, res) => {
+    const a = actor(req, res, false);
+    if (!a) return;
+    send(res, await pipeline.deletedLeads.list(a));
   });
 
   r.patch("/leads/:id/contact", async (req, res) => {

@@ -4,8 +4,9 @@ import type { DueActivityRow, IdleHotLeadRow, SweepSource } from "../application
 /** Zamanlı bildirimlerin sorguları (application/notificationSweeps.ts). Yalnız okur. */
 const date = (v: Date | string): Date => (v instanceof Date ? v : new Date(v));
 
-/** Açık aşama, sorumlusu var, test değil. */
-const LIVE_LEAD = "l.current_stage NOT IN ('WON','LOST') AND l.assigned_user_id IS NOT NULL AND NOT l.is_test";
+/** Açık aşama, sorumlusu var, test değil, silinmemiş. */
+const LIVE_LEAD =
+  "l.current_stage NOT IN ('WON','LOST') AND l.assigned_user_id IS NOT NULL AND NOT l.is_test AND l.deleted_at IS NULL";
 
 interface LeadCols extends Record<string, unknown> {
   lead_id: string;
