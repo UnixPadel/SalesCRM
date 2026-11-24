@@ -1625,6 +1625,131 @@
   inline-size: 100%;
   margin: 0;
 }
+.fp-thumb {
+  flex: 0 0 auto;
+  inline-size: 40px;
+  block-size: 40px;
+  border-radius: var(--r-1);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.fp-thumb img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  display: block;
+}
+.fp-list .fp-remove {
+  inline-size: var(--hit-sm);
+  block-size: var(--hit-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Zorunlu ekran görüntüsü kutusu (2026-11-24): boşken vurgulu ve kesik kenarlı, dolunca sakin, hatada kırmızı.
+   Durum yalnız renkle anlatılmaz: simge, başlık ve "Zorunlu" rozeti de değişir. */
+.fp-req {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border: 2px dashed var(--brand);
+  border-radius: var(--r-3);
+  background: var(--brand-weak);
+  color: var(--text-1);
+  transition:
+    background-color var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out);
+}
+/* İsteğe bağlı (arama dışı kanallar): aynı kutu, daha sakin; rozet yok. */
+.fp-req.is-optional {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+.fp-req.is-optional .fp-req-head {
+  color: var(--text-1);
+}
+.fp-req.is-optional .fp-req-pick {
+  border-color: var(--border-strong);
+  color: var(--text-1);
+}
+.fp-req.is-over {
+  border-style: solid;
+  background: var(--info-weak);
+}
+.fp-req.is-done {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.fp-req.is-error {
+  border-color: var(--bad);
+  background: var(--bad-weak);
+}
+.fp-req-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--brand-ink);
+}
+.fp-req.is-done .fp-req-head {
+  color: var(--ok-ink);
+}
+.fp-req.is-error .fp-req-head {
+  color: var(--bad-ink);
+}
+.fp-req-title {
+  font-weight: 700;
+  font-size: var(--t-md);
+  line-height: var(--lh-tight);
+}
+.fp-req-badge {
+  margin-inline-start: auto;
+  padding: 2px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--surface-1);
+  border: 1px solid currentColor;
+  font-size: var(--t-xs);
+  font-weight: 700;
+}
+.fp-req-purpose {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--text-1);
+  max-inline-size: 60ch;
+}
+.fp-req-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+}
+.fp-req-pick {
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+.fp-req-paste {
+  font-size: var(--t-sm);
+  color: var(--text-2);
+}
+/* Yapıştırma / sürükleme ipucu yalnız fare ve klavyeli cihazda: dokunmatikte gereksiz bilgi. */
+@media (hover: none), (pointer: coarse) {
+  .fp-req-paste {
+    display: none;
+  }
+}
+.fp-req .field-h,
+.fp-req .field-err {
+  margin: 0;
+}
+.fp-req .fp-list li {
+  padding: var(--s-1) 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fp-req {
+    transition: none;
+  }
+}
 .att {
   display: flex;
   align-items: center;

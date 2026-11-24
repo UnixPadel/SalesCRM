@@ -23,6 +23,54 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-24-3",
+    date: "2026-11-24",
+    items: {
+      tr: [
+        {
+          title: "WhatsApp ve telefon kayıtlarında ekran görüntüsü zorunlu",
+          text: 'İletişim Kaydet penceresinde artık her kanalda "Ekran görüntüsü veya dosya ekleyin" bölümü var. WhatsApp ve telefon kayıtlarında en az bir dosya eklemeden kaydedemezsiniz ("Zorunlu" etiketi görünür). E-posta, toplantı ve ziyaret kayıtlarında dosya isteğe bağlıdır. Aşamayı "Nitelikli", "Teklif gönderildi", "Kazanıldı" ya da "Kaybedildi" yaparken açılan pencerede de dosya zorunludur. Kolay yol: ekran görüntüsünü alın (Windows\'ta Win+Shift+S) ve pencere açıkken Ctrl+V ile yapıştırın; dosyayı pencereye sürükleyebilir ya da "Dosya seç" ile de ekleyebilirsiniz.',
+        },
+        {
+          title: "Tek kayıt, tek görüntü",
+          text: 'İletişim kaydı aşamayı da değiştiriyorsa (örneğin "Dönüş alındı mı?" sorusuna Evet deyip "İletişim kuruldu"ya geçerken) eklediğiniz görüntü ikisi için de yeterlidir; ayrıca görüntü istenmez.',
+        },
+        {
+          title: "WhatsApp ve arama hızlı kaydı pencere açar",
+          text: 'WhatsApp bağlantısından sonra çıkan "Evet, kaydet…" ve arama bağlantısından sonra çıkan "Açmadı, kaydet…" düğmeleri artık doğrudan kaydetmez; kanalı seçili İletişim Kaydet penceresini açar. Ekran görüntüsünü ve notu ekleyip kaydedin. E-postadaki hızlı kayıt düğmesi eskisi gibi tek dokunuşla kaydeder.',
+        },
+      ],
+      en: [
+        {
+          title: "Screenshot required for WhatsApp and phone records",
+          text: 'The Log contact window now has an "Add a screenshot or file" section for every channel. For WhatsApp and phone records you can\'t save without adding at least one file (a "Required" label is shown). For email, meeting and visit records a file is optional. The window that opens when you move a stage to "Qualified", "Proposal sent", "Won" or "Lost" also requires a file. Easiest way: take the screenshot (Win+Shift+S on Windows) and press Ctrl+V while the window is open; you can also drag the file into the window or use "Choose file".',
+        },
+        {
+          title: "One record, one screenshot",
+          text: 'If a contact record also changes the stage (for example answering Yes to "Did the customer reply?" and moving to "Contacted"), the screenshot you add covers both; no second one is asked.',
+        },
+        {
+          title: "WhatsApp and call quick log open the window",
+          text: 'The "Yes, log it…" button after a WhatsApp link and the "No answer, log it…" button after a call link no longer save straight away; they open the Log contact window with the channel already chosen. Add the screenshot and a note, then save. The quick log button for emails still saves in one tap.',
+        },
+      ],
+      ar: [
+        {
+          title: "لقطة الشاشة إلزامية لسجلات واتساب والهاتف",
+          text: "أصبح في نافذة «تسجيل تواصل» قسم «أضف لقطة شاشة أو ملفًا» لكل القنوات. في سجلات واتساب والهاتف لا يمكنك الحفظ دون إضافة ملف واحد على الأقل (تظهر علامة «إلزامي»). أما في سجلات البريد الإلكتروني والاجتماعات والزيارات فالملف اختياري. والنافذة التي تُفتح عند نقل المرحلة إلى «مؤهَّل» أو «تم إرسال عرض السعر» أو «تم الفوز» أو «تمت الخسارة» تطلب ملفًا أيضًا. أسهل طريقة: التقط الشاشة (Win+Shift+S في ويندوز) ثم اضغط Ctrl+V والنافذة مفتوحة؛ ويمكنك أيضًا سحب الملف إلى النافذة أو استخدام «اختيار ملف».",
+        },
+        {
+          title: "سجل واحد، لقطة واحدة",
+          text: "إذا غيّر سجل التواصل المرحلة أيضًا (مثلًا عند الإجابة بنعم على «هل ردّ العميل؟» والانتقال إلى «تم التواصل»)، فإن لقطة الشاشة التي تضيفها تكفي للأمرين ولا تُطلب لقطة ثانية.",
+        },
+        {
+          title: "التسجيل السريع لواتساب والاتصال يفتح النافذة",
+          text: "زر «نعم، سجّل…» بعد رابط واتساب وزر «لم يردّ، سجّل…» بعد رابط الاتصال لم يعودا يحفظان مباشرةً؛ بل يفتحان نافذة «تسجيل تواصل» مع اختيار القناة مسبقًا. أضف لقطة الشاشة والملاحظة ثم احفظ. أما زر التسجيل السريع للبريد فيحفظ بنقرة واحدة كما كان.",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-24-2",
     date: "2026-11-24",
     items: {

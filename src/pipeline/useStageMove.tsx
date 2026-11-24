@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { Button, Modal } from "../components/ui";
 import { refName, useLang } from "../i18n";
 import type {
@@ -14,6 +14,7 @@ import { displayCurrency } from "../state/currency";
 import { PipelineError, pipelineApi } from "./api";
 import { uploadAll } from "./attachments/attachmentApi";
 import { FilePicker } from "./attachments/FilePicker";
+import { stageEvidenceRule } from "./contact/dialogState";
 import { useErrorText } from "./hooks";
 import {
   ContactedDialog,
@@ -47,8 +48,12 @@ export function useStageMove(
   const [pending, setPending] = useState<{ lead: LeadDto; target: StageCodeDto; needContact: boolean } | null>(null);
   const [contact, setContact] = useState<{ type: ActivityTypeDto; at: string | null }>({ type: "call", at: null });
   const [saving, setSaving] = useState(false);
-  // Aşama penceresinde seçilen dosyalar; aşama değişince lead'e yüklenir (2026-11-19).
+  // Aşama penceresinde seçilen dosyalar; aşama değişince lead'e yüklenir (2026-11-19). Dosya zorunluluğu
+  // `stageEvidenceRule` (2026-11-24): Nitelikli / Teklif / Kazanıldı / Kaybedildi'de zorunlu; aşama kapısında
+  // "İletişim kuruldu"ya geçiş temas gibi sayılır (yalnız WhatsApp ve telefonda zorunlu).
   const [files, setFiles] = useState<File[]>([]);
+  const [fileTried, setFileTried] = useState(false);
+  const fileBtn = useRef<HTMLButtonElement>(null);
   // Yönetici geri çekmesi (2026-11-24): onay penceresi; ek bilgi istenmez.
   const [back, setBack] = useState<{ lead: LeadDto; target: StageCodeDto } | null>(null);
 
@@ -59,7 +64,7 @@ export function useStageMove(
         const r = await pipelineApi.changeStage(lead.id, body);
         if (attach.length) {
           const failed = await uploadAll(lead.id, attach);
-          if (failed.length) toast(t("attach.failed", { names: failed.join(", ") }), { bad: true });
+          if (failed.length) toast(t("attach.failedSaved", { names: failed.join(", ") }), { bad: true });
         }
         const name = ref?.stages.find((s) => s.code === body.target);
         toast(t("stage.changed", { stage: name ? refName(lang, "stage", name) : body.target }), {
@@ -100,6 +105,7 @@ export function useStageMove(
         (ref?.contactStages ?? []).includes(target) && (lead as Partial<LeadListDto>).contact?.count === 0;
       if (needContact || target === "QUALIFIED" || target === "PROPOSAL" || target === "WON" || target === "LOST") {
         setFiles([]);
+        setFileTried(false);
         setContact({ type: "call", at: null });
         setPending({ lead, target, needContact });
       } else void submit(lead, { target });
@@ -153,7 +159,19 @@ export function useStageMove(
     );
   } else if (pending && ref) {
     const close = () => setPending(null);
+    const evidence = stageEvidenceRule(contact.type, pending.target);
+    const missingFile = evidence.required && !files.length;
+    // Gereken dosya yoksa gönderilmez: hata kutuda görünür, odak "Dosya seç" düğmesine gider.
+    const tryFile = () => {
+      setFileTried(true);
+      if (missingFile) {
+        fileBtn.current?.scrollIntoView({ block: "nearest" });
+        fileBtn.current?.focus();
+      }
+    };
     const confirm = async (body: ChangeStageBody) => {
+      tryFile();
+      if (missingFile) return;
       const full: ChangeStageBody = pending.needContact
         ? {
             ...body,
@@ -169,16 +187,30 @@ export function useStageMove(
     // İlk sıradaki para birimi pencerenin varsayılanıdır: lead'in çalışma para birimi, yoksa görünüm para birimi.
     const first = pending.lead.currency || displayCurrency();
     const currencies = [first, ...ref.currencies.filter((c) => c !== first)];
+    const picker = (
+      <FilePicker
+        files={files}
+        onChange={setFiles}
+        rules={ref.attachments}
+        disabled={saving}
+        boxed
+        required={evidence.required}
+        purpose={t(evidence.purposeKey)}
+        showError={fileTried}
+        buttonRef={fileBtn}
+      />
+    );
     const extra = (
       <>
         {contactFields}
-        <FilePicker files={files} onChange={setFiles} rules={ref.attachments} disabled={saving} />
+        {picker}
       </>
     );
     if (pending.target === "CONTACTED")
       dialog = (
         <ContactedDialog saving={saving} onCancel={close} onConfirm={() => void confirm({ target: "CONTACTED" })}>
           {contactFields}
+          {picker}
         </ContactedDialog>
       );
     else if (pending.target === "QUALIFIED")
@@ -188,13 +220,21 @@ export function useStageMove(
           currencies={currencies}
           saving={saving}
           extra={extra}
+          onTry={tryFile}
           onCancel={close}
           onConfirm={confirm}
         />
       );
     else if (pending.target === "PROPOSAL")
       dialog = (
-        <ProposalDialog currencies={currencies} saving={saving} extra={extra} onCancel={close} onConfirm={confirm} />
+        <ProposalDialog
+          currencies={currencies}
+          saving={saving}
+          extra={extra}
+          onTry={tryFile}
+          onCancel={close}
+          onConfirm={confirm}
+        />
       );
     else if (pending.target === "WON")
       dialog = (
@@ -203,13 +243,21 @@ export function useStageMove(
           initial={opts.lastValue?.(pending.lead) ?? null}
           saving={saving}
           extra={extra}
+          onTry={tryFile}
           onCancel={close}
           onConfirm={confirm}
         />
       );
     else
       dialog = (
-        <LostDialog reasons={ref.lostReasons} saving={saving} extra={extra} onCancel={close} onConfirm={confirm} />
+        <LostDialog
+          reasons={ref.lostReasons}
+          saving={saving}
+          extra={extra}
+          onTry={tryFile}
+          onCancel={close}
+          onConfirm={confirm}
+        />
       );
   }
 

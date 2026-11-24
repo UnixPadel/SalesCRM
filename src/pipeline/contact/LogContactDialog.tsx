@@ -13,6 +13,7 @@ import {
   buildBody,
   changeChannel,
   effectiveTarget,
+  evidenceRule,
   initialState,
   isReplyQuestion,
   nextBlocked,
@@ -37,6 +38,8 @@ export interface LogContactOpen {
   pickChannel?: boolean;
   /** Tamamlama modu (Bugün "Tamamla…", plan satırı). */
   activityId?: string | null;
+  /** Hızlı kayıt çubuğundan: kanal ve sonuç seçili gelir, odak ekran görüntüsü kutusuna gider. */
+  focus?: "file";
 }
 
 /**
@@ -74,15 +77,19 @@ export function LogContactDialog({
   const rules = ref?.contactRules;
   const nowMs = useNow(15_000);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const fileBtn = useRef<HTMLButtonElement>(null);
   const loaded = !!s;
 
   useEffect(() => {
     contactApi.form(open.leadId).then(setForm).catch(setLoadError);
   }, [open.leadId]);
-  // Pencere iskeletle açılır, odak kapat düğmesinde kalır; form gelince seçili sonuca geçer (Enter pencereyi kapatmasın).
+  // Pencere iskeletle açılır, odak kapat düğmesinde kalır; form gelince seçili sonuca (hızlı kayıttan gelindiyse
+  // ekran görüntüsü kutusuna) geçer (Enter pencereyi kapatmasın).
   useEffect(() => {
-    if (loaded) bodyRef.current?.querySelector<HTMLElement>('input[name="cd-outcome"]:checked')?.focus();
-  }, [loaded]);
+    if (!loaded) return;
+    if (open.focus === "file") fileBtn.current?.focus();
+    else bodyRef.current?.querySelector<HTMLElement>('input[name="cd-outcome"]:checked')?.focus();
+  }, [loaded, open.focus]);
   useEffect(() => {
     if (form && rules && !s) {
       const init = initialState(form, rules, {
@@ -124,7 +131,8 @@ export function LogContactDialog({
     const line = stageLineView(s, form, rules);
     const target = effectiveTarget(s, form, rules);
     const blocked = nextBlocked(s, form, rules);
-    const blockers = saveBlockers(s, form, rules, nowMs);
+    const blockers = saveBlockers(s, form, rules, nowMs, files.length);
+    const evidence = evidenceRule(s.type, target);
     const statusVisible = showsStatus(form, s, rules);
     const fromDefaults = form.defaults[s.type]?.[s.outcome]?.stage ?? null;
     const typeLabel = (x: ActivityTypeDto) => t(`activity.type.${x}`);
@@ -277,7 +285,16 @@ export function LogContactDialog({
             </span>
           )}
         </label>
-        <FilePicker files={files} onChange={setFiles} rules={ref.attachments} disabled={saving} />
+        <FilePicker
+          files={files}
+          onChange={setFiles}
+          rules={ref.attachments}
+          disabled={saving}
+          boxed
+          required={evidence.required}
+          purpose={t(evidence.purposeKey)}
+          buttonRef={fileBtn}
+        />
 
         {/* 5. Zaman ve takip özeti */}
         <div className="cd-line">
@@ -483,14 +500,14 @@ export function LogContactDialog({
 
   const save = async () => {
     if (!form || !rules || !s) return;
-    if (saveBlockers(s, form, rules, nowMs).length) return;
+    if (saveBlockers(s, form, rules, nowMs, files.length).length) return;
     setSaving(true);
     setSaveError(null);
     try {
       const r = await contactApi.log(open.leadId, buildBody(s, form, rules));
       if (files.length) {
         const failed = await uploadAll(open.leadId, files, r.activity.id);
-        if (failed.length) toast(t("attach.failed", { names: failed.join(", ") }), { bad: true });
+        if (failed.length) toast(t("attach.failedSaved", { names: failed.join(", ") }), { bad: true });
       }
       onSaved(r);
     } catch (e) {
@@ -501,7 +518,7 @@ export function LogContactDialog({
     }
   };
   const ready = !!(form && rules && s);
-  const blocked = ready && saveBlockers(s!, form!, rules!, nowMs).length > 0;
+  const blocked = ready && saveBlockers(s!, form!, rules!, nowMs, files.length).length > 0;
 
   return (
     <Modal

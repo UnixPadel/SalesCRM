@@ -51,6 +51,21 @@ export function fileProblem(file: { name: string; size: number }, rules: Attachm
   return null;
 }
 
+/**
+ * Panodan yapıştırılan adsız görüntünün adı: "ekran-goruntusu-2026-11-24-1432.png"; aynı anda birden çok dosya
+ * yapıştırıldıysa sıra eki alır ("…-1432-2.png"). Yerel saat kullanılır.
+ */
+export function pastedName(at: Date, ext: string, seq = 0): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  const stamp = `${at.getFullYear()}-${p(at.getMonth() + 1)}-${p(at.getDate())}-${p(at.getHours())}${p(at.getMinutes())}`;
+  const clean =
+    ext
+      .toLowerCase()
+      .replace(/^jpeg$/, "jpg")
+      .replace(/[^a-z0-9]/g, "") || "png";
+  return `ekran-goruntusu-${stamp}${seq ? `-${seq}` : ""}.${clean}`;
+}
+
 /** 1536 → "1,5 KB". */
 export function fileSize(bytes: number, locale: string): string {
   const units = ["B", "KB", "MB"];

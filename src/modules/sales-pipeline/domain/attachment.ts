@@ -24,8 +24,8 @@ export interface Attachment {
 
 /** Dosya başına üst sınır. */
 export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
-/** Bir lead'deki silinmemiş ek sayısı üst sınırı. */
-export const ATTACHMENT_MAX_PER_LEAD = 50;
+/** Bir lead'deki silinmemiş ek sayısı üst sınırı (2026-11-24: her temas ve aşama penceresi dosya istediği için 50 → 200). */
+export const ATTACHMENT_MAX_PER_LEAD = 200;
 export const ATTACHMENT_NAME_MAX = 200;
 export const ATTACHMENT_REASON_MIN = 3;
 export const ATTACHMENT_REASON_MAX = 500;

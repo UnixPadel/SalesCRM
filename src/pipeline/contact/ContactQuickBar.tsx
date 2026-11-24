@@ -7,7 +7,9 @@ type Kind = "whatsapp" | "email" | "call";
 
 /**
  * Telefon / WhatsApp / e-posta bağlantıları ve tıklanınca altta kalan, modal olmayan kayıt çubuğu (iş emri §5.2,
- * [U-I6]): mesajı gönderen satışçı tek dokunuşla kaydeder, Excel'de ✔ koymak gibi. Bildirim değildir, kaybolmaz.
+ * [U-I6]). Bildirim değildir, kaybolmaz. E-posta tek dokunuşla kaydedilir (Excel'de ✔ koymak gibi). WhatsApp ve
+ * telefonda ekran görüntüsü zorunlu olduğundan (2026-11-24) "Evet, kaydet…" ve "Açmadı, kaydet…" doğrudan kaydetmez:
+ * kanal ve sonuç seçili İletişim kaydet penceresini açar, odak ekran görüntüsü kutusundadır.
  */
 export function ContactLinks({
   phone,
@@ -20,8 +22,10 @@ export function ContactLinks({
   phone: string | null;
   email: string | null;
   canLog: boolean;
+  /** Pencere açmadan kaydeder (arama, e-posta). */
   onQuick: (type: ActivityTypeDto, outcome: ActivityOutcomeDto) => Promise<void> | void;
-  onDetails: (type: ActivityTypeDto, outcome: ActivityOutcomeDto) => void;
+  /** İletişim kaydet penceresini açar; `focus: "file"` odağı ekran görüntüsü kutusuna verir. */
+  onDetails: (type: ActivityTypeDto, outcome: ActivityOutcomeDto, focus?: "file") => void;
   compact?: boolean;
 }) {
   const { t } = useLang();
@@ -36,6 +40,10 @@ export function ContactLinks({
     } finally {
       setBusy(false);
     }
+  };
+  const open = (type: ActivityTypeDto, outcome: ActivityOutcomeDto, focus?: "file") => {
+    setBar(null);
+    onDetails(type, outcome, focus);
   };
   const wa = phone ? `https://wa.me/${phone.replace(/\D/g, "")}` : null;
 
@@ -86,35 +94,30 @@ export function ContactLinks({
           {bar === "call" ? (
             <>
               <span>{t("contact.quick.call")}</span>
-              <Button size="sm" loading={busy} onClick={() => run("call", "awaiting_reply")}>
+              <Button size="sm" onClick={() => open("call", "awaiting_reply", "file")}>
                 {t("contact.quick.noAnswer")}
               </Button>
-              <Button
-                size="sm"
-                variant="pri"
-                onClick={() => {
-                  setBar(null);
-                  onDetails("call", "reply_received");
-                }}
-              >
+              <Button size="sm" variant="pri" onClick={() => open("call", "reply_received")}>
                 {t("contact.quick.talked")}
               </Button>
             </>
           ) : (
             <>
               <span>{bar === "whatsapp" ? t("contact.quick.wa") : t("contact.quick.email")}</span>
-              <Button size="sm" variant="pri" loading={busy} onClick={() => run(bar, "awaiting_reply")}>
-                {t("contact.quick.yes")}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => {
-                  setBar(null);
-                  onDetails(bar, "awaiting_reply");
-                }}
-              >
-                {t("contact.quick.details")}
-              </Button>
+              {bar === "whatsapp" ? (
+                <Button size="sm" variant="pri" onClick={() => open("whatsapp", "awaiting_reply", "file")}>
+                  {t("contact.quick.yesFile")}
+                </Button>
+              ) : (
+                <>
+                  <Button size="sm" variant="pri" loading={busy} onClick={() => run(bar, "awaiting_reply")}>
+                    {t("contact.quick.yes")}
+                  </Button>
+                  <Button size="sm" onClick={() => open(bar, "awaiting_reply")}>
+                    {t("contact.quick.details")}
+                  </Button>
+                </>
+              )}
               <button type="button" className="link-btn" onClick={() => setBar(null)}>
                 {t("contact.quick.no")}
               </button>

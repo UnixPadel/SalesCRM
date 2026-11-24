@@ -506,7 +506,9 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
               email={null}
               canLog={perms.canAct}
               onQuick={(type, outcome) => editors.current?.quick(l.id, type, outcome)}
-              onDetails={(type, outcome) => editors.current?.log({ leadId: l.id, leadName: l.fullName, type, outcome })}
+              onDetails={(type, outcome, focus) =>
+                editors.current?.log({ leadId: l.id, leadName: l.fullName, type, outcome, ...(focus ? { focus } : {}) })
+              }
             />
           </span>
         );
@@ -573,7 +575,9 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
             email={l.email}
             canLog={perms.canAct}
             onQuick={(type, outcome) => editors.current?.quick(l.id, type, outcome)}
-            onDetails={(type, outcome) => editors.current?.log({ leadId: l.id, leadName: l.fullName, type, outcome })}
+            onDetails={(type, outcome, focus) =>
+              editors.current?.log({ leadId: l.id, leadName: l.fullName, type, outcome, ...(focus ? { focus } : {}) })
+            }
           />
         );
       case "mail":
@@ -902,8 +906,14 @@ export function LeadListPage({ params }: { params: URLSearchParams }) {
                   canAct={cellPerms(l, who).canAct}
                   onLog={() => editors.current?.log({ leadId: l.id, leadName: l.fullName })}
                   onQuick={(type, outcome) => editors.current?.quick(l.id, type, outcome)}
-                  onDetails={(type, outcome) =>
-                    editors.current?.log({ leadId: l.id, leadName: l.fullName, type, outcome })
+                  onDetails={(type, outcome, focus) =>
+                    editors.current?.log({
+                      leadId: l.id,
+                      leadName: l.fullName,
+                      type,
+                      outcome,
+                      ...(focus ? { focus } : {}),
+                    })
                   }
                 />
               ))}
@@ -1111,7 +1121,7 @@ function LeadCard({
   canAct: boolean;
   onLog: () => void;
   onQuick: (type: ActivityTypeDto, outcome: ActivityOutcomeDto) => Promise<void> | void;
-  onDetails: (type: ActivityTypeDto, outcome: ActivityOutcomeDto) => void;
+  onDetails: (type: ActivityTypeDto, outcome: ActivityOutcomeDto, focus?: "file") => void;
 }) {
   const { t, lang } = useLang();
   const tone = ageTone(l, now);

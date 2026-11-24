@@ -296,7 +296,15 @@ export function LeadPage({ id }: { id: string }) {
                       email={lead.email}
                       canLog={canAct}
                       onQuick={(type, outcome) => contact.quick(lead.id, type, outcome)}
-                      onDetails={(type, outcome) => logFor(type, outcome)}
+                      onDetails={(type, outcome, focus) =>
+                        contact.openDialog({
+                          leadId: lead.id,
+                          leadName: lead.fullName,
+                          type,
+                          outcome,
+                          ...(focus ? { focus } : {}),
+                        })
+                      }
                     />
                     {!isAdmin && <InlinePhoneWarnings lead={lead} />}
                   </dd>

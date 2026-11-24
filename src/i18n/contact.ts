@@ -286,10 +286,11 @@ export const CONTACT_DICT = {
   "contact.quick.wa": ["WhatsApp'ta mesaj gönderdiniz mi?", "Did you send a WhatsApp message?"],
   "contact.quick.email": ["E-posta gönderdiniz mi?", "Did you send an email?"],
   "contact.quick.yes": ["Evet, kaydet", "Yes, log it"],
+  "contact.quick.yesFile": ["Evet, kaydet…", "Yes, log it…"],
   "contact.quick.details": ["Ayrıntı ekle", "Add details"],
   "contact.quick.no": ["Göndermedim", "No, I didn't"],
   "contact.quick.call": ["Aramayı kaydedin:", "Log the call:"],
-  "contact.quick.noAnswer": ["Açmadı, kaydet", "No answer, log it"],
+  "contact.quick.noAnswer": ["Açmadı, kaydet…", "No answer, log it…"],
   "contact.quick.talked": ["Görüştük…", "We talked…"],
   "contact.callLink": ["Ara", "Call"],
 
@@ -422,6 +423,48 @@ export const CONTACT_DICT = {
     "Required. The reason is shown under the file record.",
   ],
   "attach.deleted": ["Dosya silindi.", "File deleted."],
+  // ---- Zorunlu ekran görüntüsü (2026-11-24): temas ve aşama pencereleri.
+  "attach.required.title": ["Ekran görüntüsü veya dosya ekleyin", "Add a screenshot or file"],
+  "attach.required.badge": ["Zorunlu", "Required"],
+  "attach.required.done": ["Dosya eklendi", "File added"],
+  "attach.required.pick": ["Dosya seç", "Choose file"],
+  "attach.required.paste": ["ya da Ctrl+V ile yapıştırın, buraya sürükleyin", "or paste with Ctrl+V, or drop it here"],
+  "attach.required.err": [
+    "Kaydetmek için bir ekran görüntüsü veya dosya ekleyin.",
+    "Add a screenshot or file to save.",
+  ],
+  "attach.addMore": ["Başka dosya ekle", "Add another file"],
+  "attach.purpose.whatsapp": ["WhatsApp yazışmasının ekran görüntüsü.", "A screenshot of the WhatsApp chat."],
+  "attach.purpose.call": ["Arama geçmişinin ekran görüntüsü.", "A screenshot of the call history."],
+  "attach.purpose.email": [
+    "İsteğe bağlı: gönderilen e-postanın ekran görüntüsü ya da eki.",
+    "Optional: a screenshot of the email you sent or its attachment.",
+  ],
+  "attach.purpose.contact": [
+    "İsteğe bağlı: görüşmeyi gösteren bir ekran görüntüsü ya da belge (ör. toplantı notu, ziyaret fotoğrafı).",
+    "Optional: a screenshot or document showing the contact (e.g. meeting notes, a site visit photo).",
+  ],
+  "attach.purpose.QUALIFIED": [
+    "Bütçe, yer ve kurulum zamanının konuşulduğu yazışmanın görüntüsü.",
+    "A screenshot of the conversation about budget, site and installation time.",
+  ],
+  "attach.purpose.PROPOSAL": [
+    "Gönderilen teklifin ya da teklif mesajının görüntüsü.",
+    "A screenshot of the proposal or the message you sent it with.",
+  ],
+  "attach.purpose.WON": [
+    "Müşteri onayının, siparişin ya da sözleşmenin görüntüsü.",
+    "A screenshot of the customer's approval, the order or the contract.",
+  ],
+  "attach.purpose.LOST": [
+    "Müşterinin vazgeçtiğini gösteren mesajın görüntüsü.",
+    "A screenshot of the message where the customer dropped out.",
+  ],
+  "attach.failedSaved": [
+    "Kayıt yapıldı ama dosya yüklenemedi: {names}. Lead sayfasındaki Dosya ekleri bölümünden yeniden ekleyin.",
+    "Saved, but the file couldn't be uploaded: {names}. Add it again under Attachments on the lead page.",
+  ],
+  "contact.needFile": ["Ekran görüntüsü veya dosya ekleyin", "Add a screenshot or file"],
   "err.attachment.name": ["Dosya adı gerekli.", "A file name is required."],
   "err.attachment.type": ["Bu dosya türü eklenemez.", "This file type can't be added."],
   "err.attachment.empty": ["Dosya boş ya da okunamadı.", "The file is empty or couldn't be read."],

@@ -33,6 +33,7 @@ export function QualifiedDialog({
   currencies,
   saving,
   extra,
+  onTry,
   onCancel,
   onConfirm,
 }: {
@@ -41,6 +42,8 @@ export function QualifiedDialog({
   saving: boolean;
   /** Pencerenin altına eklenen bölüm (dosya ekleme). */
   extra?: ReactNode;
+  /** Onaya basılınca pencerenin kendi denetiminden önce çağrılır: dosya hatası alan hatalarıyla birlikte görünür. */
+  onTry?: () => void;
   onCancel: () => void;
   onConfirm: (body: ChangeStageBody) => void;
 }) {
@@ -165,6 +168,7 @@ export function QualifiedDialog({
           loading={saving}
           disabled={anyNo}
           onClick={() => {
+            onTry?.();
             setTried(true);
             if (!allYes || problems.length) return;
             onConfirm({
@@ -245,6 +249,7 @@ export function ProposalDialog({
   currencies,
   saving,
   extra,
+  onTry,
   onCancel,
   onConfirm,
 }: {
@@ -252,6 +257,8 @@ export function ProposalDialog({
   saving: boolean;
   /** Pencerenin altına eklenen bölüm (dosya ekleme). */
   extra?: ReactNode;
+  /** Onaya basılınca pencerenin kendi denetiminden önce çağrılır: dosya hatası alan hatalarıyla birlikte görünür. */
+  onTry?: () => void;
   onCancel: () => void;
   onConfirm: (body: ChangeStageBody) => void;
 }) {
@@ -282,6 +289,7 @@ export function ProposalDialog({
           variant="pri"
           loading={saving}
           onClick={() => {
+            onTry?.();
             setTried(true);
             if (valid) onConfirm({ target: "PROPOSAL", value: empty ? null : { amount: n, currency } });
           }}
@@ -298,6 +306,7 @@ export function WonDialog({
   initial,
   saving,
   extra,
+  onTry,
   onCancel,
   onConfirm,
 }: {
@@ -307,6 +316,8 @@ export function WonDialog({
   saving: boolean;
   /** Pencerenin altına eklenen bölüm (dosya ekleme). */
   extra?: ReactNode;
+  /** Onaya basılınca pencerenin kendi denetiminden önce çağrılır: dosya hatası alan hatalarıyla birlikte görünür. */
+  onTry?: () => void;
   onCancel: () => void;
   onConfirm: (body: ChangeStageBody) => void;
 }) {
@@ -336,6 +347,7 @@ export function WonDialog({
           icon="trophy"
           loading={saving}
           onClick={() => {
+            onTry?.();
             setTried(true);
             if (n > 0) onConfirm({ target: "WON", value: { amount: n, currency } });
           }}
@@ -351,6 +363,7 @@ export function LostDialog({
   reasons,
   saving,
   extra,
+  onTry,
   onCancel,
   onConfirm,
 }: {
@@ -358,6 +371,8 @@ export function LostDialog({
   saving: boolean;
   /** Pencerenin altına eklenen bölüm (dosya ekleme). */
   extra?: ReactNode;
+  /** Onaya basılınca pencerenin kendi denetiminden önce çağrılır: dosya hatası alan hatalarıyla birlikte görünür. */
+  onTry?: () => void;
   onCancel: () => void;
   onConfirm: (body: ChangeStageBody) => void;
 }) {
@@ -389,6 +404,7 @@ export function LostDialog({
           variant="danger"
           loading={saving}
           onClick={() => {
+            onTry?.();
             setTried(true);
             if (code) onConfirm({ target: "LOST", lostReasonCode: code });
           }}

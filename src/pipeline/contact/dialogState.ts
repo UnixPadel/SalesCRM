@@ -218,12 +218,57 @@ export function nextBlocked(s: DialogState, form: ContactFormDto, rules: Contact
 
 const amountOk = (v: string) => /^\d+([.,]\d{1,2})?$/.test(v.trim()) && Number(v.replace(",", ".")) > 0;
 
-/** Kaydet pasifken altında yazılan gerekçeler (çeviri anahtarları). */
-export function saveBlockers(s: DialogState, form: ContactFormDto, rules: ContactRules, nowMs: number): string[] {
+/** İletişim kaydında dosyanın zorunlu olduğu kanallar (2026-11-24): WhatsApp ve telefon. */
+export const FILE_REQUIRED_CHANNELS: readonly ActivityTypeDto[] = ["whatsapp", "call"];
+
+const isLaterStage = (target: StageCodeDto | null): target is StageCodeDto =>
+  !!target && target !== "NEW" && target !== "CONTACTED";
+
+const channelPurpose = (type: ActivityTypeDto): string =>
+  type === "whatsapp" || type === "call" || type === "email" ? `attach.purpose.${type}` : "attach.purpose.contact";
+
+/**
+ * İletişim kaydının dosya kuralı (2026-11-24): kutu her kanalda görünür; yalnız WhatsApp ve telefonda zorunludur.
+ * Bir pencere = bir kanıt: kayıt aşamayı da değiştiriyorsa ayrıca dosya istenmez. İpucu, aşama ilerliyorsa o aşamanın
+ * (Teklif, Kazanıldı…), değilse kanalın metnidir.
+ */
+export function evidenceRule(
+  type: ActivityTypeDto,
+  target: StageCodeDto | null,
+): { required: boolean; purposeKey: string } {
+  return {
+    required: FILE_REQUIRED_CHANNELS.includes(type),
+    purposeKey: isLaterStage(target) ? `attach.purpose.${target}` : channelPurpose(type),
+  };
+}
+
+/**
+ * Aşama penceresinin dosya kuralı: Nitelikli / Teklif / Kazanıldı / Kaybedildi'ye geçişte dosya zorunludur. Aşama
+ * kapısında "İletişim kuruldu"ya geçiş temas kaydı gibi sayılır: seçilen kanala göre (`evidenceRule`).
+ */
+export function stageEvidenceRule(
+  type: ActivityTypeDto,
+  target: StageCodeDto,
+): { required: boolean; purposeKey: string } {
+  return isLaterStage(target) ? { required: true, purposeKey: `attach.purpose.${target}` } : evidenceRule(type, null);
+}
+
+/**
+ * Kaydet pasifken altında yazılan gerekçeler (çeviri anahtarları). `fileCount` seçilen dosya sayısıdır; dosya
+ * `evidenceRule`'a göre gerekiyorsa ve yoksa "contact.needFile" eklenir. Verilmezse dosya denetlenmez.
+ */
+export function saveBlockers(
+  s: DialogState,
+  form: ContactFormDto,
+  rules: ContactRules,
+  nowMs: number,
+  fileCount?: number,
+): string[] {
   const out: string[] = [];
   const target = effectiveTarget(s, form, rules);
-  // Görüşme notu zorunludur (2026-11-19); hızlı kayıt düğmeleri bu pencereden geçmez.
+  // Görüşme notu zorunludur (2026-11-19).
   if (!s.note.trim()) out.push("contact.needNote");
+  if (fileCount !== undefined && fileCount < 1 && evidenceRule(s.type, target).required) out.push("contact.needFile");
   // "Dönüş alındı mı?" cevapsız bırakılamaz.
   if (isReplyQuestion(defaultsFor(form, s.type, s.outcome).stage) && s.stageChecked === null) {
     out.push("contact.needReplyAnswer");

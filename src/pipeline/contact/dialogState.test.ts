@@ -4,12 +4,14 @@ import {
   buildBody,
   changeChannel,
   effectiveTarget,
+  evidenceRule,
   initialState,
   nextBlocked,
   pickPlan,
   retarget,
   saveBlockers,
   setReplied,
+  stageEvidenceRule,
   showsStatus,
   stageLineView,
   type ContactRules,
@@ -106,6 +108,49 @@ describe("dialogState", () => {
     expect(saveBlockers(answered, FORM, RULES, at)).toEqual(["contact.needNote"]);
     expect(saveBlockers({ ...answered, note: "   " }, FORM, RULES, at)).toEqual(["contact.needNote"]);
     expect(saveBlockers({ ...answered, note: "Fiyat listesi istedi" }, FORM, RULES, at)).toEqual([]);
+  });
+
+  it("ekran görüntüsü zorunlu: dosyasız kayıt durur; temasla birlikte aşama değişse de tek dosya yeter", () => {
+    const at = Date.parse(FORM.now);
+    const s = { ...initialState(FORM, RULES, { type: "whatsapp" }), note: "Katalog gönderildi" };
+    const answered = { ...s, stageChecked: false };
+    expect(saveBlockers(answered, FORM, RULES, at, 0)).toEqual(["contact.needFile"]);
+    expect(saveBlockers(answered, FORM, RULES, at, 1)).toEqual([]);
+    // "Dönüş alındı: Evet" aşamayı İletişim kuruldu yapar; ayrı bir dosya istenmez.
+    const yes = { ...s, stageChecked: true };
+    expect(buildBody(yes, FORM, RULES).stage).toEqual({ target: "CONTACTED" });
+    expect(saveBlockers(yes, FORM, RULES, at, 1)).toEqual([]);
+    // Not ve dosya birlikte eksikse ikisi de söylenir.
+    expect(saveBlockers({ ...answered, note: "" }, FORM, RULES, at, 0)).toEqual([
+      "contact.needNote",
+      "contact.needFile",
+    ]);
+  });
+
+  it("iletişim kaydında dosya yalnız WhatsApp ve telefonda zorunlu", () => {
+    const at = Date.parse(FORM.now);
+    for (const type of ["email", "meeting", "site_visit"] as const) {
+      const s = { ...initialState(FORM, RULES, { type }), note: "Konuşuldu", stageChecked: true };
+      expect(saveBlockers(s, FORM, RULES, at, 0)).not.toContain("contact.needFile");
+      expect(evidenceRule(type, null).required).toBe(false);
+    }
+    const call = { ...initialState(FORM, RULES, { type: "call" }), note: "Arandı", stageChecked: false };
+    expect(saveBlockers(call, FORM, RULES, at, 0)).toContain("contact.needFile");
+    expect(evidenceRule("call", null)).toEqual({ required: true, purposeKey: "attach.purpose.call" });
+    expect(evidenceRule("whatsapp", "CONTACTED")).toEqual({ required: true, purposeKey: "attach.purpose.whatsapp" });
+    expect(evidenceRule("email", null).purposeKey).toBe("attach.purpose.email");
+    expect(evidenceRule("meeting", null).purposeKey).toBe("attach.purpose.contact");
+    // Aşama ilerliyorsa ipucu aşamanınkidir; zorunluluk yine kanala bağlıdır.
+    expect(evidenceRule("email", "WON")).toEqual({ required: false, purposeKey: "attach.purpose.WON" });
+    expect(evidenceRule("call", "PROPOSAL")).toEqual({ required: true, purposeKey: "attach.purpose.PROPOSAL" });
+  });
+
+  it("aşama penceresi: Nitelikli / Teklif / Kazanıldı / Kaybedildi'de dosya zorunlu; aşama kapısı kanala bakar", () => {
+    for (const target of ["QUALIFIED", "PROPOSAL", "WON", "LOST"] as const) {
+      expect(stageEvidenceRule("email", target)).toEqual({ required: true, purposeKey: `attach.purpose.${target}` });
+    }
+    expect(stageEvidenceRule("email", "CONTACTED").required).toBe(false);
+    expect(stageEvidenceRule("call", "CONTACTED").required).toBe(true);
   });
 
   it("'Dönüş alındı mı?': önseçili değilse cevapsız başlar ve kaydı durdurur; Evet aşamayı taşır, Hayır taşımaz", () => {
