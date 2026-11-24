@@ -234,6 +234,12 @@ export const CONTACT_DICT = {
   ],
   "contact.closedNoNext": ["Kapanan lead'de takip planlanmaz.", "No follow-up for a closed lead."],
   "contact.stageFixed": ["Kaydedince aşama '{stage}' olur.", "Saving moves the stage to '{stage}'."],
+  "contact.replyAsk": ["Dönüş alındı mı?", "Did the customer reply?"],
+  "contact.replyHelp": [
+    "Evet derseniz aşama '{stage}' olur; Hayır derseniz aşama değişmez.",
+    "Yes moves the stage to '{stage}'; No leaves the stage as it is.",
+  ],
+  "contact.needReplyAnswer": ["Dönüş alındı mı: Evet ya da Hayır seçin", "Did the customer reply: pick Yes or No"],
   "contact.stageMove": ["Aşamayı '{stage}' yap", "Move the stage to '{stage}'"],
   "contact.stageLostAsk": [
     "Aşamayı 'Kaybedildi' yap (neden sorulur)",

@@ -23,6 +23,54 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-24",
+    date: "2026-11-24",
+    items: {
+      tr: [
+        {
+          title: "Aşama değiştirirken iletişim bilgisi",
+          text: 'Hiç iletişim kaydı olmayan bir lead\'i "İletişim kuruldu", "Nitelikli", "Teklif gönderildi" ya da "Kazanıldı" aşamasına çekerken açılan pencere artık müşteriye hangi kanaldan ve ne zaman ulaştığınızı sorar. Kanalı ve zamanı seçip kaydedin; iletişim kaydı aşamayla birlikte oluşur. Daha önce iletişim kaydı girilmiş lead\'lerde bir şey sorulmaz.',
+        },
+        {
+          title: '"Dönüş alındı mı?" sorusu',
+          text: 'İletişim Kaydet penceresindeki "Aşamayı İletişim kuruldu yap" kutusunun yerini "Dönüş alındı mı?" sorusu aldı. Evet ya da Hayır seçmeden Kaydet düğmesi açılmaz. Evet derseniz aşama "İletişim kuruldu" olur, Hayır derseniz aşama değişmez. Sonuç "Dönüş alındı" ise Evet seçili gelir.',
+        },
+        {
+          title: '"Hiç ulaşılmadı" yerine "Kayıt yok (eski)"',
+          text: 'Aşaması ilerlemiş ama iletişim kaydı girilmemiş lead\'ler artık "Hiç ulaşılmadı" değil "Kayıt yok (eski)" olarak görünür. Bu lead\'lerde "İletişim kaydet" ile kaydı girdiğinizde durum kendiliğinden "Ulaşıldı" olur. "Kaybedildi" aşamasındaki kayıtsız lead\'ler "Hiç ulaşılmadı" olarak kalır.',
+        },
+      ],
+      en: [
+        {
+          title: "Contact details when changing stage",
+          text: 'When you move a lead with no contact record to "Contacted", "Qualified", "Proposal sent" or "Won", the window now asks through which channel and when you reached the customer. Pick the channel and time and save; the contact record is created together with the stage. Leads that already have a contact record are not asked anything.',
+        },
+        {
+          title: '"Did the customer reply?" question',
+          text: 'In the Log contact window, the "Move the stage to Contacted" checkbox is now the question "Did the customer reply?". The Save button stays off until you pick Yes or No. Yes moves the stage to "Contacted"; No leaves the stage as it is. When the outcome is "Reply received", Yes is already selected.',
+        },
+        {
+          title: '"No record (legacy)" instead of "Never reached"',
+          text: 'Leads that have moved past the first stage without a contact record now show "No record (legacy)" instead of "Never reached". Once you enter the record with "Log contact", the status becomes "Reached" on its own. Leads in "Lost" with no record still show "Never reached".',
+        },
+      ],
+      ar: [
+        {
+          title: "بيانات التواصل عند تغيير المرحلة",
+          text: "عند نقل عميل محتمل بلا سجل تواصل إلى «تم التواصل» أو «مؤهَّل» أو «تم إرسال عرض السعر» أو «تم الفوز»، تسألك النافذة الآن عن القناة التي تواصلت بها مع العميل ومتى. اختر القناة والوقت واحفظ؛ يُنشأ سجل التواصل مع المرحلة. العملاء الذين لديهم سجل تواصل لا يُسألون عن شيء.",
+        },
+        {
+          title: "سؤال «هل ردّ العميل؟»",
+          text: "في نافذة «تسجيل تواصل» حلّ سؤال «هل ردّ العميل؟» محل مربع «نقل المرحلة إلى تم التواصل». لا يُفعَّل زر الحفظ قبل اختيار «نعم» أو «لا». «نعم» تجعل المرحلة «تم التواصل»، و«لا» تُبقي المرحلة كما هي. إذا كانت النتيجة «تم استلام الرد» تأتي «نعم» محددة مسبقًا.",
+        },
+        {
+          title: "«لا سجل (قديم)» بدل «لم يتم التواصل»",
+          text: "العملاء المحتملون الذين تقدّمت مرحلتهم دون سجل تواصل يظهرون الآن «لا سجل (قديم)» بدل «لم يتم التواصل». عند إدخال السجل عبر «تسجيل تواصل» تصبح الحالة «تم التواصل» تلقائيًا. العملاء في مرحلة «خسارة» بلا سجل يبقون «لم يتم التواصل».",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-23-2",
     date: "2026-11-23",
     items: {

@@ -27,8 +27,12 @@ export interface DialogState {
   nextDueAt: string;
   /** undefined = dokunma. */
   status: string | null | undefined;
-  /** Önerilen aşama satırının onay kutusu (fixed'de anlamsız). */
-  stageChecked: boolean;
+  /**
+   * Önerilen aşama satırının cevabı (fixed'de anlamsız). "İletişim kuruldu" satırı "Dönüş alındı mı?" sorusudur
+   * (Evet = true, Hayır = false) ve önseçili gelmiyorsa null başlar: biri seçilmeden kaydedilemez. Öteki satırlar
+   * (Kazanıldı, Kaybedildi) onay kutusudur, null olmaz.
+   */
+  stageChecked: boolean | null;
   /** "İlgisiz" seçilince beliren Kaybedildi satırı. */
   lostChecked: boolean;
   amount: string;
@@ -100,7 +104,9 @@ export function retarget(s: DialogState, form: ContactFormDto, rules: ContactRul
   const replied = showsReplied(s.outcome, rules) ? repliedDefault(s.type, rules) : false;
   const d = defaultsFor(form, s.type, s.outcome);
   const mode = d.stage?.mode;
-  const stageChecked = mode === "checked" || (mode === "checked_if_replied" && replied);
+  const preset = mode === "checked" || (mode === "checked_if_replied" && replied);
+  // "Dönüş alındı mı?": önseçili değilse cevapsız başlar (kullanıcı Evet ya da Hayır demek zorundadır).
+  const stageChecked = isReplyQuestion(d.stage) && !preset ? null : preset;
   return {
     ...s,
     replied,
@@ -111,6 +117,13 @@ export function retarget(s: DialogState, form: ContactFormDto, rules: ContactRul
     nextDueAt: d.next?.dueAt ?? "",
   };
 }
+
+/**
+ * Aşama satırı "Dönüş alındı mı?" (Evet / Hayır) sorusu mu: hedefi "İletişim kuruldu" olan, sabit olmayan satır.
+ * Evet aşamayı "İletişim kuruldu" yapar, Hayır aşamaya dokunmaz.
+ */
+export const isReplyQuestion = (line: { target: StageCodeDto; mode: StageLineModeDto } | null | undefined): boolean =>
+  !!line && line.target === "CONTACTED" && line.mode !== "fixed";
 
 /** Hücreden gelen sonuç ("Teklif gönderildi", "Dönüş alındı") kullanıcı değiştirmedikçe kanal değişiminde korunur. */
 const outcomeFor = (
@@ -155,10 +168,14 @@ export function pickPlan(
   );
 }
 
-/** "Müşteri cevap verdi" değişince `checked_if_replied` aşama satırı onunla birlikte işaretlenir. */
+/**
+ * "Müşteri cevap verdi" değişince `checked_if_replied` aşama satırı onunla birlikte işaretlenir; işaret kalkınca
+ * "Dönüş alındı mı?" sorusu cevapsıza döner.
+ */
 export function setReplied(s: DialogState, replied: boolean, form: ContactFormDto): DialogState {
-  const mode = defaultsFor(form, s.type, s.outcome).stage?.mode;
-  return { ...s, replied, stageChecked: mode === "checked_if_replied" ? replied : s.stageChecked };
+  const line = defaultsFor(form, s.type, s.outcome).stage;
+  if (line?.mode !== "checked_if_replied") return { ...s, replied };
+  return { ...s, replied, stageChecked: replied ? true : isReplyQuestion(line) ? null : false };
 }
 
 export interface StageLineView {
@@ -207,6 +224,10 @@ export function saveBlockers(s: DialogState, form: ContactFormDto, rules: Contac
   const target = effectiveTarget(s, form, rules);
   // Görüşme notu zorunludur (2026-11-19); hızlı kayıt düğmeleri bu pencereden geçmez.
   if (!s.note.trim()) out.push("contact.needNote");
+  // "Dönüş alındı mı?" cevapsız bırakılamaz.
+  if (isReplyQuestion(defaultsFor(form, s.type, s.outcome).stage) && s.stageChecked === null) {
+    out.push("contact.needReplyAnswer");
+  }
   if (target === "WON" && !amountOk(s.amount)) out.push("contact.needAmount");
   // Teklif tutarı isteğe bağlıdır; ama yazıldıysa okunamayan tutar sessizce düşmesin.
   if (target === "PROPOSAL" && s.amount.trim() && !amountOk(s.amount)) out.push("contact.badAmount");

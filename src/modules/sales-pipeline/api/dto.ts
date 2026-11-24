@@ -401,6 +401,11 @@ export interface ChangeStageBody {
   qualificationAnswers?: Record<string, boolean> | null;
   /** QUALIFIED için zorunlu. */
   qualificationDetails?: QualificationDetailsDto | null;
+  /**
+   * Aşama kapısı: lead'in hiç temas kaydı yoksa İletişim kuruldu / Nitelikli / Teklif / Kazanıldı için zorunlu
+   * (`stage.contact_required`). `occurredAt` ISO; verilmezse şimdi.
+   */
+  contact?: { type: ActivityTypeDto; occurredAt?: string | null } | null;
 }
 
 export interface AssignBody {

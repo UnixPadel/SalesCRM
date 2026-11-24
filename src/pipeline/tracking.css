@@ -175,6 +175,19 @@
   border-radius: var(--r-2);
   background: var(--surface-2);
 }
+/* "Dönüş alındı mı?" sorusu: aşama kutusunun içinde, kendi çerçevesi olmadan. */
+.cd-reply {
+  border: 0;
+  padding: 0;
+}
+.cd-reply legend {
+  padding-inline: 0;
+  margin-block-end: var(--s-2);
+}
+.cd-reply .field-h {
+  display: block;
+  margin-block-start: var(--s-2);
+}
 .cd-next {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));

@@ -11,6 +11,7 @@ import {
   ACTIVITY_OUTCOMES,
   ACTIVITY_TYPES,
   CONTACT_CHANNELS,
+  CONTACT_IMPLYING_STAGES,
   CONTACT_RULES,
   COURT_COUNT_BANDS,
   CUSTOMER_PROFILES,
@@ -104,6 +105,7 @@ export function trackingReference(
   return {
     activityTypes: [...ACTIVITY_TYPES],
     contactChannels: [...CONTACT_CHANNELS],
+    contactStages: [...CONTACT_IMPLYING_STAGES],
     activityOutcomes: [...ACTIVITY_OUTCOMES],
     outcomeDisplayOrder: [...OUTCOME_DISPLAY_ORDER],
     replyOutcomes: [...REPLY_OUTCOMES],

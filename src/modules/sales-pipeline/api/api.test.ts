@@ -131,6 +131,7 @@ describe("lead akışı: oluştur → aşama → geri al → kazan", () => {
     expect((await call("rep2", "POST", `/api/pipeline/leads/${id}/stage`, { target: "CONTACTED" })).status).toBe(403);
     const ok = await call<{ lead: LeadDto; events: unknown[] }>("rep1", "POST", `/api/pipeline/leads/${id}/stage`, {
       target: "PROPOSAL",
+      contact: { type: "call" },
     });
     expect(ok.status).toBe(200);
     expect(ok.body.lead.currentStage).toBe("PROPOSAL");
@@ -155,6 +156,7 @@ describe("lead akışı: oluştur → aşama → geri al → kazan", () => {
   it("WON tutarla, sonra terminal: izinli geçiş yok, LOST 422", async () => {
     const won = await call<{ lead: LeadDto }>("rep1", "POST", `/api/pipeline/leads/${id}/stage`, {
       target: "WON",
+      contact: { type: "meeting" },
       value: { amount: 95000, currency: "EUR" },
     });
     expect(won.status).toBe(200);
@@ -295,11 +297,14 @@ describe("aktiviteler (Faz 6a)", () => {
   it("Teklif gönderildi takip aktivitesi açar; detayda aktiviteler; Bugün listesinde yaklaşan", async () => {
     const moved = await call<{ followUp: ActivityDto | null }>("rep1", "POST", `/api/pipeline/leads/${leadId}/stage`, {
       target: "PROPOSAL",
+      contact: { type: "email" },
     });
     expect(moved.status).toBe(200);
     expect(moved.body.followUp).toMatchObject({ type: "call", subject: "Teklif takibi", autoCreated: true });
     const detail = await call<LeadDetailDto>("rep1", "GET", `/api/pipeline/leads/${leadId}`);
-    expect(detail.body.activities).toHaveLength(2);
+    // İki açık iş + aşama penceresinde girilen temas (aşama kapısı).
+    expect(detail.body.activities).toHaveLength(3);
+    expect(detail.body.lead.contact).toMatchObject({ state: "contacted", count: 1, lastType: "email" });
     expect(detail.body.lead.openActivities).toBe(2);
 
     const today = await call<TodayDto>("rep1", "GET", "/api/pipeline/activities/today");
@@ -406,7 +411,10 @@ describe("fırsat alanları ve pano (Faz 6b)", () => {
     const ref = await call<ReferenceDto>("rep1", "GET", "/api/pipeline/reference");
     expect(ref.body.eurRates).toMatchObject({ EUR: 1, USD: 0.92 });
 
-    await call("rep1", "POST", `/api/pipeline/leads/${leadId}/stage`, { target: "CONTACTED" });
+    await call("rep1", "POST", `/api/pipeline/leads/${leadId}/stage`, {
+      target: "CONTACTED",
+      contact: { type: "call" },
+    });
     await call("rep1", "POST", `/api/pipeline/leads/${leadId}/stage`, {
       target: "PROPOSAL",
       qualificationAnswers: { budget_approved: true, site_known: true, install_within_12m: true },
@@ -606,6 +614,7 @@ describe("Nitelikli ayrıntıları", () => {
 
     const ok = await call<{ lead: LeadDto }>("rep1", "POST", path, {
       target: "QUALIFIED",
+      contact: { type: "call" },
       qualificationAnswers: YES,
       qualificationDetails: {
         budgetAmount: 120000,

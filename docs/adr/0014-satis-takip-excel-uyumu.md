@@ -53,6 +53,13 @@ Kararlar iş emrindeki D numaralarıyla:
    aşamaya bakmaz. Temas geçmişi bilinmeyen eski kayıtlar (`leads.contact_history_unknown`, köken olgusu) "Hiç"e değil
    "Kayıt yok (eski)" sütununa sayılır ve oranların paydasından çıkar. Excel kapsamında farklar yalnız A1–A9 gerekçe
    kodlarıyla izinlidir; `db:import-excel --verify` her farkı bir koda bağlar.
+   **Ek (2026-11-24):** kural artık aşamaya da bakar. Temas kaydı olmayan lead temas gerektiren bir aşamadaysa
+   (`CONTACT_IMPLYING_STAGES`: İletişim kuruldu, Nitelikli, Teklif, Kazanıldı) "Hiç" değil "Kayıt yok (eski)" sayılır
+   (`contactRecordMissing`); Kaybedildi ve Yeni'de "Hiç ulaşılmadı" kalır. Yeni sütun yoktur. Excel doğrulamasında bu
+   fark A11 gerekçe kodudur. Aynı durumun yeniden oluşmaması için **aşama kapısı** eklendi: arayüzden gelen aşama
+   değişikliğinde (`requireContact`) temas kaydı olmayan lead bu aşamalara ancak kanal ve tarihle geçer
+   (`stage.contact_required`); temas aşamayla aynı işlemde, aynı `changeId` ile yazılır ve Geri al onu da siler.
+   İçe aktarma betikleri ve "Temas kaydet" kapıdan muaftır (temaslarını kendileri yazar).
 9. **D9 — "Lead listesi" Gelen kutusunun yerini alır.** Excel benzeri sütun grupları, başlık süzgeçleri, telefon →
    WhatsApp, e-posta → mail, CSV; üst menü yine 5 öğedir.
 10. **D10 — İçe aktarmada aşama türetme.** Teklif olgusu → `PROPOSAL` (tutar null), değilse dönüş olgusu → `CONTACTED`,

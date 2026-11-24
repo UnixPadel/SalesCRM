@@ -148,12 +148,22 @@ describe("proposalFacts (D3)", () => {
 });
 
 describe("leadTracking", () => {
-  it("aşama 'Hiç ulaşılmadı'yı etkilemez: temassız Teklif aşamasındaki lead never [K-B1]", () => {
+  it("temassız lead: temas gerektiren aşamada 'Kayıt yok (eski)', Yeni ve Kaybedildi'de 'Hiç ulaşılmadı'", () => {
     const l = lead("l1", { currentStage: "PROPOSAL" });
     const t = leadTracking(l, [], [], TZ);
-    expect(t.contact.state).toBe("never");
+    expect(t.contact.state).toBe("legacy");
     expect(t.proposal.given).toBe(true);
-    expect(leadTracking({ ...l, contactHistoryUnknown: true }, [], [], TZ).contact.state).toBe("legacy");
+    const stateAt = (currentStage: Lead["currentStage"], contactHistoryUnknown = false) =>
+      leadTracking({ ...l, currentStage, contactHistoryUnknown }, [], [], TZ).contact.state;
+    expect(stateAt("CONTACTED")).toBe("legacy");
+    expect(stateAt("QUALIFIED")).toBe("legacy");
+    expect(stateAt("WON")).toBe("legacy");
+    expect(stateAt("NEW")).toBe("never");
+    expect(stateAt("LOST")).toBe("never");
+    expect(stateAt("NEW", true)).toBe("legacy");
+    // Temas girilince aşamadan bağımsız "Ulaşıldı".
+    const withContact = leadTracking(l, [], [contactRow("l1", "email", "awaiting_reply", new Date(NOW))], TZ);
+    expect(withContact.contact.state).toBe("contacted");
   });
 
   it("başka lead'in satırları ve olayları yok sayılır", () => {
@@ -301,20 +311,21 @@ describe("buildTrackingReport: satırlar, eski kayıt ve oranlar", () => {
       lead: 3,
       mailSent: 1,
       whatsappSent: 1,
-      neverReached: 1,
-      legacyNoContact: 0,
+      // "c": temas kaydı yok ama Teklif aşamasında → "Kayıt yok (eski)", paydadan çıkar.
+      neverReached: 0,
+      legacyNoContact: 1,
       contacted: 2,
       replied: 1,
       proposalGiven: 1,
       buyers: 1,
-      reachRate: 2 / 3,
+      reachRate: 1,
       replyRate: 1 / 2,
       proposalRate: 1 / 3,
     });
     expect(r.basics.share).toEqual({
       mailSent: 1 / 3,
       whatsappSent: 1 / 3,
-      neverReached: 1 / 3,
+      neverReached: 0,
       replied: 1 / 3,
       proposalGiven: 1 / 3,
       buyers: 1 / 3,

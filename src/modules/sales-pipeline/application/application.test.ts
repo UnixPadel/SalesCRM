@@ -560,6 +560,75 @@ describe("Aktiviteler (Faz 6a)", () => {
     expect(h.uow.state.activities.map((a) => a.id)).toEqual([manualAct.id]);
   });
 
+  it("aşama kapısı: temassız lead temas gerektiren aşamaya kanal ve tarihle geçer; temas aynı changeId ile yazılır", async () => {
+    const lead = unwrap(await manual()).lead;
+    const gate = { leadId: lead.id, actor: REP, requireContact: true } as const;
+
+    const none = await sp.changeLeadStage.execute({ ...gate, target: "CONTACTED" });
+    expect(!none.ok && none.error.code).toBe("stage.contact_required");
+    const badChannel = await sp.changeLeadStage.execute({ ...gate, target: "CONTACTED", contact: { type: "fax" } });
+    expect(!badChannel.ok && badChannel.error.code).toBe("contact.type");
+    const future = await sp.changeLeadStage.execute({
+      ...gate,
+      target: "CONTACTED",
+      contact: { type: "call", occurredAt: new Date("2030-01-01T00:00:00Z") },
+    });
+    expect(!future.ok && future.error.code).toBe("contact.future");
+    // Reddedilen geçiş hiçbir şey yazmaz.
+    expect(h.uow.state.activities).toHaveLength(0);
+    expect((await sp.queries.list({ actor: REP }))[0]).toMatchObject({ currentStage: "NEW" });
+
+    // Kaybedildi temas istemez; kapı istenmediğinde (içe aktarma, Temas kaydet) kural uygulanmaz.
+    const other = unwrap(await manual({ fullName: "İkinci Lead", email: "ikinci@example.com" })).lead;
+    unwrap(
+      await sp.changeLeadStage.execute({
+        leadId: other.id,
+        actor: REP,
+        requireContact: true,
+        target: "LOST",
+        lostReasonCode: "competitor",
+      }),
+    );
+    expect(h.uow.state.activities).toHaveLength(0);
+
+    const c = unwrap(await sp.changeLeadStage.execute({ ...gate, target: "CONTACTED", contact: { type: "whatsapp" } }));
+    expect(c.contact).toMatchObject({
+      type: "whatsapp",
+      outcome: "reply_received",
+      createdByChangeId: c.changeId,
+      autoCreated: false,
+      doneByUserId: "rep-1",
+    });
+    expect(c.contact?.doneAt).not.toBeNull();
+    const row = (await sp.queries.list({ actor: REP })).find((l) => l.id === lead.id)!;
+    expect(row.contact).toMatchObject({ state: "contacted", count: 1 });
+
+    // Temas kaydı olan lead'e bir daha sorulmaz.
+    const p = unwrap(await sp.changeLeadStage.execute({ ...gate, target: "PROPOSAL" }));
+    expect(p.contact).toBeNull();
+  });
+
+  it("aşama kapısı: geri al aşamayla birlikte penceredeki teması da siler; sonuç hedef aşamadan türetilir", async () => {
+    const lead = unwrap(await manual()).lead;
+    const p = unwrap(
+      await sp.changeLeadStage.execute({
+        leadId: lead.id,
+        actor: REP,
+        requireContact: true,
+        target: "PROPOSAL",
+        contact: { type: "email" },
+      }),
+    );
+    expect(p.contact).toMatchObject({ type: "email", outcome: "proposal_sent" });
+    expect(h.uow.state.activities).toHaveLength(2);
+    unwrap(await sp.undoStageChange.execute({ leadId: lead.id, actor: REP }));
+    expect(h.uow.state.activities).toHaveLength(0);
+    expect((await sp.queries.list({ actor: REP }))[0]).toMatchObject({
+      currentStage: "NEW",
+      contact: { state: "never", count: 0 },
+    });
+  });
+
   it("silme: sahibi ya da admin; başkası 403; sonra 404", async () => {
     const lead = unwrap(await manual()).lead;
     const a = unwrap(await addCall(lead.id, "2026-03-02T08:00:00Z"));

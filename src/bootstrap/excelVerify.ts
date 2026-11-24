@@ -4,7 +4,8 @@
  *     (`excelSummary`) ve dosyadaki önbellek değerleriyle karşılaştırılır (G3 = TODAY hariç). Fark → çıkış 2.
  *  2. Satır olguları: her satırın CRM'deki olguları içe aktarma kurallarının beklenen sonucuyla (`expectedCrmFacts`)
  *     karşılaştırılır; izinli farklar gerekçe koduna bağlanır (A1 gönderim işaretsiz dönüş, A2 adet/tik, A3 havuz,
- *     A4 zenginleştirilen lead, A7 TEMAS satırı, A9 ölçü var Kapatma yok, A10 form tablosu sonrası).
+ *     A4 zenginleştirilen lead, A7 TEMAS satırı, A9 ölçü var Kapatma yok, A10 form tablosu sonrası,
+ *     A11 temas kaydı yok ama aşama temas gerektiriyor: Excel "Hiç ulaşılmadı", CRM "Kayıt yok (eski)").
  *     Gerekçesiz fark → çıkış 1.
  *  3. Tablo: Excel | CRM her hücre için yazdırılır. Kişisel veri yok: yalnız Excel No ve sayılar.
  */
@@ -269,9 +270,12 @@ export function compareRows(
     // A10: form tablosu (Excel'den yeni) bu lead'e "mail atıldı" teması ya da boş form cevabı eklediyse.
     const sheet = "sheet_key" in lead.extraAnswers;
     let a10 = false;
+    // A11: temas kaydı yok ama aşama temas gerektiriyor (ör. Excel'de teklif ✔, gönderim işareti yok).
+    const a11 = lead.contact.count === 0 && lead.contact.state === "legacy" && !lead.contactHistoryUnknown;
     for (const k of Object.keys(want)) {
       if (JSON.stringify(want[k]) === JSON.stringify(got[k])) continue;
-      if (sheet && SHEET_FIELDS.has(k)) a10 = true;
+      if (k === "never" && a11) res.reasons["A11"] = (res.reasons["A11"] ?? 0) + 1;
+      else if (sheet && SHEET_FIELDS.has(k)) a10 = true;
       else res.rowDiffs.push({ no: r.no, field: k, expected: want[k], actual: got[k] });
     }
     if (a10) res.reasons["A10"] = (res.reasons["A10"] ?? 0) + 1;

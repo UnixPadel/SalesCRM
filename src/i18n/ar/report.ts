@@ -33,7 +33,8 @@ export const AR_REPORT: Record<keyof typeof REPORT_DICT, string> = {
   "reports.summary.proposalGiven": "قُدِّم لهم عرض سعر",
   "reports.summary.buyers": "عملاء مشترون",
   "reports.summary.ofTotal": "من الإجمالي",
-  "reports.summary.legacyNote": "عملاء محتملون سجل تواصلهم غير معروف (سجل قديم) ولم يُحتسبوا ضمن «لم يتم التواصل»: {n}",
+  "reports.summary.legacyNote":
+    "عملاء محتملون بلا سجل تواصل لكنهم سجلات قديمة أو تقدّمت مرحلتهم (لا سجل (قديم)) ولم يُحتسبوا ضمن «لم يتم التواصل»: {n}",
   "reports.summary.col.lead": "العملاء المحتملون",
   "reports.summary.col.mail": "أُرسل بريد",
   "reports.summary.col.wa": "واتساب",

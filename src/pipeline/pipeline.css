@@ -333,6 +333,19 @@ a.pl-row:focus-visible {
   color: var(--brand-ink);
   font-weight: 700;
 }
+.stage-contact {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: var(--s-3) 0 0;
+  padding: var(--s-3) 0 0;
+  min-width: 0;
+}
+.stage-contact legend {
+  padding: 0 var(--s-2) 0 0;
+}
+.stage-contact .muted {
+  margin: 0 0 var(--s-2);
+}
 .won-row,
 .form-2 {
   display: grid;

@@ -14,6 +14,7 @@ import {
   pickCompletable,
   stageLine,
   suggestNext,
+  contactRecordMissing,
   summarizeContacts,
   validateActivity,
   validateContact,
@@ -475,7 +476,7 @@ export class ContactFormQuery {
       const lead = loaded.value;
       const all = await repos.activities.listByLead(lead.id);
       const open = all.filter(isOpenActivity).sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
-      const summary = summarizeContacts(aggregateContacts(all), lead.contactHistoryUnknown);
+      const summary = summarizeContacts(aggregateContacts(all), contactRecordMissing(lead));
       const lastChannel =
         summary.lastType && (CONTACT_CHANNELS as readonly string[]).includes(summary.lastType)
           ? summary.lastType

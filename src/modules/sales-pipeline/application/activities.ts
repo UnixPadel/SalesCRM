@@ -4,6 +4,7 @@ import {
   NO_CONTACT_FIELDS,
   bucketOf,
   isHotLead,
+  contactRecordMissing,
   summarizeContacts,
   validateActivity,
   type Activity,
@@ -209,7 +210,7 @@ export class ActivityQueries {
       const summaryOf = (lead: Lead) =>
         summarizeContacts(
           aggregates.filter((r) => r.leadId === lead.id),
-          lead.contactHistoryUnknown,
+          contactRecordMissing(lead),
         );
       const out: TodayResult = { overdue: [], today: [], upcoming: [], hotUncontacted: 0 };
       for (const lead of hotCandidates) if (summaryOf(lead).state === "never") out.hotUncontacted++;

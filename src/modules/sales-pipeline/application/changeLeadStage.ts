@@ -1,14 +1,20 @@
 import { NotFoundError, RuleError, err, ok, type Result } from "../../shared/kernel";
 import {
+  DEFAULT_SUBJECTS,
+  DEFAULT_TIME_ZONE,
   NO_CONTACT_FIELDS,
   PROPOSAL_FOLLOW_UP,
   followUpFor,
+  impliesContact,
   planStageChange,
+  validateStageContact,
   type Activity,
   type DomainEvent,
   type Lead,
   type StageCode,
+  type StageContactInput,
   type StageEvent,
+  type ValidContact,
 } from "../domain";
 import type { Actor, UseCaseDeps } from "./types";
 import { canAct, territoriesOf } from "./visibility";
@@ -25,6 +31,12 @@ export interface ChangeLeadStageInput {
   requireQualificationDetails?: boolean;
   /** Eski kayıt taşıma: geçmişte gönderilmiş teklif için bugün bir takip aktivitesi açılmaz. */
   skipFollowUp?: boolean;
+  /**
+   * Aşama kapısı (arayüz isteği): hiç temas kaydı olmayan lead temas gerektiren aşamaya geçerken `contact` zorunlu
+   * olur ve temas aynı işlemde yazılır. İçe aktarma ve "Temas kaydet" bunu istemez (temaslarını kendileri yazar).
+   */
+  requireContact?: boolean;
+  contact?: StageContactInput | null;
 }
 
 export interface ChangeLeadStageResult {
@@ -35,6 +47,8 @@ export interface ChangeLeadStageResult {
   assignedTo: string | null;
   /** Kural 2: Teklif gönderildi'ye girişte açılan takip aktivitesi; başka aşamada null. */
   followUp: Activity | null;
+  /** Aşama kapısının yazdığı temas; kapı çalışmadıysa null. */
+  contact: Activity | null;
 }
 
 /**
@@ -71,6 +85,21 @@ export class ChangeLeadStage {
         if (!plan.ok) return plan;
 
         const now = clock.now();
+        // Aşama kapısı: yazmadan önce doğrulanır.
+        let stageContact: ValidContact | null = null;
+        if (input.requireContact && impliesContact(plan.value.to)) {
+          const hasContact = (await repos.activities.listByLead(lead.id)).some((a) => a.doneAt !== null);
+          if (!hasContact) {
+            const valid = validateStageContact(
+              input.contact,
+              plan.value.to,
+              now,
+              this.deps.timeZone ?? DEFAULT_TIME_ZONE,
+            );
+            if (!valid.ok) return valid;
+            stageContact = valid.value;
+          }
+        }
         const changeId = ids.next();
         let sequence = await repos.stageEvents.nextSequence(lead.id);
         const events: StageEvent[] = [];
@@ -126,6 +155,30 @@ export class ChangeLeadStage {
           await repos.activities.insert(followUp);
         }
 
+        // Aşama kapısının teması: aynı changeId ile (geri al onu da siler).
+        let contact: Activity | null = null;
+        if (stageContact) {
+          contact = {
+            id: ids.next(),
+            leadId: lead.id,
+            type: stageContact.type,
+            subject: DEFAULT_SUBJECTS[stageContact.type],
+            dueAt: stageContact.occurredAt,
+            doneAt: stageContact.occurredAt,
+            notes: "",
+            autoCreated: false,
+            createdByChangeId: changeId,
+            createdByUserId: input.actor.userId,
+            legacyId: null,
+            ...NO_CONTACT_FIELDS,
+            outcome: stageContact.outcome,
+            doneByUserId: input.actor.userId,
+            createdAt: now,
+            updatedAt: now,
+          };
+          await repos.activities.insert(contact);
+        }
+
         const domainEvents: DomainEvent[] = [
           {
             type: "LeadStageChanged",
@@ -156,6 +209,7 @@ export class ChangeLeadStage {
           events,
           assignedTo,
           followUp,
+          contact,
           domainEvents,
         });
       },

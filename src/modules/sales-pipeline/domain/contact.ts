@@ -14,7 +14,8 @@ import {
   type ActivityType,
 } from "./activity";
 import type { CustomerStatus } from "./leadProfile";
-import { isTerminal, stageIndex, type StageCode } from "./stage";
+import type { Lead } from "./lead";
+import { impliesContact, isTerminal, stageIndex, type StageCode } from "./stage";
 
 /**
  * Temas özeti ve temas kuralları (Faz 7g, ADR-0014, iş emri §3.3.2). Temas = tamamlanmış aktivite; kanal = tür.
@@ -44,7 +45,10 @@ export interface ChannelFacts {
   firstReplyEstimated: boolean;
 }
 
-/** `legacy` = temas geçmişi bilinmeyen eski kayıt ("Kayıt yok (eski)"); "Hiç ulaşılmadı"ya sayılmaz [K-B1]. */
+/**
+ * `legacy` = temas kaydı eksik ("Kayıt yok (eski)"): temas geçmişi bilinmeyen eski kayıt ya da temas kaydı girilmeden
+ * aşaması ilerletilmiş lead; "Hiç ulaşılmadı"ya sayılmaz [K-B1].
+ */
 export type ContactState = "contacted" | "legacy" | "never";
 export const CONTACT_STATES: readonly ContactState[] = ["contacted", "legacy", "never"];
 
@@ -144,8 +148,16 @@ const firstOf = (rows: readonly ContactAggregateRow[]) => pick(rows, (r) => r.fi
 const lastOf = (rows: readonly ContactAggregateRow[]) => pick(rows, (r) => r.lastAt, true);
 
 /**
- * Lead'in temas özeti. Durum yalnız temas kayıtlarına ve köken işaretine bakar, **aşamaya bakmaz** [K-B1]:
- * temas varsa `contacted`; yoksa eski kayıtsa `legacy`; değilse `never`.
+ * Temas kaydı olmayan lead'de "kayıt eksik" mi (→ `legacy`, "Kayıt yok (eski)"), yoksa gerçekten ulaşılmadı mı
+ * (→ `never`): köken işareti ya da temas gerektiren bir aşama (İletişim kuruldu, Nitelikli, Teklif, Kazanıldı)
+ * kaydın eksik olduğunu gösterir. Kaybedildi göstermez (ADR-0014 D8 eki, 2026-11-24).
+ */
+export const contactRecordMissing = (lead: Pick<Lead, "contactHistoryUnknown" | "currentStage">): boolean =>
+  lead.contactHistoryUnknown || impliesContact(lead.currentStage);
+
+/**
+ * Lead'in temas özeti: temas varsa `contacted`; yoksa kayıt eksikse (`historyUnknown`, çağıran
+ * `contactRecordMissing(lead)` verir) `legacy`; değilse `never`.
  */
 export function summarizeContacts(rows: readonly ContactAggregateRow[], historyUnknown: boolean): ContactSummary {
   const count = rows.reduce((s, r) => s + r.n, 0);
@@ -370,4 +382,49 @@ export function validateContact(i: ContactInput): Result<ValidContact, RuleError
     );
   }
   return ok({ type: i.type, outcome: i.outcome, customerReplied: i.customerReplied, occurredAt: at, note });
+}
+
+/**
+ * Aşama kapısı (ADR-0014 D8 eki, 2026-11-24): hiç temas kaydı olmayan lead temas gerektiren bir aşamaya
+ * (`CONTACT_IMPLYING_STAGES`) geçerken aşama penceresi kanal ve tarihi sorar; temas aşamayla aynı işlemde yazılır.
+ * Sonuç hedef aşamadan türetilir.
+ */
+export const STAGE_CONTACT_OUTCOME: Partial<Record<StageCode, ActivityOutcome>> = {
+  CONTACTED: "reply_received",
+  QUALIFIED: "reply_received",
+  PROPOSAL: "proposal_sent",
+  WON: "agreed",
+};
+
+export interface StageContactInput {
+  type: unknown;
+  /** Verilmezse şimdi. */
+  occurredAt?: Date | null | undefined;
+}
+
+/** Aşama penceresinden gelen temas; kurallar `validateContact` ile aynıdır (kanal, ileri tarih, alt sınır). */
+export function validateStageContact(
+  i: StageContactInput | null | undefined,
+  target: StageCode,
+  now: Date,
+  timeZone: string,
+): Result<ValidContact, RuleError> {
+  const outcome = STAGE_CONTACT_OUTCOME[target];
+  if (!i || !outcome) {
+    return err(
+      new RuleError("stage.contact_required", "Bu aşamaya geçmek için müşteriye nasıl ulaşıldığını girin.", {
+        target,
+      }),
+    );
+  }
+  return validateContact({
+    type: i.type,
+    outcome,
+    customerReplied: false,
+    occurredAt: i.occurredAt ?? now,
+    now,
+    note: "",
+    completingType: null,
+    timeZone,
+  });
 }

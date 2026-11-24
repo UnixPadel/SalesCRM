@@ -52,7 +52,7 @@ beforeAll(async () => {
 
   const lead = await call<{ lead: LeadDto }>("rep1", "POST", "/leads", { fullName: "Log Deneme", email: "log@y.co" });
   leadId = lead.body.lead.id;
-  await call("rep1", "POST", `/leads/${leadId}/stage`, { target: "CONTACTED" });
+  await call("rep1", "POST", `/leads/${leadId}/stage`, { target: "CONTACTED", contact: { type: "call" } });
   await call("rep1", "PATCH", `/leads/${leadId}`, { notes: "Fiyat istedi" });
   // Aynı değer yeniden gönderilirse (liste hücresi) günlüğe yazılmaz.
   await call("rep1", "PATCH", `/leads/${leadId}`, { notes: "Fiyat istedi" });

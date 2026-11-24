@@ -209,6 +209,11 @@ export const AR_CORE = {
   "today.emptyUpcoming": "لا توجد أنشطة قادمة.",
   "err.activity.type_unknown": "نوع النشاط غير معروف.",
   "err.activity.due_required": "اختر تاريخًا للنشاط.",
+  "dialog.contacted.title": "تم التواصل",
+  "dialog.contacted.confirm": "تحديد كـ«تم التواصل»",
+  "stage.contact.title": "كيف تم التواصل مع العميل؟",
+  "stage.contact.help": "لا يوجد سجل تواصل لهذا العميل المحتمل بعد. اختر القناة والوقت؛ يُحفظ مع المرحلة.",
+  "err.stage.contact_required": "للانتقال إلى هذه المرحلة، أدخل كيف تم التواصل مع العميل.",
   "dialog.proposal.title": "تم إرسال عرض السعر",
   "dialog.proposal.lede":
     "إذا أدخلت مبلغ العرض فسيُرسَل إلى منصات الإعلانات كقيمة، وسيظهر جاهزًا في نافذة «تم الفوز». اختياري.",

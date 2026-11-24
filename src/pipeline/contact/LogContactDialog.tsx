@@ -14,6 +14,7 @@ import {
   changeChannel,
   effectiveTarget,
   initialState,
+  isReplyQuestion,
   nextBlocked,
   pickPlan,
   retarget,
@@ -371,11 +372,31 @@ export function LogContactDialog({
                 <Icon name="arrow" size={16} />
                 <span>{t("contact.stageFixed", { stage: stageName(line.target as StageCodeDto) })}</span>
               </p>
+            ) : isReplyQuestion(fromDefaults) ? (
+              <fieldset className={"qa cd-reply" + (blockers.includes("contact.needReplyAnswer") ? " has-error" : "")}>
+                <legend>{t("contact.replyAsk")} *</legend>
+                <div className="seg" role="radiogroup" aria-required="true">
+                  {[false, true].map((v) => (
+                    <label key={String(v)} className={"seg-opt" + (s.stageChecked === v ? " on" : "")}>
+                      <input
+                        type="radio"
+                        name="cd-reply"
+                        checked={s.stageChecked === v}
+                        onChange={() => up({ stageChecked: v })}
+                      />
+                      {v ? t("common.yes") : t("common.no")}
+                    </label>
+                  ))}
+                </div>
+                <span className="field-h">
+                  {t("contact.replyHelp", { stage: stageName(line.target as StageCodeDto) })}
+                </span>
+              </fieldset>
             ) : (
               <label className="cd-check">
                 <input
                   type="checkbox"
-                  checked={fromDefaults ? s.stageChecked : s.lostChecked}
+                  checked={fromDefaults ? s.stageChecked === true : s.lostChecked}
                   onChange={(e) =>
                     up(fromDefaults ? { stageChecked: e.target.checked } : { lostChecked: e.target.checked })
                   }

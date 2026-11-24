@@ -1,5 +1,5 @@
 import { calendarDay } from "./activity";
-import { summarizeContacts, type ContactAggregateRow, type ContactSummary } from "./contact";
+import { contactRecordMissing, summarizeContacts, type ContactAggregateRow, type ContactSummary } from "./contact";
 import { dataWarnings, type DataWarning } from "./dataQuality";
 import type { Lead, StageEvent } from "./lead";
 import {
@@ -67,7 +67,7 @@ export function leadTracking(
 ): LeadTracking {
   const contact = summarizeContacts(
     rows.filter((r) => r.leadId === lead.id),
-    lead.contactHistoryUnknown,
+    contactRecordMissing(lead),
   );
   return {
     contact,

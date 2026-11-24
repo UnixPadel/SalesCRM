@@ -290,6 +290,9 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
         qualificationDetails: b.qualificationDetails ?? null,
         // Arayüzden gelen Nitelikli geçişinde bütçe, proje yeri ve kurulum zamanı zorunludur.
         requireQualificationDetails: true,
+        // Aşama kapısı: temas kaydı olmayan lead temas gerektiren aşamaya kanal ve tarihle geçer.
+        requireContact: true,
+        contact: stageContact(b.contact),
       }),
     );
   });
@@ -407,6 +410,13 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
   });
 
   return r;
+}
+
+/** Aşama penceresinden gelen temas (kanal + ISO zaman); biçim dışı gövde yok sayılır, kuralı komut uygular. */
+function stageContact(raw: unknown): { type: unknown; occurredAt: Date | null } | null {
+  if (!raw || typeof raw !== "object") return null;
+  const c = raw as { type?: unknown; occurredAt?: unknown };
+  return { type: c.type, occurredAt: typeof c.occurredAt === "string" && c.occurredAt ? new Date(c.occurredAt) : null };
 }
 
 const parseBody = (raw: string): Record<string, unknown> => {

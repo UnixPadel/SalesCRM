@@ -128,6 +128,8 @@ export interface TrackingReportDto {
 export interface TrackingReferenceDto {
   activityTypes: ActivityTypeDto[];
   contactChannels: ActivityTypeDto[];
+  /** Aşama kapısı: temas kaydı olmayan lead bu aşamalara kanal ve tarih girilerek geçer. */
+  contactStages: StageCodeDto[];
   activityOutcomes: ActivityOutcomeDto[];
   outcomeDisplayOrder: ActivityOutcomeDto[];
   replyOutcomes: ActivityOutcomeDto[];

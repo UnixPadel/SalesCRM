@@ -40,8 +40,8 @@ export const REPORT_DICT = {
   "reports.summary.buyers": ["Alıcı müşteri", "Buyers"],
   "reports.summary.ofTotal": ["toplamın", "of total"],
   "reports.summary.legacyNote": [
-    "{n} lead'in temas geçmişi bilinmiyor (eski kayıt); 'Hiç ulaşılmamış' sayısına katılmadı.",
-    "{n, plural, one {# lead has} other {# leads have}} unknown contact history (legacy); not counted as 'Never reached'.",
+    "{n} lead'in iletişim kaydı yok ama eski kayıt ya da aşaması ilerlemiş (Kayıt yok (eski)); 'Hiç ulaşılmamış' sayısına katılmadı.",
+    "{n, plural, one {# lead has} other {# leads have}} no contact record but {n, plural, one {is} other {are}} legacy or already past the first stage (No record (legacy)); not counted as 'Never reached'.",
   ],
   "reports.summary.col.lead": ["Lead", "Leads"],
   "reports.summary.col.mail": ["Mail atıldı", "Emailed"],

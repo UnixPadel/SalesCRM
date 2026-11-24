@@ -20,6 +20,14 @@ export const stageIndex = (code: StageCode): number => STAGE_CODES.indexOf(code)
 export const isTerminal = (code: StageCode): boolean => TERMINAL_STAGES.includes(code);
 
 /**
+ * Müşteriyle temas kurulmadan girilemeyecek aşamalar (ADR-0014 D8 eki, 2026-11-24). LOST yoktur: "hiç ulaşamadık,
+ * kapattık" geçerli bir sonuçtur. Temas özeti (`contactRecordMissing`) ve aşama kapısı (`ChangeLeadStage`) aynı
+ * listeyi kullanır.
+ */
+export const CONTACT_IMPLYING_STAGES: readonly StageCode[] = ["CONTACTED", "QUALIFIED", "PROPOSAL", "WON"];
+export const impliesContact = (code: StageCode): boolean => CONTACT_IMPLYING_STAGES.includes(code);
+
+/**
  * İzinli sonraki aşamalar: yalnız ileri. Terminal aşamadan çıkış yok. LOST her açık aşamadan gidilir.
  * Arayüz bu listeyi API'den okur; kuralı kendi içinde tekrar yazmaz (Genel plan, arayüz kuralları).
  */

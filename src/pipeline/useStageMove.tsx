@@ -1,13 +1,28 @@
 import { useCallback, useState, type ReactNode } from "react";
 import { refName, useLang } from "../i18n";
-import type { ChangeStageBody, LeadDto, ReferenceDto, StageCodeDto } from "../modules/sales-pipeline/api/dto";
+import type {
+  ActivityTypeDto,
+  ChangeStageBody,
+  LeadDto,
+  LeadListDto,
+  ReferenceDto,
+  StageCodeDto,
+} from "../modules/sales-pipeline/api/dto";
 import { useCrm } from "../state/CrmContext";
 import { displayCurrency } from "../state/currency";
-import { pipelineApi } from "./api";
+import { PipelineError, pipelineApi } from "./api";
 import { uploadAll } from "./attachments/attachmentApi";
 import { FilePicker } from "./attachments/FilePicker";
 import { useErrorText } from "./hooks";
-import { LostDialog, ProposalDialog, QualifiedDialog, WonDialog, type MoneyValue } from "./StageDialogs";
+import {
+  ContactedDialog,
+  LostDialog,
+  ProposalDialog,
+  QualifiedDialog,
+  StageContactFields,
+  WonDialog,
+  type MoneyValue,
+} from "./StageDialogs";
 
 export interface StageMoveOptions {
   /** Kazanıldı penceresini dolduracak son teklif tutarı (detay sayfası zaman çizelgesinden). */
@@ -27,7 +42,9 @@ export function useStageMove(
   const { t, lang } = useLang();
   const { toast } = useCrm();
   const errText = useErrorText();
-  const [pending, setPending] = useState<{ lead: LeadDto; target: StageCodeDto } | null>(null);
+  // `needContact`: lead'in temas kaydı yok ve hedef aşama temas gerektiriyor (aşama kapısı); pencere kanal ve tarih sorar.
+  const [pending, setPending] = useState<{ lead: LeadDto; target: StageCodeDto; needContact: boolean } | null>(null);
+  const [contact, setContact] = useState<{ type: ActivityTypeDto; at: string | null }>({ type: "call", at: null });
   const [saving, setSaving] = useState(false);
   // Aşama penceresinde seçilen dosyalar; aşama değişince lead'e yüklenir (2026-11-19).
   const [files, setFiles] = useState<File[]>([]);
@@ -59,6 +76,10 @@ export function useStageMove(
         onChanged(r.lead);
         return true;
       } catch (e) {
+        // Liste satırı eskimiş olabilir: sunucu temas istiyorsa aynı pencere kanal ve tarih alanlarıyla açılır.
+        if (e instanceof PipelineError && e.code === "stage.contact_required" && !body.contact) {
+          setPending({ lead, target: body.target, needContact: true });
+        }
         toast(errText(e), { bad: true });
         return false;
       } finally {
@@ -71,25 +92,50 @@ export function useStageMove(
   const move = useCallback(
     (lead: LeadDto, target: StageCodeDto) => {
       if (lead.currentStage === target) return;
-      if (target === "QUALIFIED" || target === "PROPOSAL" || target === "WON" || target === "LOST") {
+      // Detay ve liste satırı temas özetini taşır; taşımayan çağrıda kararı sunucu verir (`stage.contact_required`).
+      const needContact =
+        (ref?.contactStages ?? []).includes(target) && (lead as Partial<LeadListDto>).contact?.count === 0;
+      if (needContact || target === "QUALIFIED" || target === "PROPOSAL" || target === "WON" || target === "LOST") {
         setFiles([]);
-        setPending({ lead, target });
+        setContact({ type: "call", at: null });
+        setPending({ lead, target, needContact });
       } else void submit(lead, { target });
     },
-    [submit],
+    [submit, ref],
   );
 
   let dialog: ReactNode = null;
   if (pending && ref) {
     const close = () => setPending(null);
     const confirm = async (body: ChangeStageBody) => {
-      if (await submit(pending.lead, body, files)) close();
+      const full: ChangeStageBody = pending.needContact
+        ? {
+            ...body,
+            contact: { type: contact.type, occurredAt: contact.at ? new Date(contact.at).toISOString() : null },
+          }
+        : body;
+      // Sunucu temas isterse `submit` pencereyi alanlarla yeniden açar; o zaman kapatılmaz.
+      if (await submit(pending.lead, full, files)) close();
     };
+    const contactFields = pending.needContact ? (
+      <StageContactFields channels={ref.contactChannels} value={contact} disabled={saving} onChange={setContact} />
+    ) : null;
     // İlk sıradaki para birimi pencerenin varsayılanıdır: lead'in çalışma para birimi, yoksa görünüm para birimi.
     const first = pending.lead.currency || displayCurrency();
     const currencies = [first, ...ref.currencies.filter((c) => c !== first)];
-    const extra = <FilePicker files={files} onChange={setFiles} rules={ref.attachments} disabled={saving} />;
-    if (pending.target === "QUALIFIED")
+    const extra = (
+      <>
+        {contactFields}
+        <FilePicker files={files} onChange={setFiles} rules={ref.attachments} disabled={saving} />
+      </>
+    );
+    if (pending.target === "CONTACTED")
+      dialog = (
+        <ContactedDialog saving={saving} onCancel={close} onConfirm={() => void confirm({ target: "CONTACTED" })}>
+          {contactFields}
+        </ContactedDialog>
+      );
+    else if (pending.target === "QUALIFIED")
       dialog = (
         <QualifiedDialog
           questions={ref.qualificationQuestions}

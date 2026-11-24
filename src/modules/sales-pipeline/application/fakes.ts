@@ -476,6 +476,15 @@ function reposFor(s: MemoryState): Repositories {
       unlinkCompleted(removed);
       return removed.size;
     },
+    async removeStageContactByChange(changeId) {
+      const removed = new Set(
+        s.activities
+          .filter((a) => !a.autoCreated && a.createdByChangeId === changeId && a.doneAt !== null && a.logId === null)
+          .map((a) => a.id),
+      );
+      s.activities = s.activities.filter((a) => !removed.has(a.id));
+      return removed.size;
+    },
   };
   const contactLogs: ContactLogRepository = {
     async insert(log) {

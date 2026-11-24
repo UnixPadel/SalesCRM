@@ -174,5 +174,13 @@ export function pgActivityRepository(q: Queryable): ActivityRepository {
       );
       return rows.length;
     },
+    async removeStageContactByChange(changeId) {
+      const rows = await q.query<{ id: string }>(
+        "DELETE FROM activities WHERE NOT auto_created AND created_by_change_id = $1 AND done_at IS NOT NULL " +
+          "AND log_id IS NULL RETURNING id",
+        [changeId],
+      );
+      return rows.length;
+    },
   };
 }

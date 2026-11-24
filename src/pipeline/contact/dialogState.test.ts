@@ -101,9 +101,40 @@ describe("dialogState", () => {
   it("görüşme notu zorunlu: boş ya da yalnız boşluk kaydı durdurur", () => {
     const s = initialState(FORM, RULES);
     const at = Date.parse(FORM.now);
-    expect(saveBlockers(s, FORM, RULES, at)).toEqual(["contact.needNote"]);
-    expect(saveBlockers({ ...s, note: "   " }, FORM, RULES, at)).toEqual(["contact.needNote"]);
-    expect(saveBlockers({ ...s, note: "Fiyat listesi istedi" }, FORM, RULES, at)).toEqual([]);
+    // "Dönüş alındı mı?" sorusu ayrı test edilir; burada cevaplanmış sayılır.
+    const answered = { ...s, stageChecked: false };
+    expect(saveBlockers(answered, FORM, RULES, at)).toEqual(["contact.needNote"]);
+    expect(saveBlockers({ ...answered, note: "   " }, FORM, RULES, at)).toEqual(["contact.needNote"]);
+    expect(saveBlockers({ ...answered, note: "Fiyat listesi istedi" }, FORM, RULES, at)).toEqual([]);
+  });
+
+  it("'Dönüş alındı mı?': önseçili değilse cevapsız başlar ve kaydı durdurur; Evet aşamayı taşır, Hayır taşımaz", () => {
+    const at = Date.parse(FORM.now);
+    const base = { ...initialState(FORM, RULES, { type: "call" }), note: "Arandı" };
+    // İşaretsiz gelen satır (Dönüş bekleniyor): cevap yok, Kaydet pasif.
+    const waiting = retarget({ ...base, outcome: "awaiting_reply" }, FORM, RULES);
+    expect(waiting.stageChecked).toBeNull();
+    expect(saveBlockers(waiting, FORM, RULES, at)).toEqual(["contact.needReplyAnswer"]);
+    const no = { ...waiting, stageChecked: false };
+    expect(saveBlockers(no, FORM, RULES, at)).toEqual([]);
+    expect(buildBody(no, FORM, RULES).stage).toBeUndefined();
+    const yes = { ...waiting, stageChecked: true };
+    expect(saveBlockers(yes, FORM, RULES, at)).toEqual([]);
+    expect(buildBody(yes, FORM, RULES).stage).toEqual({ target: "CONTACTED" });
+    // İşaretli gelen satır (Dönüş alındı): Evet önseçili, engel yok.
+    const replied = retarget({ ...base, outcome: "reply_received" }, FORM, RULES);
+    expect(replied.stageChecked).toBe(true);
+    expect(saveBlockers(replied, FORM, RULES, at)).toEqual([]);
+    // Takip edilecek: "Müşteri cevap verdi" ile Evet; işaret kalkınca yeniden cevapsız.
+    const follow = retarget({ ...base, outcome: "follow_up" }, FORM, RULES);
+    expect(follow.stageChecked).toBe(true);
+    const unflagged = setReplied(follow, false, FORM);
+    expect(unflagged.stageChecked).toBeNull();
+    expect(saveBlockers(unflagged, FORM, RULES, at)).toEqual(["contact.needReplyAnswer"]);
+    // Onay kutusu olan satırlar (Kazanıldı) cevapsız olmaz.
+    const agreed = retarget({ ...base, outcome: "agreed" }, FORM, RULES);
+    expect(agreed.stageChecked).toBe(false);
+    expect(saveBlockers(agreed, FORM, RULES, at)).toEqual([]);
   });
 
   it("Kazanıldı için tutar, Kaybedildi için neden zorunlu; ileri saat reddi", () => {

@@ -44,6 +44,8 @@ export class UndoStageChange {
       await repos.outbox.skipForEvents(plan.value.eventIds, "undone");
       // Kural 2'nin tersi: o değişiklikle otomatik açılan takip aktivitesi de gider.
       await repos.activities.removeAutoCreatedByChange(plan.value.changeId);
+      // Aşama kapısının yazdığı temas da gider (aşama penceresinde girilen kanal ve tarih).
+      await repos.activities.removeStageContactByChange(plan.value.changeId);
       await repos.leads.updateStage(lead.id, plan.value.revertTo, now);
       return ok({
         lead: { ...lead, currentStage: plan.value.revertTo, updatedAt: now },

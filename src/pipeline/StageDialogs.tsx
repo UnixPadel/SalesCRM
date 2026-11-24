@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { Button, Field, Modal } from "../components/ui";
 import { refName, useLang } from "../i18n";
-import type { ChangeStageBody, ReferenceDto } from "../modules/sales-pipeline/api/dto";
+import type { ActivityTypeDto, ChangeStageBody, ReferenceDto } from "../modules/sales-pipeline/api/dto";
+import { toLocalInput } from "./contact/dialogState";
 
 /** Aşamaya özel pencereler (Genel plan, satışçı arayüzü 3): ek bilgi yalnız gereken aşamada istenir. */
 
@@ -393,6 +394,81 @@ export function LostDialog({
           }}
         >
           {t("dialog.lost.confirm")}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Aşama kapısı (2026-11-24): lead'in hiç temas kaydı yokken İletişim kuruldu / Nitelikli / Teklif / Kazanıldı'ya
+ * geçilirse aşama penceresi müşteriye hangi kanaldan ve ne zaman ulaşıldığını sorar; temas aşamayla birlikte yazılır.
+ */
+export function StageContactFields({
+  channels,
+  value,
+  disabled,
+  onChange,
+}: {
+  channels: ActivityTypeDto[];
+  value: { type: ActivityTypeDto; at: string | null };
+  disabled?: boolean;
+  onChange: (v: { type: ActivityTypeDto; at: string | null }) => void;
+}) {
+  const { t } = useLang();
+  const now = toLocalInput(new Date().toISOString());
+  return (
+    <fieldset className="stage-contact">
+      <legend className="field-l">{t("stage.contact.title")}</legend>
+      <p className="muted">{t("stage.contact.help")}</p>
+      <div className="won-row">
+        <Field label={t("contact.channel")}>
+          <select
+            value={value.type}
+            disabled={disabled}
+            onChange={(e) => onChange({ ...value, type: e.target.value as ActivityTypeDto })}
+          >
+            {channels.map((c) => (
+              <option key={c} value={c}>
+                {t(`activity.type.${c}`)}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t("contact.when")}>
+          <input
+            type="datetime-local"
+            max={now}
+            value={value.at ?? now}
+            disabled={disabled}
+            onChange={(e) => onChange({ ...value, at: e.target.value || null })}
+          />
+        </Field>
+      </div>
+    </fieldset>
+  );
+}
+
+/** "İletişim kuruldu" normalde penceresiz geçer; bu pencere yalnız temas kaydı olmayan lead'de açılır. */
+export function ContactedDialog({
+  saving,
+  children,
+  onCancel,
+  onConfirm,
+}: {
+  saving: boolean;
+  children: ReactNode;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { t } = useLang();
+  return (
+    <Modal title={t("dialog.contacted.title")} onClose={onCancel} width={420}>
+      {children}
+      <div className="modal-actions">
+        <Button onClick={onCancel}>{t("common.cancel")}</Button>
+        <Button variant="pri" loading={saving} onClick={onConfirm}>
+          {t("dialog.contacted.confirm")}
         </Button>
       </div>
     </Modal>

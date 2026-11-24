@@ -272,6 +272,17 @@ export const DICT = {
   "today.emptyUpcoming": ["Yaklaşan aktivite yok.", "No upcoming activities."],
   "err.activity.type_unknown": ["Bilinmeyen aktivite türü.", "Unknown activity type."],
   "err.activity.due_required": ["Aktivite için tarih seçin.", "Choose a date for the activity."],
+  "dialog.contacted.title": ["İletişim kuruldu", "Contacted"],
+  "dialog.contacted.confirm": ["İletişim kuruldu olarak işaretle", "Mark as contacted"],
+  "stage.contact.title": ["Müşteriye nasıl ulaşıldı?", "How was the customer reached?"],
+  "stage.contact.help": [
+    "Bu lead için henüz iletişim kaydı yok. Kanalı ve zamanı seçin; aşamayla birlikte kaydedilir.",
+    "This lead has no contact record yet. Pick the channel and time; it is saved with the stage.",
+  ],
+  "err.stage.contact_required": [
+    "Bu aşamaya geçmek için müşteriye nasıl ulaşıldığını girin.",
+    "To move to this stage, enter how the customer was reached.",
+  ],
   "dialog.proposal.title": ["Teklif gönderildi", "Proposal sent"],
   "dialog.proposal.lede": [
     "Teklif tutarını girerseniz reklam platformlarına değer olarak iletilir ve Kazanıldı penceresine hazır gelir. İsteğe bağlıdır.",

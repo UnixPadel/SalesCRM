@@ -181,6 +181,8 @@ export interface ActivityRepository {
   remove(id: string): Promise<void>;
   /** Geri al: o aşama değişikliğiyle otomatik açılan aktiviteler silinir; silinen sayısı döner. */
   removeAutoCreatedByChange(changeId: string): Promise<number>;
+  /** Geri al: o aşama değişikliğinin penceresinde girilen temas (aşama kapısı) silinir; silinen sayısı döner. */
+  removeStageContactByChange(changeId: string): Promise<number>;
   /** Taşıma: eski kimlikle daha önce açılmış mı. */
   findByLegacyId(legacyId: string): Promise<Activity | undefined>;
   /** Planı temasla tamamlar (Faz 7g): tür, sonuç, not ve kayıt bağı aynı satıra yazılır. */
