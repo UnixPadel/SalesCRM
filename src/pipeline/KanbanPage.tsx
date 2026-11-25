@@ -131,7 +131,7 @@ export function KanbanPage({ params }: { params: URLSearchParams }) {
       return;
     }
     // Faz 7g (§5.1): lead NEW → CONTACTED bırakılınca "İletişim kaydet" açılır (aşama satırı önerili). Her kullanıcı ve
-    // her lead için açılır; görüşme notu zorunlu olduğundan "Yalnız aşamayı taşı" kısa yolu kaldırıldı (2026-11-19).
+    // her lead için açılır; "Yalnız aşamayı taşı" kısa yolu yoktur (2026-11-19).
     if (lead.currentStage === "NEW" && target === "CONTACTED") {
       contact.openDialog({
         leadId: lead.id,

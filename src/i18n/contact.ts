@@ -391,7 +391,6 @@ export const CONTACT_DICT = {
   "history.next": ["Sonraki takip", "Next follow-up"],
   "history.by": ["Kaydeden", "Logged by"],
   // ---- Dosya ekleri (2026-11-19).
-  "contact.needNote": ["Görüşme notu yazın", "Write a note"],
   "attach.title": ["Dosya ekleri", "Attachments"],
   "attach.add": ["Dosya ekle", "Add file"],
   "attach.hint": [

@@ -30,6 +30,30 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-25",
+    date: "2026-11-25",
+    items: {
+      tr: [
+        {
+          title: "Görüşme notu artık isteğe bağlı",
+          text: "İletişim kaydederken not yazmadan da kaydedebilirsiniz; önemli bir ayrıntı varsa yine not eklemenizi öneririz.",
+        },
+      ],
+      en: [
+        {
+          title: "Contact note is now optional",
+          text: "You can save a contact without writing a note; we still recommend adding one when there is an important detail.",
+        },
+      ],
+      ar: [
+        {
+          title: "ملاحظة التواصل أصبحت اختيارية",
+          text: "يمكنك حفظ التواصل دون كتابة ملاحظة؛ ونوصي بإضافتها عند وجود تفصيل مهم.",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-24-4",
     date: "2026-11-24",
     items: {

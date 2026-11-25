@@ -269,7 +269,6 @@ export const AR_CONTACT: Record<keyof typeof CONTACT_DICT, string> = {
   "history.lead": "العميل المحتمل",
   "history.next": "المتابعة التالية",
   "history.by": "سجّله",
-  "contact.needNote": "اكتب ملاحظة التواصل",
   "attach.title": "المرفقات",
   "attach.add": "إضافة ملف",
   "attach.hint": "PDF، صور، Word، Excel، CSV؛ بحد أقصى {mb} ميغابايت لكل ملف.",

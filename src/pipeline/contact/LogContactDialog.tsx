@@ -72,7 +72,6 @@ export function LogContactDialog({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
-  const [noteTouched, setNoteTouched] = useState(false);
   const helpId = useId();
   const rules = ref?.contactRules;
   const nowMs = useNow(15_000);
@@ -266,15 +265,11 @@ export function LogContactDialog({
         </fieldset>
 
         {/* 4. Not */}
-        <label className={"field" + (noteTouched && !s.note.trim() ? " has-error" : "")}>
-          <span className="field-l">
-            {t("contact.note")} <span aria-hidden="true">*</span>
-          </span>
+        <label className="field">
+          <span className="field-l">{t("contact.note")}</span>
           <textarea
             rows={3}
             maxLength={rules.noteMax}
-            aria-required="true"
-            onBlur={() => setNoteTouched(true)}
             value={s.note}
             placeholder={t("contact.notePlaceholder")}
             onChange={(e) => up({ note: e.target.value })}

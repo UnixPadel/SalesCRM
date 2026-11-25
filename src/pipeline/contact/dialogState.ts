@@ -266,8 +266,7 @@ export function saveBlockers(
 ): string[] {
   const out: string[] = [];
   const target = effectiveTarget(s, form, rules);
-  // Görüşme notu zorunludur (2026-11-19).
-  if (!s.note.trim()) out.push("contact.needNote");
+  // Görüşme notu isteğe bağlıdır (2026-11-25; 2026-11-19'dan beri zorunluydu).
   if (fileCount !== undefined && fileCount < 1 && evidenceRule(s.type, target).required) out.push("contact.needFile");
   // "Dönüş alındı mı?" cevapsız bırakılamaz.
   if (isReplyQuestion(defaultsFor(form, s.type, s.outcome).stage) && s.stageChecked === null) {

@@ -100,13 +100,14 @@ describe("dialogState", () => {
     expect(body.next).toBeNull();
   });
 
-  it("görüşme notu zorunlu: boş ya da yalnız boşluk kaydı durdurur", () => {
+  it("görüşme notu isteğe bağlı: boş ya da yalnız boşluk not kaydı durdurmaz", () => {
     const s = initialState(FORM, RULES);
     const at = Date.parse(FORM.now);
     // "Dönüş alındı mı?" sorusu ayrı test edilir; burada cevaplanmış sayılır.
     const answered = { ...s, stageChecked: false };
-    expect(saveBlockers(answered, FORM, RULES, at)).toEqual(["contact.needNote"]);
-    expect(saveBlockers({ ...answered, note: "   " }, FORM, RULES, at)).toEqual(["contact.needNote"]);
+    expect(saveBlockers(answered, FORM, RULES, at)).toEqual([]);
+    expect(saveBlockers({ ...answered, note: "   " }, FORM, RULES, at)).toEqual([]);
+    expect(buildBody({ ...answered, note: "   " }, FORM, RULES).note).toBe("");
     expect(saveBlockers({ ...answered, note: "Fiyat listesi istedi" }, FORM, RULES, at)).toEqual([]);
   });
 
@@ -120,11 +121,8 @@ describe("dialogState", () => {
     const yes = { ...s, stageChecked: true };
     expect(buildBody(yes, FORM, RULES).stage).toEqual({ target: "CONTACTED" });
     expect(saveBlockers(yes, FORM, RULES, at, 1)).toEqual([]);
-    // Not ve dosya birlikte eksikse ikisi de söylenir.
-    expect(saveBlockers({ ...answered, note: "" }, FORM, RULES, at, 0)).toEqual([
-      "contact.needNote",
-      "contact.needFile",
-    ]);
+    // Not boş olsa da yalnız dosya eksikliği söylenir.
+    expect(saveBlockers({ ...answered, note: "" }, FORM, RULES, at, 0)).toEqual(["contact.needFile"]);
   });
 
   it("iletişim kaydında dosya yalnız WhatsApp ve telefonda zorunlu", () => {

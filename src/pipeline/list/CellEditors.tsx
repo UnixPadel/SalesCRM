@@ -77,7 +77,7 @@ export const CellEditors = forwardRef<CellEditorsApi, { onChanged: OnChanged }>(
       quick,
       form: openForm,
       moveStage: (lead, target) => {
-        // Panodaki kural: lead "İletişim kuruldu"ya geçerken iletişim penceresi açılır (görüşme notu zorunlu).
+        // Panodaki kural: lead "İletişim kuruldu"ya geçerken iletişim penceresi açılır.
         if (lead.currentStage === "NEW" && target === "CONTACTED") {
           openDialog({
             leadId: lead.id,
