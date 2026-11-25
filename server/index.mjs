@@ -22,7 +22,7 @@ import {
   canReadDirectory,
   marketingUsers,
   reportsAccess,
-  seesCampaign,
+  sessionSees,
   sessionRole,
 } from "./roles.mjs";
 import { emailsOf, USERS, userFor } from "./users.mjs";
@@ -476,13 +476,15 @@ app.post("/api/auth/login", async (req, res) => {
     userId: who.local ? "admin" : who.id || email,
     name: who.name,
     role: who.role,
-    // Kampanya adları yalnız CRM_CAMPAIGN_VIEWERS listesindekilere (server/roles.mjs); yerel Admin "admin" adıyla eşleşir.
-    seesCampaign: seesCampaign(
+    // Kampanya adları: yönetici rolü ve CRM_CAMPAIGN_VIEWERS listesindekiler (server/roles.mjs); yerel Admin "admin".
+    seesCampaign: sessionSees(
+      who.role,
       who.local ? { id: "admin", login: limitKey } : { id: who.id, login: limitKey, email },
       campaignViewers(),
     ),
-    // İşlem günlüğü (Yönetim > Loglar) yalnız CRM_LOG_VIEWERS listesindekilere; aynı eşleşme kuralı.
-    seesLogs: seesCampaign(
+    // İşlem günlüğü (Yönetim > Loglar): yönetici rolü ve CRM_LOG_VIEWERS listesindekiler; aynı eşleşme kuralı.
+    seesLogs: sessionSees(
+      who.role,
       who.local ? { id: "admin", login: limitKey } : { id: who.id, login: limitKey, email },
       logViewers(),
     ),

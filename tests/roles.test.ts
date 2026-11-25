@@ -11,6 +11,7 @@ import {
   reportsAccess,
   seesCampaign,
   sessionRole,
+  sessionSees,
 } from "../server/roles.mjs";
 import { redactCampaigns } from "../src/modules/sales-pipeline/api/campaignVisibility";
 import { actorFromSession } from "../src/bootstrap/salesPipeline";
@@ -112,6 +113,15 @@ describe("kampanya görünürlüğü (2026-11-20)", () => {
     expect(seesCampaign({ login: "elshan.rasulov" }, logViewers({ CRM_LOG_VIEWERS: "" }))).toBe(false);
     expect(actorFromSession({ userId: "7", role: "rep", seesLogs: true })?.seesLogs).toBe(true);
     expect(actorFromSession({ userId: "7", role: "admin" })?.seesLogs).toBe(false);
+  });
+
+  it("yönetici rolü listede olmasa da Loglar'ı ve kampanya adlarını görür (2026-11-25); diğer roller listeye bağlı", () => {
+    const ids = { id: "88", login: "mehmet", email: "mehmet@unixpadel.com" };
+    expect(sessionSees("admin", ids, logViewers({}))).toBe(true);
+    expect(sessionSees("admin", ids, campaignViewers({ CRM_CAMPAIGN_VIEWERS: "" }))).toBe(true);
+    expect(sessionSees("rep", ids, logViewers({}))).toBe(false);
+    expect(sessionSees("marketing", ids, logViewers({}))).toBe(false);
+    expect(sessionSees("rep", ids, logViewers({ CRM_LOG_VIEWERS: "mehmet" }))).toBe(true);
   });
 
   it("yanıttaki kampanya bilgisi boşalır, diğer alanlar kalır", () => {

@@ -5,6 +5,8 @@ import { isStageCode } from "../domain";
 import type {
   ContactFormDto,
   CustomerStatusBody,
+  DeleteContactLogBody,
+  DeleteContactLogResultDto,
   LogContactBody,
   LogContactResultDto,
   UndoLogContactResultDto,
@@ -78,6 +80,20 @@ export function registerContactRoutes(r: Router, deps: ContactRouteDeps): void {
     const result = await pipeline.undoLogContact.execute({ logId: String(req.params["logId"]), actor: a });
     if (!result.ok) return sendError(res, result.error);
     res.json(<UndoLogContactResultDto>result.value);
+  });
+
+  // Yönetici silmesi (2026-11-25): süre sınırı yok, neden zorunlu; etkisi geri almayla aynı.
+  r.delete("/contact-logs/:logId", async (req, res) => {
+    const a = actor(req, res, true);
+    if (!a) return;
+    const b = (req.body ?? {}) as Partial<DeleteContactLogBody>;
+    const result = await pipeline.deleteContactLog.execute({
+      logId: String(req.params["logId"]),
+      actor: a,
+      reason: b.reason,
+    });
+    if (!result.ok) return sendError(res, result.error);
+    res.json(<DeleteContactLogResultDto>result.value);
   });
 
   r.put("/leads/:id/customer-status", async (req, res) => {

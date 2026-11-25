@@ -7,8 +7,10 @@ import {
   contactRecordMissing,
   summarizeContacts,
   validateActivity,
+  validateContact,
   type Activity,
   type ActivityBucket,
+  type ActivityPatch,
   type ActivityOutcome,
   type ActivityType,
   type Lead,
@@ -137,6 +139,127 @@ export class SetActivityDone {
   }
 }
 
+export interface UpdateActivityInput {
+  activityId: string;
+  actor: Actor;
+  /** Açık iş ve temas. */
+  type?: unknown;
+  /** Yalnız açık iş. */
+  subject?: string | null | undefined;
+  dueAt?: Date | null | undefined;
+  notes?: string | null | undefined;
+  /** Yalnız tamamlanmış temas. */
+  outcome?: unknown;
+  customerReplied?: boolean | undefined;
+  resultNote?: string | null | undefined;
+  doneAt?: Date | null | undefined;
+}
+
+const PLAN_FIELDS = ["subject", "dueAt", "notes"] as const;
+const CONTACT_FIELDS = ["outcome", "customerReplied", "resultNote", "doneAt"] as const;
+const sameTime = (a: Date | null, b: Date | null) => (a?.getTime() ?? null) === (b?.getTime() ?? null);
+
+/**
+ * Düzenleme (2026-11-25). Açık iş (tür, konu, vade, not): lead'inde iş açabilen herkes (kendi + havuz; yönetici
+ * hepsi). Tamamlanmış temas (kanal, sonuç, "müşteri cevap verdi", görüşme notu, tarih): yalnız yönetici; temas
+ * kuralları kayıttakiyle aynıdır (`validateContact`). Aşama, sonraki takip ve müşteri durumu değişmez: düzenleme
+ * yalnız satırın kendisidir. Tarih değişince "≈" (tahmini) işareti kalkar.
+ */
+export class UpdateActivity {
+  constructor(private readonly deps: UseCaseDeps) {}
+
+  async execute(input: UpdateActivityInput): Promise<Result<Activity, RuleError>> {
+    const { uow, clock } = this.deps;
+    const tz = this.deps.timeZone ?? DEFAULT_TIME_ZONE;
+    let changedFields: string[] = [];
+    const out = await uow.run(async (repos): Promise<Result<Activity, RuleError>> => {
+      const a = await repos.activities.findById(input.activityId);
+      if (!a) return err(new NotFoundError("Activity", input.activityId));
+      const lead = await visibleLead(repos, a.leadId, input.actor);
+      if (!lead.ok) return lead;
+      const now = clock.now();
+      const done = a.doneAt !== null;
+      const foreign = (done ? PLAN_FIELDS : CONTACT_FIELDS).filter((k) => input[k] !== undefined);
+      if (foreign.length) {
+        return err(
+          new RuleError("activity.field_not_editable", "Bu alan bu satırda düzenlenemez.", {
+            fields: foreign,
+            done,
+          }),
+        );
+      }
+
+      const patch: ActivityPatch = {};
+      if (!done) {
+        const draft = validateActivity({
+          type: input.type ?? a.type,
+          subject: input.subject ?? a.subject,
+          dueAt: input.dueAt === undefined ? a.dueAt : input.dueAt,
+          notes: input.notes ?? a.notes,
+        });
+        if (!draft.ok) return draft;
+        const d = draft.value;
+        if (d.type !== a.type) patch.type = d.type;
+        if (d.subject !== a.subject) patch.subject = d.subject;
+        if (!sameTime(d.dueAt, a.dueAt)) patch.dueAt = d.dueAt;
+        if (d.notes !== a.notes) patch.notes = d.notes;
+      } else {
+        const admin = requireAdmin(input.actor, "contact_edit");
+        if (!admin.ok) return admin;
+        if (input.doneAt === null) {
+          return err(new RuleError("contact.occurred_invalid", "Temas zamanı geçersiz.", {}));
+        }
+        const newAt = input.doneAt === undefined || sameTime(input.doneAt, a.doneAt) ? null : input.doneAt;
+        const contact = validateContact({
+          type: input.type ?? a.type,
+          outcome: input.outcome ?? a.outcome,
+          customerReplied: input.customerReplied ?? a.customerReplied,
+          // Tarih değişmiyorsa doğrulanmaz: eski (ör. 2024 öncesi aktarılmış) temas da düzenlenebilsin.
+          occurredAt: newAt ?? now,
+          now,
+          note: input.resultNote ?? a.resultNote,
+          completingType: a.type,
+          timeZone: tz,
+        });
+        if (!contact.ok) return contact;
+        const c = contact.value;
+        if (c.type !== a.type) patch.type = c.type;
+        if (c.outcome !== a.outcome) patch.outcome = c.outcome;
+        if (c.customerReplied !== a.customerReplied) patch.customerReplied = c.customerReplied;
+        if (c.note !== a.resultNote) patch.resultNote = c.note;
+        if (newAt) {
+          patch.doneAt = newAt;
+          if (a.dateEstimated) patch.dateEstimated = false;
+        }
+      }
+      changedFields = Object.keys(patch).filter((k) => k !== "dateEstimated");
+      if (!changedFields.length) return ok(a);
+      await repos.activities.update(a.id, patch, now);
+      return ok({ ...a, ...patch, updatedAt: now });
+    });
+    if (out.ok && changedFields.length) {
+      const done = out.value.doneAt !== null;
+      await this.deps.actions?.record({
+        actor: input.actor,
+        action: done ? "contact.updated" : "activity.updated",
+        lead: { id: out.value.leadId },
+        details: {
+          type: out.value.type,
+          ...(done ? { outcome: out.value.outcome } : {}),
+          fields: changedFields,
+        },
+      });
+      this.deps.logger.info(done ? "temas düzenlendi" : "aktivite düzenlendi", {
+        activityId: out.value.id,
+        leadId: out.value.leadId,
+        fields: changedFields,
+        actorUserId: input.actor.userId,
+      });
+    }
+    return out;
+  }
+}
+
 export interface DeleteActivityInput {
   activityId: string;
   actor: Actor;
@@ -156,6 +279,16 @@ export class DeleteActivity {
       if (activity.doneAt !== null) {
         const admin = requireAdmin(input.actor, "activity_done_delete");
         if (!admin.ok) return admin;
+        // 2026-11-25: temas kaydına bağlı satır tek başına silinmez (kayıt, sonraki takip ve durum değişikliği yarım
+        // kalırdı); `DeleteContactLog` hepsini birlikte geri çevirir.
+        if (activity.logId !== null) {
+          return err(
+            new RuleError("contact.delete_logged", "Bu temas kaydı neden yazılarak silinir.", {
+              activityId: activity.id,
+              logId: activity.logId,
+            }),
+          );
+        }
       }
       await repos.activities.remove(activity.id);
       removed = activity;

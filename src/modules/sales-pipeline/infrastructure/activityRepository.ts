@@ -1,5 +1,12 @@
 import { queryOne, type Queryable } from "../../shared/db";
-import type { Activity, ActivityOutcome, ActivityRepository, ActivityType, ContactAggregateRow } from "../domain";
+import type {
+  Activity,
+  ActivityOutcome,
+  ActivityPatch,
+  ActivityRepository,
+  ActivityType,
+  ContactAggregateRow,
+} from "../domain";
 import { activityFromRow, type ActivityRow } from "./rows";
 
 interface AggregateRow extends Record<string, unknown> {
@@ -101,6 +108,29 @@ export function pgActivityRepository(q: Queryable): ActivityRepository {
           updatedAt,
         ],
       );
+    },
+    async update(id, patch, updatedAt) {
+      const cols: Record<keyof ActivityPatch, string> = {
+        type: "type",
+        subject: "subject",
+        dueAt: "due_at",
+        notes: "notes",
+        outcome: "outcome",
+        customerReplied: "customer_replied",
+        resultNote: "result_note",
+        doneAt: "done_at",
+        dateEstimated: "date_estimated",
+      };
+      const sets: string[] = [];
+      const params: unknown[] = [id];
+      for (const [k, v] of Object.entries(patch) as [keyof ActivityPatch, unknown][]) {
+        if (v === undefined) continue;
+        params.push(v);
+        sets.push(`${cols[k]} = $${params.length}`);
+      }
+      params.push(updatedAt);
+      sets.push(`updated_at = $${params.length}`);
+      await q.query(`UPDATE activities SET ${sets.join(", ")} WHERE id = $1`, params);
     },
     async reopen(id, back, updatedAt) {
       await q.query(

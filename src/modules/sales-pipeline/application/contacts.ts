@@ -28,7 +28,7 @@ import {
   type StageCode,
   type StageLineMode,
 } from "../domain";
-import { ADMIN_ONLY } from "./permissions";
+import { ADMIN_ONLY, requireAdmin } from "./permissions";
 import type { Actor, UseCaseDeps } from "./types";
 import type { ChangeLeadStage } from "./changeLeadStage";
 import type { UndoStageChange } from "./undoStageChange";
@@ -421,37 +421,7 @@ export class UndoLogContact {
       }
     }
 
-    let stageUndone = false;
-    if (log.stageChangeId) {
-      const undone = await this.undoStage.execute({
-        leadId: log.leadId,
-        actor: input.actor,
-        changeId: log.stageChangeId,
-      });
-      stageUndone = undone.ok;
-    }
-
-    await uow.run(async (repos) => {
-      await repos.activities.removeCreatedByLog(log.id, log.completedActivityId);
-      await repos.activities.removeOpenNextOfLog(log.id);
-      if (log.completedActivityId) {
-        const planned = await repos.activities.findById(log.completedActivityId);
-        if (planned) {
-          await repos.activities.reopen(
-            planned.id,
-            { type: log.prevType ?? planned.type, subject: log.prevSubject ?? planned.subject },
-            now,
-          );
-        }
-      }
-      if (log.statusChanged) {
-        const lead = await repos.leads.findById(log.leadId);
-        if (lead && lead.customerStatus === log.statusAfter) {
-          await repos.leads.setCustomerStatus(lead.id, log.statusBefore, now);
-        }
-      }
-      await repos.contactLogs.remove(log.id);
-    });
+    const stageUndone = await revertContactLog(this.deps, this.undoStage, log, input.actor, now);
     await this.deps.actions?.record({ actor: input.actor, action: "contact.undone", lead: { id: log.leadId } });
     this.deps.logger.info("temas kaydı geri alındı", {
       leadId: log.leadId,
@@ -460,6 +430,104 @@ export class UndoLogContact {
       actorUserId: input.actor.userId,
     });
     return ok({ undone: true, stageUndone });
+  }
+}
+
+/**
+ * Temas kaydını hiç girilmemiş gibi geri çevirir (geri alma ve yönetici silmesi ortak): eklediği satırlar ve açık
+ * sonraki takibi silinir, tamamladığı plan eski tür ve konusuyla yeniden açılır, değiştirdiği müşteri durumu (hâlâ
+ * aynıysa) geri yazılır. Aşama yalnız hâlâ son değişiklikse ve süresi dolmamışsa geri döner; dönüp dönmediği döner.
+ */
+async function revertContactLog(
+  deps: UseCaseDeps,
+  undoStage: UndoStageChange,
+  log: ContactLog,
+  actor: Actor,
+  now: Date,
+): Promise<boolean> {
+  let stageUndone = false;
+  if (log.stageChangeId) {
+    const undone = await undoStage.execute({ leadId: log.leadId, actor, changeId: log.stageChangeId });
+    stageUndone = undone.ok;
+  }
+  await deps.uow.run(async (repos) => {
+    await repos.activities.removeCreatedByLog(log.id, log.completedActivityId);
+    await repos.activities.removeOpenNextOfLog(log.id);
+    if (log.completedActivityId) {
+      const planned = await repos.activities.findById(log.completedActivityId);
+      if (planned) {
+        await repos.activities.reopen(
+          planned.id,
+          { type: log.prevType ?? planned.type, subject: log.prevSubject ?? planned.subject },
+          now,
+        );
+      }
+    }
+    if (log.statusChanged) {
+      const lead = await repos.leads.findById(log.leadId);
+      if (lead && lead.customerStatus === log.statusAfter) {
+        await repos.leads.setCustomerStatus(lead.id, log.statusBefore, now);
+      }
+    }
+    await repos.contactLogs.remove(log.id);
+  });
+  return stageUndone;
+}
+
+/** Temas kaydı silme nedeninin alt sınırı (lead silmeyle aynı). */
+export const CONTACT_DELETE_REASON_MIN = 3;
+
+export interface DeleteContactLogInput {
+  logId: string;
+  actor: Actor;
+  reason: unknown;
+}
+
+/**
+ * Yönetici temas kaydını siler (2026-11-25): süre sınırı yok, neden zorunlu. Etkisi geri almayla aynıdır
+ * (`revertContactLog`); fark, işlem günlüğüne `contact.deleted` ve nedenin yazılmasıdır. Aşama sonradan değiştiyse
+ * ya da süresi geçtiyse aşama yerinde kalır (`stageKept: true`); yönetici gerekirse "Aşamayı geri çek"i kullanır.
+ */
+export class DeleteContactLog {
+  constructor(
+    private readonly deps: UseCaseDeps,
+    private readonly undoStage: UndoStageChange,
+  ) {}
+
+  async execute(
+    input: DeleteContactLogInput,
+  ): Promise<Result<{ deleted: true; stageUndone: boolean; stageKept: boolean }, RuleError>> {
+    const allowed = requireAdmin(input.actor, "contact_delete");
+    if (!allowed.ok) return allowed;
+    const reason = String(input.reason ?? "")
+      .trim()
+      .slice(0, 500);
+    if (reason.length < CONTACT_DELETE_REASON_MIN) {
+      return err(new RuleError("contact.delete_reason", "Silme nedeni yazılmalı.", { min: CONTACT_DELETE_REASON_MIN }));
+    }
+    const found = await this.deps.uow.run(async (repos) => {
+      const log = await repos.contactLogs.findById(input.logId);
+      if (!log) return err(new NotFoundError("ContactLog", input.logId));
+      const row = (await repos.activities.listByLead(log.leadId)).find((a) => a.logId === log.id && a.doneAt !== null);
+      return ok({ log, row: row ?? null });
+    });
+    if (!found.ok) return found;
+    const { log, row } = found.value;
+    const now = this.deps.clock.now();
+    const stageUndone = await revertContactLog(this.deps, this.undoStage, log, input.actor, now);
+    await this.deps.actions?.record({
+      actor: input.actor,
+      action: "contact.deleted",
+      lead: { id: log.leadId },
+      details: { reason, ...(row ? { type: row.type, outcome: row.outcome } : {}) },
+    });
+    this.deps.logger.info("temas kaydı silindi", {
+      leadId: log.leadId,
+      logId: log.id,
+      stageUndone,
+      actorUserId: input.actor.userId,
+    });
+    return ok({ deleted: true, stageUndone, stageKept: log.stageChangeId !== null && !stageUndone });
   }
 }
 

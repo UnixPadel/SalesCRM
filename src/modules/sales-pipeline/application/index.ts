@@ -25,10 +25,12 @@ export {
   AddActivity,
   DeleteActivity,
   SetActivityDone,
+  UpdateActivity,
   type ActivityWithLead,
   type AddActivityInput,
   type DeleteActivityInput,
   type SetActivityDoneInput,
+  type UpdateActivityInput,
   type TodayList,
   type TodayResult,
 } from "./activities";
@@ -59,10 +61,13 @@ export {
   type HistoryPage,
 } from "./contactQueries";
 export {
+  CONTACT_DELETE_REASON_MIN,
   ContactFormQuery,
+  DeleteContactLog,
   LogContact,
   UndoLogContact,
   type ContactForm,
+  type DeleteContactLogInput,
   type ContactFormDefaults,
   type LogContactInput,
   type LogContactResult,
@@ -171,12 +176,12 @@ export {
   type PushTransport,
 } from "./push";
 
-import { ActivityQueries, AddActivity, DeleteActivity, SetActivityDone } from "./activities";
+import { ActivityQueries, AddActivity, DeleteActivity, SetActivityDone, UpdateActivity } from "./activities";
 import { AssignLead } from "./assignLead";
 import { AddAttachment, AttachmentQueries, DeleteAttachment } from "./attachments";
 import { ChangeLeadStage } from "./changeLeadStage";
 import { ContactQueries } from "./contactQueries";
-import { ContactFormQuery, LogContact, UndoLogContact } from "./contacts";
+import { ContactFormQuery, DeleteContactLog, LogContact, UndoLogContact } from "./contacts";
 import { CheckWarning, SetCustomerStatus } from "./leadStatus";
 import { CreateLead } from "./createLead";
 import { DeleteLead, DeletedLeadQueries, RestoreLead } from "./deleteLead";
@@ -202,6 +207,8 @@ export interface SalesPipeline {
   addActivity: AddActivity;
   setActivityDone: SetActivityDone;
   deleteActivity: DeleteActivity;
+  /** Açık işi (sahibi) ya da tamamlanmış temayı (yönetici) düzenler. */
+  updateActivity: UpdateActivity;
   queries: LeadQueries;
   activities: ActivityQueries;
   reports: ReportQueries;
@@ -209,6 +216,8 @@ export interface SalesPipeline {
   /** Faz 7g: temas kaydı, geri alma, diyalog verisi, müşteri durumu, uyarı kontrolü. */
   logContact: LogContact;
   undoLogContact: UndoLogContact;
+  /** Yönetici: temas kaydını nedenle siler (süre sınırı yok). */
+  deleteContactLog: DeleteContactLog;
   contactForm: ContactFormQuery;
   setCustomerStatus: SetCustomerStatus;
   checkWarning: CheckWarning;
@@ -245,12 +254,14 @@ export function createSalesPipeline(deps: UseCaseDeps): SalesPipeline {
     addActivity: new AddActivity(deps),
     setActivityDone: new SetActivityDone(deps),
     deleteActivity: new DeleteActivity(deps),
+    updateActivity: new UpdateActivity(deps),
     queries: new LeadQueries(deps),
     activities: new ActivityQueries(deps),
     reports: new ReportQueries(deps),
     people: new PeopleQueries(deps),
     logContact: new LogContact(deps, { change: changeLeadStage, undo: undoStageChange }),
     undoLogContact: new UndoLogContact(deps, undoStageChange),
+    deleteContactLog: new DeleteContactLog(deps, undoStageChange),
     contactForm: new ContactFormQuery(deps),
     setCustomerStatus: new SetCustomerStatus(deps),
     checkWarning: new CheckWarning(deps),

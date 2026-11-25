@@ -47,6 +47,7 @@ export function ActivityItem({
   canEdit,
   onToggle,
   onDelete,
+  onEdit,
   onComplete,
   lastLabel,
   now,
@@ -57,6 +58,8 @@ export function ActivityItem({
   canEdit: boolean;
   onToggle: (done: boolean) => void;
   onDelete?: () => void;
+  /** Açık işi düzenle (tür, konu, vade, not); `canEdit` ile birlikte görünür. */
+  onEdit?: () => void;
   /** Faz 7g: açık işi "Temas kaydet" diyaloğunda tamamla (onay kutusu yerine 44 px "Tamamla…"). */
   onComplete?: () => void;
   /** Lead'in son temas sonucu ("Son: Dönüş bekleniyor"). */
@@ -110,6 +113,11 @@ export function ActivityItem({
           >
             {t("contact.complete")}
           </Button>
+        )}
+        {canEdit && onEdit && !done && (
+          <button className="btn btn-ghost btn-sm" type="button" onClick={onEdit} aria-label={t("activity.edit.title")}>
+            <Icon name="edit" size={14} />
+          </button>
         )}
         {canEdit && onDelete && (
           <button className="btn btn-ghost btn-sm" type="button" onClick={onDelete} aria-label={t("activity.delete")}>

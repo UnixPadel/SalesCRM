@@ -21,6 +21,7 @@ import type {
   SearchDto,
   StageCodeDto,
   TodayDto,
+  UpdateActivityBody,
   UpdateContactBody,
   UpdateLeadBody,
 } from "../modules/sales-pipeline/api/dto";
@@ -132,6 +133,9 @@ export const pipelineApi = {
   setActivityDone: (id: string, done: boolean) =>
     call<ActivityDto>("POST", `/activities/${encodeURIComponent(id)}/done`, { done }),
   deleteActivity: (id: string) => call<void>("DELETE", `/activities/${encodeURIComponent(id)}`),
+  /** Açık işi (sahibi) ya da tamamlanmış temayı (yönetici) düzenler; yalnız gönderilen alanlar değişir. */
+  updateActivity: (id: string, body: UpdateActivityBody) =>
+    call<ActivityDto>("PATCH", `/activities/${encodeURIComponent(id)}`, body),
   undo: (id: string) =>
     call<{ lead: LeadDto; revertedTo: StageCodeDto }>("POST", `/leads/${encodeURIComponent(id)}/undo`),
   assign: (id: string, body: AssignBody) => call<LeadDto>("POST", `/leads/${encodeURIComponent(id)}/assign`, body),

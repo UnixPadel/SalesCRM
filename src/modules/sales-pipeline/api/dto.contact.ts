@@ -76,6 +76,19 @@ export interface UndoLogContactResultDto {
   stageUndone: boolean;
 }
 
+/** `DELETE /contact-logs/:logId` gövdesi (yalnız yönetici). */
+export interface DeleteContactLogBody {
+  reason: string;
+}
+
+export interface DeleteContactLogResultDto {
+  deleted: true;
+  /** Kayıtla değişen aşama geri döndü. */
+  stageUndone: boolean;
+  /** Kayıt aşamayı değiştirmişti ama aşama sonradan değiştiği ya da süresi geçtiği için yerinde kaldı. */
+  stageKept: boolean;
+}
+
 /** PUT /leads/:id/customer-status */
 export interface CustomerStatusBody {
   status: string | null;

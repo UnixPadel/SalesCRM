@@ -367,13 +367,20 @@ describe("UndoLogContact", () => {
 });
 
 describe("Aktivite kuralları, durum ve uyarılar", () => {
-  it("log'lu satırı yeniden açma contact.reopen_logged; tamamlanmış silme yalnız admin", async () => {
+  it("log'lu satırı yeniden açma contact.reopen_logged; tamamlanmış silme yalnız admin, log'lu satır kayıtla silinir", async () => {
     const lead = await newLead();
     const r = unwrap(await sp.logContact.execute({ leadId: lead.id, actor: REP, type: "call", outcome: "negative" }));
     expect(errCode(await sp.setActivityDone.execute({ activityId: r.activity.id, done: false, actor: ADMIN }))).toBe(
       "contact.reopen_logged",
     );
     expect(errCode(await sp.deleteActivity.execute({ activityId: r.activity.id, actor: REP }))).toBe("admin_only");
+    // 2026-11-25: kayda bağlı satır tek başına silinmez (yarım silme olurdu); DeleteContactLog kullanılır.
+    expect(errCode(await sp.deleteActivity.execute({ activityId: r.activity.id, actor: ADMIN }))).toBe(
+      "contact.delete_logged",
+    );
+    expect(h.uow.state.activities.some((a) => a.id === r.activity.id)).toBe(true);
+    const imported = h.uow.state.activities.find((a) => a.id === r.activity.id)!;
+    imported.logId = null; // aktarılmış (kayıtsız) temas gibi
     expect((await sp.deleteActivity.execute({ activityId: r.activity.id, actor: ADMIN })).ok).toBe(true);
   });
 

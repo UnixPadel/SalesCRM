@@ -39,6 +39,7 @@ import type {
   ReferenceDto,
   ReportDto,
   SetActivityDoneBody,
+  UpdateActivityBody,
   TodayDto,
   TodayItemDto,
   UpdateLeadBody,
@@ -387,6 +388,28 @@ export function createSalesPipelineRouter(deps: RouterDeps): Router {
       activityId: String(req.params["id"]),
       done: b.done !== false,
       actor: a,
+    });
+    if (!result.ok) return sendError(res, result.error);
+    res.json(activityDto(result.value));
+  });
+
+  r.patch("/activities/:id", async (req, res) => {
+    const a = actor(req, res, true);
+    if (!a) return;
+    const b = (req.body ?? {}) as Partial<UpdateActivityBody>;
+    const text = (v: unknown) => (typeof v === "string" ? v : undefined);
+    const when = (v: unknown) => (v === undefined ? undefined : typeof v === "string" && v ? new Date(v) : null);
+    const result = await pipeline.updateActivity.execute({
+      activityId: String(req.params["id"]),
+      actor: a,
+      type: b.type,
+      subject: text(b.subject),
+      dueAt: when(b.dueAt),
+      notes: text(b.notes),
+      outcome: b.outcome,
+      customerReplied: typeof b.customerReplied === "boolean" ? b.customerReplied : undefined,
+      resultNote: text(b.resultNote),
+      doneAt: when(b.doneAt),
     });
     if (!result.ok) return sendError(res, result.error);
     res.json(activityDto(result.value));

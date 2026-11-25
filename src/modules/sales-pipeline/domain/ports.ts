@@ -195,6 +195,8 @@ export interface ActivityRepository {
   findByLegacyId(legacyId: string): Promise<Activity | undefined>;
   /** Planı temasla tamamlar (Faz 7g): tür, sonuç, not ve kayıt bağı aynı satıra yazılır. */
   complete(id: string, patch: ActivityCompletion, updatedAt: Date): Promise<void>;
+  /** Düzenleme (2026-11-25): yalnız verilen alanlar yazılır; bağlar ve kimlikler değişmez. */
+  update(id: string, patch: ActivityPatch, updatedAt: Date): Promise<void>;
   /** Tamamlanmışı yeniden açar: temas alanları temizlenir, tür ve konu verilen değere döner. */
   reopen(id: string, back: { type: ActivityType; subject: string }, updatedAt: Date): Promise<void>;
   /** Temas kaydının eklediği satırlar (`log_id = logId`), `exceptId` hariç; silinen sayısı. */
@@ -206,6 +208,14 @@ export interface ActivityRepository {
   /** Temas geçmişi: tamamlanmış satırlar `(done_at DESC, id DESC)` anahtar kümesiyle. */
   listDone(filter: DoneActivityFilter): Promise<Activity[]>;
 }
+
+/** Düzenlenebilir aktivite alanları: açık işte plan alanları, tamamlanmış temasta temas alanları. */
+export type ActivityPatch = Partial<
+  Pick<
+    Activity,
+    "type" | "subject" | "dueAt" | "notes" | "outcome" | "customerReplied" | "resultNote" | "doneAt" | "dateEstimated"
+  >
+>;
 
 export interface ActivityCompletion {
   doneAt: Date;

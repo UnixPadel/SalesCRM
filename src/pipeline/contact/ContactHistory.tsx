@@ -5,6 +5,7 @@ import type { ContactHistoryItemDto } from "../../modules/sales-pipeline/api/dto
 import { navigate } from "../../router";
 import { useCrm } from "../../state/CrmContext";
 import { ACTIVITY_ICON } from "../activityBits";
+import { useActivityEditor } from "../EditActivityDialog";
 import { useErrorText, useReference, useTeamNames } from "../hooks";
 import { contactApi } from "./contactApi";
 
@@ -31,6 +32,10 @@ export function ContactHistory() {
   const [nextBefore, setNextBefore] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const seq = useRef(0);
+  // Yönetici düzeltmesi ya da silmesinden sonra liste aynı süzgeçle yeniden okunur.
+  const [tick, setTick] = useState(0);
+  const refresh = useCallback(() => setTick((n) => n + 1), []);
+  const editor = useActivityEditor(refresh);
   const tz = ref?.timeZone ?? "Europe/Istanbul";
   const day = useMemo(() => new Intl.DateTimeFormat("en-CA", { timeZone: tz }), [tz]);
 
@@ -66,7 +71,7 @@ export function ContactHistory() {
         .catch((e) => n === seq.current && setError(e));
     }, 200);
     return () => clearTimeout(id);
-  }, [params]);
+  }, [params, tick]);
 
   const more = async () => {
     if (!nextBefore) return;
@@ -192,6 +197,16 @@ export function ContactHistory() {
                     {x.next &&
                       ` · ${t("history.next")}: ${t(`activity.type.${x.next.type}`)} ${new Date(x.next.dueAt).toLocaleString(localeOf(lang), { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`}
                   </small>
+                  {isAdmin && (
+                    <div className="tl-acts">
+                      <button type="button" className="link-btn" onClick={() => editor.edit(x.activity)}>
+                        {t("common.edit")}
+                      </button>
+                      <button type="button" className="link-btn danger" onClick={() => editor.remove(x.activity)}>
+                        {t("activity.delete")}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </li>
             ))}
@@ -203,6 +218,7 @@ export function ContactHistory() {
           )}
         </>
       )}
+      {editor.dialog}
     </div>
   );
 }

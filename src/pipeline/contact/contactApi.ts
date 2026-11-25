@@ -2,6 +2,8 @@ import type { LeadDto, LeadListDto, TrackingReportDto } from "../../modules/sale
 import type {
   ContactFormDto,
   ContactHistoryDto,
+  DeleteContactLogBody,
+  DeleteContactLogResultDto,
   LogContactBody,
   LogContactResultDto,
   UndoLogContactResultDto,
@@ -16,6 +18,9 @@ export const contactApi = {
   log: (leadId: string, body: LogContactBody) =>
     call<LogContactResultDto>("POST", `/leads/${enc(leadId)}/contacts`, body),
   undo: (logId: string) => call<UndoLogContactResultDto>("POST", `/contact-logs/${enc(logId)}/undo`),
+  /** Yönetici: temas kaydını nedenle siler (süre sınırı yok). */
+  deleteLog: (logId: string, reason: string) =>
+    call<DeleteContactLogResultDto>("DELETE", `/contact-logs/${enc(logId)}`, { reason } satisfies DeleteContactLogBody),
   setStatus: (leadId: string, status: string | null) =>
     call<LeadDto>("PUT", `/leads/${enc(leadId)}/customer-status`, { status }),
   checkWarning: (leadId: string, code: string, checked: boolean) =>

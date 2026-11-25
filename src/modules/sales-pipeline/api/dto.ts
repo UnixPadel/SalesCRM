@@ -320,6 +320,23 @@ export interface SetActivityDoneBody {
   done: boolean;
 }
 
+/**
+ * `PATCH /activities/:id` (2026-11-25): yalnız gönderilen alanlar değişir. Açık işte tür, konu, vade, not; tamamlanmış
+ * temasta (yalnız yönetici) tür, sonuç, "müşteri cevap verdi", görüşme notu ve tarih.
+ */
+export interface UpdateActivityBody {
+  type?: ActivityTypeDto;
+  subject?: string;
+  /** ISO tarih-saat. */
+  dueAt?: string;
+  notes?: string;
+  outcome?: ActivityOutcomeDto;
+  customerReplied?: boolean;
+  resultNote?: string;
+  /** ISO tarih-saat. */
+  doneAt?: string;
+}
+
 export interface TodayItemDto {
   activity: ActivityDto;
   lead: {

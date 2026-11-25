@@ -84,6 +84,15 @@ export function logViewers(env = process.env) {
   );
 }
 
+/**
+ * Oturumun kampanya adlarını / işlem günlüğünü görüp görmediği (2026-11-25): yönetici rolü her zaman görür; diğer
+ * roller yalnız ilgili listedeyse (`campaignViewers` / `logViewers`). Liste yalnız ek kişi tanımlar.
+ * @param {string | undefined} role
+ * @param {{ id?: unknown; login?: unknown; email?: unknown }} ids
+ * @param {Set<string>} viewers
+ */
+export const sessionSees = (role, ids, viewers) => role === "admin" || seesCampaign(ids, viewers);
+
 /** Hiçbir lead / kişi / aktivite verisini değiştiremeyen roller. */
 export const isReadOnlyRole = (role) => role === "viewer" || role === "marketing";
 /** Yönetim panelini okuyabilir (GET). */

@@ -146,6 +146,18 @@ export const ADMIN_DICT = {
     "{user} adlı satışçı {lead} leadindeki görüşme kaydını geri aldı.",
     "{user} undid a contact record on the lead {lead}.",
   ],
+  "logs.a.contact.deleted": [
+    "{user} {lead} leadindeki görüşme kaydını sildi (neden: {reason}).",
+    "{user} deleted a contact record on the lead {lead} (reason: {reason}).",
+  ],
+  "logs.a.contact.updated": [
+    "{user} {lead} leadindeki görüşme kaydını düzeltti ({type}): {fields}.",
+    "{user} corrected a contact record on the lead {lead} ({type}): {fields}.",
+  ],
+  "logs.a.activity.updated": [
+    "{user} adlı satışçı {lead} leadindeki işi düzenledi ({type}): {fields}.",
+    "{user} edited a task on the lead {lead} ({type}): {fields}.",
+  ],
   "logs.a.activity.planned": [
     "{user} adlı satışçı {lead} leadi için yapılacak iş ekledi ({type}).",
     "{user} added a task for the lead {lead} ({type}).",
@@ -198,6 +210,14 @@ export const ADMIN_DICT = {
   "logs.field.customerProfile": ["müşteri profili", "customer profile"],
   "logs.field.adSurface": ["reklam yüzeyi", "ad placement"],
   "logs.field.currency": ["para birimi", "currency"],
+  "logs.afield.type": ["kanal", "channel"],
+  "logs.afield.subject": ["konu", "subject"],
+  "logs.afield.dueAt": ["tarih", "date"],
+  "logs.afield.notes": ["not", "note"],
+  "logs.afield.outcome": ["sonuç", "outcome"],
+  "logs.afield.customerReplied": ["müşteri cevap verdi", "customer replied"],
+  "logs.afield.resultNote": ["görüşme notu", "contact note"],
+  "logs.afield.doneAt": ["temas tarihi", "contact date"],
   "err.logs.forbidden": ["İşlem günlüğünü görme yetkiniz yok.", "You do not have access to the activity log."],
   "catalog.title": ["Ürün listesi", "Product list"],
   "catalog.help": [

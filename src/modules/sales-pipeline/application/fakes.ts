@@ -420,6 +420,12 @@ function reposFor(s: MemoryState): Repositories {
       if (!a) throw new Error("aktivite yok");
       Object.assign(a, { ...c, updatedAt });
     },
+    async update(id, patch, updatedAt) {
+      const a = s.activities.find((x) => x.id === id);
+      if (!a) throw new Error("aktivite yok");
+      const defined = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+      Object.assign(a, { ...defined, updatedAt });
+    },
     async reopen(id, back, updatedAt) {
       const a = s.activities.find((x) => x.id === id);
       if (!a) throw new Error("aktivite yok");

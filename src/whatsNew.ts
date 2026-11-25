@@ -30,6 +30,30 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-25-3",
+    date: "2026-11-25",
+    items: {
+      tr: [
+        {
+          title: "Yapılacak işi düzenleyin",
+          text: "Açık bir işin türünü, konusunu, tarihini ya da notunu kalem simgesiyle değiştirin; silip yeniden eklemeniz gerekmez.",
+        },
+      ],
+      en: [
+        {
+          title: "Edit your open tasks",
+          text: "Change an open task's type, subject, date or note with the pencil icon; no need to delete and add it again.",
+        },
+      ],
+      ar: [
+        {
+          title: "عدّل مهامك المفتوحة",
+          text: "غيّر نوع المهمة المفتوحة أو موضوعها أو تاريخها أو ملاحظتها برمز القلم، دون حذفها وإضافتها من جديد.",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-25-2",
     date: "2026-11-25",
     items: {

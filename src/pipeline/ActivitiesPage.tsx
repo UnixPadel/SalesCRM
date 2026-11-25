@@ -5,6 +5,7 @@ import type { ActivityTypeDto, TodayDto, TodayItemDto } from "../modules/sales-p
 import { useCrm } from "../state/CrmContext";
 import { ACTIVITY_ICON, ACTIVITY_TYPES, ActivityItem } from "./activityBits";
 import { pipelineApi } from "./api";
+import { useActivityEditor } from "./EditActivityDialog";
 import { useErrorText, useNow, useTeamNames, useToday } from "./hooks";
 import { ContactHistory } from "./contact/ContactHistory";
 import { useLogContact } from "./contact/useLogContact";
@@ -50,6 +51,7 @@ function TodoList() {
   const { toast, isViewer, isAdmin } = useCrm();
   const { data, error, reload } = useToday();
   const contact = useLogContact(reload);
+  const editor = useActivityEditor(reload);
   const { nameOf } = useTeamNames();
   const errText = useErrorText();
   const now = useNow(30_000);
@@ -152,6 +154,7 @@ function TodoList() {
                       }}
                       canEdit={!isViewer}
                       onToggle={(done) => toggle(x, done)}
+                      onEdit={() => editor.edit(x.activity)}
                       onComplete={() =>
                         contact.openDialog({
                           leadId: x.lead.id,
@@ -179,6 +182,7 @@ function TodoList() {
         })}
       </div>
       {contact.dialog}
+      {editor.dialog}
     </>
   );
 }

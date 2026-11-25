@@ -21,7 +21,10 @@ const GROUPS: Record<string, readonly ActionTypeDto[]> = {
   contact: [
     "contact.logged",
     "contact.undone",
+    "contact.deleted",
+    "contact.updated",
     "activity.planned",
+    "activity.updated",
     "activity.done",
     "activity.reopened",
     "activity.deleted",
@@ -157,6 +160,16 @@ export function LogsTab() {
           vars["outcome"] = label("activity.outcome", str(d["outcome"]));
         } else key = "contact.loggedPlain";
         break;
+      case "contact.deleted":
+        vars["reason"] = str(d["reason"]);
+        break;
+      case "contact.updated":
+      case "activity.updated": {
+        vars["type"] = label("activity.type", str(d["type"]) || "other");
+        const fields = Array.isArray(d["fields"]) ? d["fields"].map((f) => label("logs.afield", str(f))) : [];
+        vars["fields"] = fields.join(t("logs.listSep"));
+        break;
+      }
       case "activity.planned":
       case "activity.done":
       case "activity.reopened":

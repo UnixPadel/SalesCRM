@@ -11,6 +11,7 @@ import { PipelineError, pipelineApi } from "./api";
 import { AttachmentChips, AttachmentsPanel, useAttachments } from "./attachments/AttachmentsPanel";
 import { Age, Country, SourceBadge, StageTag } from "./bits";
 import { DeleteLeadDialog } from "./DeleteLeadDialog";
+import { useActivityEditor } from "./EditActivityDialog";
 import { LeadContactForm } from "./LeadContactForm";
 import { LeadFieldsForm } from "./LeadFieldsForm";
 import { useErrorText, useLeadDetail, useNow, useReference, useTeamNames } from "./hooks";
@@ -65,6 +66,7 @@ export function LeadPage({ id }: { id: string }) {
     reloadAttachments();
   }, [reload, reloadAttachments]);
   const contact = useLogContact(reloadAll);
+  const editor = useActivityEditor(reloadAll);
   const [moreOpen, setMoreOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
@@ -154,10 +156,6 @@ export function LeadPage({ id }: { id: string }) {
       ...(activityId !== undefined ? { activityId } : {}),
     });
   const logById = new Map(contactLogs.map((c) => [c.activityId, c]));
-  const deleteContact = async (id: string) => {
-    if (!window.confirm(t("contact.deleteConfirm"))) return;
-    await deleteActivity(id);
-  };
   const excelOwner =
     typeof lead.extraAnswers["excel_owner"] === "string" ? String(lead.extraAnswers["excel_owner"]) : null;
   const canSetStatus = canAct;
@@ -451,6 +449,7 @@ export function LeadPage({ id }: { id: string }) {
                     canEdit={canAct}
                     onToggle={(done) => toggleActivity(a.id, done)}
                     onDelete={() => deleteActivity(a.id)}
+                    onEdit={() => editor.edit(a)}
                     onComplete={() => logFor(a.type, undefined, a.id)}
                     now={now}
                   />
@@ -498,7 +497,8 @@ export function LeadPage({ id }: { id: string }) {
                     log={logById.get(x.a.id)}
                     files={(attachments.items ?? []).filter((f) => f.activityId === x.a.id)}
                     onUndo={(id) => contact.undo(id)}
-                    onDelete={isAdmin ? () => deleteContact(x.a.id) : undefined}
+                    onEdit={isAdmin ? () => editor.edit(x.a) : undefined}
+                    onDelete={isAdmin ? () => editor.remove(x.a) : undefined}
                   />
                 ),
               )}
@@ -507,6 +507,7 @@ export function LeadPage({ id }: { id: string }) {
       </div>
       {dialog}
       {contact.dialog}
+      {editor.dialog}
     </section>
   );
 }
@@ -528,6 +529,7 @@ function ContactItem({
   log,
   files,
   onUndo,
+  onEdit,
   onDelete,
 }: {
   a: ActivityDto;
@@ -536,6 +538,9 @@ function ContactItem({
   now: number;
   log: { id: string; undoUntil: string; canUndo: boolean } | undefined;
   onUndo: (logId: string) => void;
+  /** Yalnız yönetici: kanal, sonuç, not, tarih düzeltme. */
+  onEdit: (() => void) | undefined;
+  /** Yalnız yönetici: kayda bağlıysa nedenli silme (süre sınırı yok). */
   onDelete: (() => void) | undefined;
 }) {
   const { t } = useLang();
@@ -570,6 +575,11 @@ function ContactItem({
               aria-label={t("contact.undoLeft", { n: mins })}
             >
               {t("contact.undo")} <span aria-hidden="true">({mmss})</span>
+            </button>
+          )}
+          {onEdit && (
+            <button type="button" className="link-btn" onClick={onEdit}>
+              {t("common.edit")}
             </button>
           )}
           {onDelete && (
