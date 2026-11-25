@@ -89,3 +89,8 @@ bildirimi .exe'de kapatılır, yalnız worker yapar (bunun için bir anahtar ekl
 - Gelen kutusu anahtarı (`INBOX_ENCRYPTION_KEY`) yalnız sunucudadır; masaüstü kurulumlarıyla uyum sorunu kalkar.
 - Önerilen, zorunlu olmayan: `AUTH_DB_URL` için `KullaniciBilgileri` üzerinde yalnız `SELECT` yetkili ayrı bir MySQL
   kullanıcısı (öteki programın sahibi açar).
+- **Güncelleme (2026-11-25):** CRM `UNIXPADEL_ST`'ye ilk kez yazar. Nitelikli, Teklif gönderildi ya da Kazanıldı
+  aşamasındaki lead, geri alma süresi dolunca `MusteriBilgileri`'ne müşteri olarak eklenir ya da orada var olan
+  müşteriye bağlanır (`src/bootstrap/stCustomerSync.ts`, bağ tablosu `st_customer_links`). Yalnız ekleme yapılır; var
+  olan müşteri değiştirilmez, silinmez. Bağlantı `ST_DB_URL`, yoksa `AUTH_DB_URL`. Önerilen: yalnız `MusteriBilgileri`
+  (SELECT, INSERT) ve `UlkelerBilgileri` (SELECT) yetkili ayrı bir MySQL kullanıcısı. `ST_CUSTOMER_SYNC=0` kapatır.

@@ -30,6 +30,7 @@ import { bootSalesPipeline } from "../src/bootstrap/salesPipeline.ts";
 import { bootLeadIntake } from "../src/bootstrap/leadIntake.ts";
 import { bootAdFeedback } from "../src/bootstrap/adFeedback.ts";
 import { bootSheetSync } from "../src/bootstrap/sheetSync.ts";
+import { bootStCustomerSync } from "../src/bootstrap/stCustomerSync.ts";
 import { fxRatesJob } from "../src/bootstrap/eurRates.ts";
 import { MINUTE, createScheduler } from "../src/modules/shared/kernel/index.ts";
 import { bootAdmin } from "../src/bootstrap/admin.ts";
@@ -323,6 +324,9 @@ const adFeedback = bootAdFeedback(salesPipeline, leadIntake.settings);
 const adminRouter = bootAdmin(salesPipeline, leadIntake, adFeedback);
 /* Form tablosu (Google E-Tablolar'daki Meta form dökümü) → CRM; SHEET_SYNC_CSV_URL yoksa kapalı. */
 const sheetSync = bootSheetSync(salesPipeline);
+/* UnixPadelST müşteri listesi (2026-11-25): Nitelikli ve üstü lead, geri alma süresi dolunca öteki programın
+   MusteriBilgileri tablosuna yazılır (ST_DB_URL, yoksa AUTH_DB_URL; INSERT yetkisi gerekir). ST_CUSTOMER_SYNC=0 kapatır. */
+const stCustomerSync = bootStCustomerSync(salesPipeline);
 /* Kurlar (2026-11-20): TCMB günlük bülteni 3 saatte bir; yönetim ekranında otomatik güncelleme kapatılabilir.
    FX_AUTO_FETCH=0 işi hiç kurmaz (yerel testler, ağsız ortam). */
 const fxRates =
@@ -683,6 +687,18 @@ app.post("/api/sheet-sync/run", auth, async (req, res) => {
   res.json(await sheetSync.runNow());
 });
 
+/* ---- UnixPadelST müşteri listesi aktarımı: durum ve elle tetikleme yalnız admin. Kişisel veri dönmez. ---- */
+app.get("/api/st-customer-sync", auth, (req, res) => {
+  if (req.session?.role !== "admin") return res.status(403).json({ error: "Yalnız yönetici.", code: "admin_only" });
+  res.json(stCustomerSync ? stCustomerSync.status() : { enabled: false });
+});
+app.post("/api/st-customer-sync/run", auth, async (req, res) => {
+  if (req.session?.role !== "admin") return res.status(403).json({ error: "Yalnız yönetici.", code: "admin_only" });
+  if (!stCustomerSync)
+    return res.status(409).json({ error: "ST müşteri aktarımı kapalı.", code: "st_customer_sync.disabled" });
+  res.json(await stCustomerSync.runNow());
+});
+
 /* ---- yönetim paneli: okuma admin + pazarlama, değişiklik yalnız admin (server/roles.mjs) ---- */
 // Geri yükleme noktaları (toplu veri işlemlerinin geri alınması): okuma da yazma da yalnız admin.
 app.use(
@@ -761,6 +777,7 @@ async function shutdown(signal) {
   leadIntake.scheduler.stop();
   adFeedback.scheduler.stop();
   sheetSync?.scheduler.stop();
+  stCustomerSync?.scheduler.stop();
   fxRates?.stop();
   notifyJobs?.stop();
   server.close();

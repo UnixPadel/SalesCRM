@@ -43,6 +43,11 @@ export interface AppConfig {
    * Anahtar ayrıca secret olarak okunur (WEB_FORM_HMAC_KEY). Yalnız worker'da tanımlanır.
    */
   webPull: WebPullConfig;
+  /**
+   * UnixPadelST müşteri listesi (2026-11-25): Nitelikli ve üstü lead öteki programın MusteriBilgileri tablosuna yazılır.
+   * Bağlantı secret olarak okunur: `ST_DB_URL`, yoksa `AUTH_DB_URL`. ST_CUSTOMER_SYNC=0 kapatır.
+   */
+  stCustomerSync: { enabled: boolean; minutes: number; dbUrlSecretNames: readonly string[] };
 }
 
 export interface WebPullConfig {
@@ -178,6 +183,11 @@ export function loadConfig(env: Env = process.env): AppConfig {
       seconds: Math.max(15, num(env["WEB_PULL_SECONDS"], 120)),
       pageSize: Math.min(100, Math.max(1, num(env["WEB_PULL_LIMIT"], 50))),
       maxPages: Math.max(1, num(env["WEB_PULL_MAX_PAGES"], 10)),
+    },
+    stCustomerSync: {
+      enabled: env["ST_CUSTOMER_SYNC"] !== "0",
+      minutes: Math.max(1, num(env["ST_CUSTOMER_SYNC_MINUTES"], 5)),
+      dbUrlSecretNames: ["ST_DB_URL", "AUTH_DB_URL"],
     },
   };
 }

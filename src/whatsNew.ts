@@ -30,6 +30,30 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-25-2",
+    date: "2026-11-25",
+    items: {
+      tr: [
+        {
+          title: "Nitelikli lead UnixPadelST'de müşteri olur",
+          text: "Lead Nitelikli, Teklif gönderildi ya da Kazanıldı olunca en geç 15 dakika içinde UnixPadelST müşteri listenizde görünür.",
+        },
+      ],
+      en: [
+        {
+          title: "Qualified leads become UnixPadelST customers",
+          text: "When a lead reaches Qualified, Proposal sent or Won, it appears in your UnixPadelST customer list within 15 minutes.",
+        },
+      ],
+      ar: [
+        {
+          title: "العميل المؤهل يظهر في UnixPadelST",
+          text: "عندما يصبح العميل مؤهلاً أو أُرسل له عرض أو تم الفوز به، يظهر في قائمة عملائك في UnixPadelST خلال 15 دقيقة.",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-25",
     date: "2026-11-25",
     items: {
