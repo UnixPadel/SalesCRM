@@ -39,3 +39,15 @@ describe("countryName: arayüz dili", () => {
     expect(countryOptions().find(([c]) => c === "ES")?.[1]).toBe("İspanya");
   });
 });
+
+describe("countryOptions: bütün ülkeler", () => {
+  it("tabloda olmayan ülkeler de listede ve adlı", () => {
+    const opts = countryOptions("tr");
+    expect(opts.length).toBeGreaterThanOrEqual(249);
+    expect(new Set(opts.map(([c]) => c)).size).toBe(opts.length);
+    expect(opts.find(([c]) => c === "OM")?.[1]).toBe("Umman");
+    expect(opts.find(([c]) => c === "NZ")?.[1]).toBe("Yeni Zelanda");
+    expect(opts.find(([c]) => c === "US")?.[1]).toBe("ABD");
+    expect(opts.every(([c, n]) => n && n !== c)).toBe(true);
+  });
+});

@@ -30,6 +30,30 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-26",
+    date: "2026-11-26",
+    items: {
+      tr: [
+        {
+          title: "Bütün ülkeler listede",
+          text: "Ülke seçerken ve filtrelerken artık dünyadaki bütün ülkeler listede çıkar.",
+        },
+      ],
+      en: [
+        {
+          title: "Every country is listed",
+          text: "When you pick or filter by country, every country in the world now appears in the list.",
+        },
+      ],
+      ar: [
+        {
+          title: "كل الدول في القائمة",
+          text: "عند اختيار الدولة أو التصفية بها تظهر الآن كل دول العالم في القائمة.",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-25-3",
     date: "2026-11-25",
     items: {

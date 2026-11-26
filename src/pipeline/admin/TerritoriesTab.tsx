@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Button, Empty, Modal, Skeleton, StatusTag } from "../../components/ui";
-import { countryName } from "../../domain/constants";
+import { countryName, countryOptions } from "../../domain/constants";
 import { useLang } from "../../i18n";
 import type {
   NonSalesReassignResultDto,
@@ -52,7 +52,7 @@ function useCountryLabel() {
 
 export function TerritoriesTab() {
   const canWrite = useAdminCanWrite();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { toast } = useCrm();
   const errText = useErrorText();
   const { team, nameOf } = useTeamNames();
@@ -66,7 +66,26 @@ export function TerritoriesTab() {
   // Sorumlusu satışçı olmayan lead'leri kural sahibine aktarma: önce önizleme, sonra onay.
   const [moving, setMoving] = useState<NonSalesReassignResultDto | "loading" | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
-  const [newCode, setNewCode] = useState("");
+  const [countryQuery, setCountryQuery] = useState("");
+
+  // Tüm ülkeler: kurallı ve kuralsız ülkelerin sayıları koda göre; arama ad ya da kodda, aksan ve büyük/küçük harf
+  // duyarsız ("turk" → Türkiye).
+  const ruleOf = useMemo(() => new Map((data?.rules ?? []).map((r) => [r.countryCode.toUpperCase(), r])), [data]);
+  const uncoveredOf = useMemo(
+    () => new Map((data?.uncovered ?? []).map((u) => [u.countryCode.toUpperCase(), u])),
+    [data],
+  );
+  const allCountries = useMemo(() => {
+    const fold = (s: string) =>
+      s
+        .toLocaleLowerCase(lang)
+        .replace(/ı/g, "i")
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "");
+    const q = fold(countryQuery.trim());
+    const list = countryOptions(lang);
+    return q ? list.filter(([code, name]) => fold(name).includes(q) || code.toLowerCase() === q) : list;
+  }, [countryQuery, lang]);
 
   const save = async (countryCode: string, assignedUserId: string, fallbackUserId: string | null) => {
     setBusy(countryCode);
@@ -151,15 +170,6 @@ export function TerritoriesTab() {
   const options = (current: string | null) => {
     const ids = team.map((m) => m.id);
     return current && !ids.includes(current) ? [current, ...ids] : ids;
-  };
-  const addOther = async () => {
-    const cc = newCode.trim().toUpperCase();
-    const owner = draft["__new"] ?? "";
-    if (!cc || !owner) return;
-    if (await save(cc, owner, null)) {
-      setNewCode("");
-      setDraft(({ __new: _drop, ...rest }) => rest);
-    }
   };
 
   return (
@@ -345,46 +355,88 @@ export function TerritoriesTab() {
         </div>
       )}
 
-      <Write>
-        <form
-          className="adm-inline adm-addother"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void addOther();
-          }}
-        >
-          <b>{t("terr.addOther")}</b>
-          <input
-            className="adm-input adm-cur"
-            value={newCode}
-            maxLength={2}
-            placeholder="FR"
-            aria-label={t("terr.addCountry")}
-            onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-          />
-          <select
-            value={draft["__new"] ?? ""}
-            aria-label={t("terr.col.owner")}
-            onChange={(e) => setDraft({ ...draft, __new: e.target.value })}
-          >
-            <option value="">{t("terr.chooseOwner")}</option>
-            {team.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-          <Button
-            type="submit"
-            size="sm"
-            icon="plus"
-            disabled={newCode.trim().length !== 2 || !draft["__new"]}
-            loading={busy === newCode.trim().toUpperCase() && newCode.trim().length === 2}
-          >
-            {t("terr.addRule")}
-          </Button>
-        </form>
-      </Write>
+      <SectionHead title={t("terr.all")} help={t("terr.all.help")} />
+      <div className="adm-inline">
+        <input
+          type="search"
+          className="adm-allc-search"
+          value={countryQuery}
+          placeholder={t("terr.all.search")}
+          aria-label={t("terr.all.search")}
+          autoComplete="off"
+          onChange={(e) => setCountryQuery(e.target.value)}
+        />
+        <span className="muted" aria-live="polite">
+          {t("terr.all.count", { n: allCountries.length })}
+        </span>
+      </div>
+      {allCountries.length === 0 ? (
+        <p className="muted">{t("terr.all.none")}</p>
+      ) : (
+        <div className="adm-table-wrap adm-allc">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th scope="col">{t("terr.col.country")}</th>
+                <th scope="col" className="num">
+                  {t("terr.col.leads")}
+                </th>
+                <th scope="col" className="num">
+                  {t("terr.col.pool")}
+                </th>
+                <th scope="col">{t("terr.col.owner")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allCountries.map(([code, name]) => {
+                const rule = ruleOf.get(code);
+                const counts = rule ?? uncoveredOf.get(code);
+                return (
+                  <tr key={code} aria-busy={busy === code || undefined}>
+                    <th scope="row" className="adm-rowhead">
+                      {`${name} (${code})`}
+                    </th>
+                    <td className="num">{counts?.leadCount ?? 0}</td>
+                    <td className="num">{counts?.poolCount ?? 0}</td>
+                    <td>
+                      {rule ? (
+                        nameOf(rule.assignedUserId)
+                      ) : (
+                        <div className="adm-inline">
+                          <select
+                            value={draft[code] ?? ""}
+                            disabled={!canWrite}
+                            aria-label={`${name}: ${t("terr.col.owner")}`}
+                            onChange={(e) => setDraft({ ...draft, [code]: e.target.value })}
+                          >
+                            <option value="">{t("terr.chooseOwner")}</option>
+                            {team.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name}
+                              </option>
+                            ))}
+                          </select>
+                          <Write>
+                            <Button
+                              size="sm"
+                              icon="plus"
+                              disabled={!draft[code]}
+                              loading={busy === code}
+                              onClick={() => void save(code, draft[code]!, null)}
+                            >
+                              {t("terr.addRule")}
+                            </Button>
+                          </Write>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {removing && (
         <ConfirmDialog

@@ -100,8 +100,19 @@
   align-items: center;
   gap: var(--s-2);
 }
-.adm-addother {
-  padding-block-start: var(--s-2);
+/* Tüm ülkeler: uzun liste kendi içinde kayar, başlık satırı üstte kalır. */
+.adm-allc {
+  max-block-size: 520px;
+  overflow: auto;
+}
+.adm-allc thead th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  background: var(--surface-2);
+}
+.adm-allc-search {
+  inline-size: min(100%, 320px);
 }
 
 /* İki sütun: gelen kutusu | giden kuyruk; dar ekranda alt alta. */
