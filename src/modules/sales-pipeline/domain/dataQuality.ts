@@ -102,9 +102,9 @@ export function dataWarnings(lead: Lead, contact: ContactSummary, timeZone: stri
   const found: { code: WarningCode; severity?: WarningSeverity; params?: Record<string, string> }[] = [];
   const extra = lead.extraAnswers ?? {};
 
+  const parsed = lead.phoneE164 ? PhoneNumber.parse(lead.phoneE164) : null;
+  const phone = parsed?.ok ? parsed.value : null;
   if (lead.phoneE164) {
-    const parsed = PhoneNumber.parse(lead.phoneE164);
-    const phone = parsed.ok ? parsed.value : null;
     const countryCode = PhoneNumber.callingCodeFor(lead.country);
     if (phone && countryCode !== null && phone.callingCode !== countryCode) {
       found.push({
@@ -123,8 +123,11 @@ export function dataWarnings(lead: Lead, contact: ContactSummary, timeZone: stri
   const issues = importIssues(extra.import_issues);
   if (issues.length) found.push({ code: "import_review", params: { issues: issues.join(",") } });
   if (extra.country_source === "phone") found.push({ code: "country_from_phone" });
+  // Eklenen kod numaranın kendi ülke kodudur; 2026-11-26 öncesi web lead'lerinde kayıtta hep "+90" yazıyordu.
   const dialCode = text(extra.dial_code_assumed);
-  if (dialCode !== "") found.push({ code: "dial_code_assumed", params: { dialCode } });
+  if (dialCode !== "") {
+    found.push({ code: "dial_code_assumed", params: { dialCode: phone ? `+${phone.callingCode}` : dialCode } });
+  }
   const status = lead.customerStatus;
   if (
     (status === "not_interested" && !isTerminal(lead.currentStage)) ||

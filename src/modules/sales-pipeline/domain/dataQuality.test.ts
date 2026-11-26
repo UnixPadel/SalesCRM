@@ -132,6 +132,20 @@ describe("dataWarnings", () => {
     expect(codes(lead({ extraAnswers: { country_source: "form" } }))).toEqual([]);
   });
 
+  it("dial_code_assumed: gösterilen kod numaranın kendi kodudur; kayıttaki eski '+90' yanıltmaz", () => {
+    const gb = only(
+      lead({ phoneE164: GB_MOBILE, country: "GB", extraAnswers: { dial_code_assumed: "+90" } }),
+      "dial_code_assumed",
+    );
+    expect(gb?.params).toEqual({ dialCode: "+44" });
+    // Telefon okunamadıysa kayıttaki metin gösterilir.
+    const raw = only(
+      lead({ phoneE164: null, extraAnswers: { phone_raw: "x", dial_code_assumed: "+90" } }),
+      "dial_code_assumed",
+    );
+    expect(raw?.params).toEqual({ dialCode: "+90" });
+  });
+
   it("status_stage_conflict: İlgisiz ∧ açık aşama ya da Alıcı ∧ Kaybedildi", () => {
     expect(
       only(lead({ customerStatus: "not_interested", currentStage: "CONTACTED" }), "status_stage_conflict"),

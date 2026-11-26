@@ -30,6 +30,30 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-26-2",
+    date: "2026-11-26",
+    items: {
+      tr: [
+        {
+          title: "Web formunda doğru ülke ve telefon",
+          text: "Web sitesinden gelen lead'lerde ülke ve telefon artık müşterinin formda yazdığı ülkeye göre kaydediliyor.",
+        },
+      ],
+      en: [
+        {
+          title: "Correct country and phone from website",
+          text: "Website leads now get their country and phone from the country the customer wrote on the form.",
+        },
+      ],
+      ar: [
+        {
+          title: "دولة وهاتف صحيحان من الموقع",
+          text: "العملاء المحتملون من الموقع يُسجَّل لهم الآن الدولة والهاتف حسب الدولة التي كتبها العميل في النموذج.",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-26",
     date: "2026-11-26",
     items: {

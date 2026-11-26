@@ -154,7 +154,13 @@ describe("field_data → InboundLeadDto", () => {
 
   it("eksik alanlar: ad + soyad birleşir, yerel telefon varsayılan ülkeyle, e-posta null", async () => {
     const dto = await graphLeadToDto(fixture<GraphLead>("lead-missing-fields.json"), ctx);
-    expect(dto).toMatchObject({ fullName: "Mehmet Kaya", email: null, phone: "05419876543", country: "TR", city: "" });
+    expect(dto).toMatchObject({
+      fullName: "Mehmet Kaya",
+      email: null,
+      phone: "+905419876543",
+      country: "TR",
+      city: "",
+    });
   });
 
   it("bilinmeyen alanlar hata değil, ek yanıt; çoklu seçim liste kalır; work_email → e-posta", async () => {

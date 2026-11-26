@@ -388,6 +388,30 @@ describe("web-pull: sahte WP sunucusuyla", () => {
     expect(notes.filter((n) => n.user_id === "rep-de")).toHaveLength(4);
   });
 
+  it("serbest metin ülke + kodsuz yerel numara: ülke formdan, numara o ülkeyle; ülke bilinmiyorsa TR uydurulmaz", async () => {
+    wp.queue = [
+      // 2026-11-26 canlı vaka: "Bangladesh" + "01712345678" TR ve +90 olarak kaydedilmişti.
+      item(1, { country: "", country_input: "Bangladesh", phone: "01712345678" }),
+      item(2, { country: "", country_input: "Atlantis", phone: "01712345678" }),
+    ];
+    const app = boot();
+    expect(await app.webPull!.runOnce()).toMatchObject({ inserted: 2, acked: 2 });
+    expect(await app.intake.process.runOnce()).toMatchObject({ done: 2, failed: 0 });
+    const rows = await sp.db.query<{
+      country: string | null;
+      phone_e164: string | null;
+      assigned_user_id: string | null;
+      extra_answers: Record<string, unknown>;
+    }>("SELECT country, phone_e164, assigned_user_id, extra_answers FROM leads ORDER BY platform_lead_id");
+    expect(rows[0]).toMatchObject({ country: "BD", phone_e164: "+8801712345678", assigned_user_id: null });
+    expect(rows[0]!.extra_answers).toMatchObject({ country_input: "Bangladesh", dial_code_assumed: "+880" });
+    expect(rows[0]!.extra_answers["country_source"]).toBeUndefined();
+    // Ülke bilinmiyor, numara TR'de geçersiz: ülke boş, numara ham metin olarak saklanır (uyarı: telefon okunamadı).
+    expect(rows[1]).toMatchObject({ country: null, phone_e164: null, assigned_user_id: null });
+    expect(rows[1]!.extra_answers).toMatchObject({ country_input: "Atlantis", phone_raw: "01712345678" });
+    expect(rows[1]!.extra_answers["dial_code_assumed"]).toBeUndefined();
+  });
+
   it("bot (honeypot dolu) ve bozuk payload da onaylanır, kuyruk ilerler; bot lead açmaz, bozuk failed; kimliksiz onaylanmaz", async () => {
     wp.queue = [
       item(1, {}, { honeypot: "http://spam.example" }),

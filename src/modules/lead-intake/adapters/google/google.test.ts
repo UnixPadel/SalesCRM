@@ -99,7 +99,7 @@ describe("user_column_data → InboundLeadDto", () => {
 
   it("eksik alanlar: ad + soyad, yerel telefon varsayılan ülkeyle; e-posta ve gclid yok", async () => {
     const dto = await adapter.toInboundLead(stripGoogleKey(fixture("lead-missing-fields.json")), ctx);
-    expect(dto).toMatchObject({ fullName: "Mehmet Kaya", email: null, phone: "0541 987 65 43", country: "TR" });
+    expect(dto).toMatchObject({ fullName: "Mehmet Kaya", email: null, phone: "+905419876543", country: "TR" });
     expect(dto.attribution).toEqual({ gclid: null });
     expect(dto.campaign).toEqual({ campaignId: null, adsetId: null, adId: null });
   });

@@ -2,8 +2,7 @@
  * Eşlenmiş alanlardan InboundLeadDto üretir; adaptörler ortak işi (ülke çözümü, ek yanıtlar) burada bırakır.
  */
 import type { MappedFields } from "../../integration-settings/application";
-import { PhoneNumber } from "../../shared/normalization";
-import { countryCodeFrom, resolveCountry } from "./country";
+import { countryCodeFrom, readIntakePhone } from "./country";
 import { normalizeFormAnswers } from "./formAnswers";
 import type { InboundAttribution, InboundCampaign, InboundConsent, InboundLeadDto, InboundSource } from "./dto";
 
@@ -27,18 +26,18 @@ export interface BuildLeadInput {
 
 export function buildInboundLead(input: BuildLeadInput): InboundLeadDto {
   const m = input.mapped;
-  const phone = m.phone || null;
-  const country = resolveCountry(m.country, phone, input.defaultCountry);
+  const formCountry = countryCodeFrom(m.country);
+  // Telefon formdaki ülkeyle okunur; ülke yoksa numaranın kendisi ülkeyi gösterebilir (yalnız gerçek kanıtla).
+  const read = m.phone ? readIntakePhone(m.phone, formCountry, input.defaultCountry, { keepPossible: !m.email }) : null;
+  const phone = read?.value || null;
+  const country = formCountry ?? read?.country ?? null;
   const extraAnswers: Record<string, unknown> = { ...m.extra, ...(input.extra ?? {}) };
   // Ülke metni çözülemediyse (telefondan bulunsa bile) ham değer ek yanıtta kalsın: admin görsün.
-  if (m.country && countryCodeFrom(m.country) === null) extraAnswers["country_raw"] = m.country;
+  if (m.country && formCountry === null) extraAnswers["country_raw"] = m.country;
   // Faz 7g (D5, D6): ülke formda yoksa telefondan geldiğini işaretle; form cevaplarını kodlara çevir.
-  if (country && (!m.country || countryCodeFrom(m.country) === null)) extraAnswers["country_source"] = "phone";
-  // Ülke kodsuz yerel numara varsayılan ülkeyle okunduysa eklenen kod da işaretlenir (bilgi uyarısı).
-  if (phone && !/^\s*(\+|00)/.test(phone)) {
-    const code = PhoneNumber.callingCodeFor(input.defaultCountry);
-    if (code) extraAnswers["dial_code_assumed"] = `+${code}`;
-  }
+  if (country && formCountry === null) extraAnswers["country_source"] = "phone";
+  // Ülke kodsuz yerel numaraya eklenen kod işaretlenir (bilgi uyarısı); kod numaranın okunduğu ülkenindir.
+  if (read?.addedDialCode) extraAnswers["dial_code_assumed"] = read.addedDialCode;
   const answers = normalizeFormAnswers({}, m.extra);
   if (answers.unmatched.length) extraAnswers["unmatched_answers"] = answers.unmatched;
   return {

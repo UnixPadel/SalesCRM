@@ -4,7 +4,7 @@ import { createSalesPipeline } from "../../sales-pipeline/application";
 import { testDeps, type TestHarness } from "../../sales-pipeline/application/fakes";
 import { HOUR, MINUTE, PermanentError, SequentialIdGenerator, TransientError, silentLogger } from "../../shared/kernel";
 import { buildInboundLead } from "./buildLead";
-import { countryCodeFrom, resolveCountry } from "./country";
+import { countryCodeFrom, readIntakePhone, resolveCountry } from "./country";
 import { FakeAdapter, FakeBackfill, InMemoryInbox, sampleDto } from "./fakes";
 import { createLeadIntake, type LeadIntake } from "./index";
 
@@ -270,6 +270,68 @@ describe("ülke çözümü ve DTO kurulumu", () => {
     expect(resolveCountry("Atlantis", "0532 123 45 67", "TR")).toBe("TR");
     expect(resolveCountry(null, "abc", "TR")).toBeNull();
     expect(resolveCountry(null, null, "TR")).toBeNull();
+    // Varsayılan ülkede geçersiz kodsuz numara ülke kanıtı değildir (2026-11-26: Bangladeş lead'i TR olmuştu).
+    expect(resolveCountry("Atlantis", "01712345678", "TR")).toBeNull();
+    // Ülke koduyla ama "+" olmadan yazılmış numara.
+    expect(resolveCountry(null, "8801712345678", "TR")).toBe("BD");
+  });
+
+  it("bütün ülkeler, yerel adlar, takma adlar ve parçalı metin (canlı veride çözülemeyenler)", () => {
+    const cases: [string, string][] = [
+      ["Bangladesh", "BD"],
+      ["Syria", "SY"],
+      ["Saudi", "SA"],
+      ["Palestine", "PS"],
+      ["България", "BG"],
+      ["Hrvatska", "HR"],
+      ["Nederland", "NL"],
+      ["Mangawhai New Zealand", "NZ"],
+      ["Amstetten Österreich", "AT"],
+      ["Dhaka, Bangladesh", "BD"],
+      ["Bangladeş", "BD"],
+      ["UK", "GB"],
+      ["bd", "BD"],
+    ];
+    for (const [raw, code] of cases) expect([raw, countryCodeFrom(raw)]).toEqual([raw, code]);
+    // İki harf yalnız geçerli bölge kodu olabilir.
+    for (const raw of ["DD", "FX", "YU", "XX"]) expect([raw, countryCodeFrom(raw)]).toEqual([raw, null]);
+  });
+
+  it("readIntakePhone: ülkeyle okuma, '+'sız ülke kodu, varsayılan yalnız geçerliyse", () => {
+    expect(readIntakePhone("01712345678", "BD", "TR")).toEqual({
+      value: "+8801712345678",
+      country: "BD",
+      addedDialCode: "+880",
+    });
+    expect(readIntakePhone("8801712345678", "BD", "TR")).toEqual({
+      value: "+8801712345678",
+      country: "BD",
+      addedDialCode: null,
+    });
+    expect(readIntakePhone("0151 12345678", "DE", "TR")).toMatchObject({
+      value: "+4915112345678",
+      addedDialCode: "+49",
+    });
+    expect(readIntakePhone("0532 123 45 67", null, "TR")).toEqual({
+      value: "+905321234567",
+      country: "TR",
+      addedDialCode: "+90",
+    });
+    // Ülke yok, numara TR'de geçersiz: ülke uydurulmaz, ham metin kalır.
+    expect(readIntakePhone("01712345678", null, "TR")).toEqual({
+      value: "01712345678",
+      country: null,
+      addedDialCode: null,
+    });
+    // E-posta yoksa lead telefonsuz kalmasın: okunabilen numara tutulur ama ülke kanıtı sayılmaz.
+    expect(readIntakePhone("01712345678", null, "TR", { keepPossible: true })).toEqual({
+      value: "+901712345678",
+      country: null,
+      addedDialCode: "+90",
+    });
+    // Suriye seçilmiş, Katar numarası kodlu ama "+"sız yazılmış.
+    expect(readIntakePhone("97433123456", "SY", "TR")).toMatchObject({ value: "+97433123456", country: "QA" });
+    expect(readIntakePhone("+44 7400 123456", "TR", "TR")).toMatchObject({ value: "+447400123456", country: "GB" });
   });
   it("buildInboundLead: çözülemeyen ülke metni ek yanıta düşer, boş alanlar null", () => {
     const dto = buildInboundLead({

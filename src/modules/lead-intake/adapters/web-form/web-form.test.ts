@@ -148,7 +148,7 @@ describe("fields → InboundLeadDto", () => {
       formId: "contact",
       fullName: "Ayşe Demir",
       email: "ayse.demir@example.com",
-      phone: "+90 532 123 45 67",
+      phone: "+905321234567",
       country: "TR",
       city: "İzmir",
       company: "Demir Spor",
@@ -193,13 +193,21 @@ describe("fields → InboundLeadDto", () => {
 
   it("eksik alanlar: ad + soyad birleşir, yerel telefon varsayılan ülkeyle; boş kimlikler null; onay yok", async () => {
     const dto = await adapter.toInboundLead(fixture("submission-missing-fields.json"), ctx);
-    expect(dto).toMatchObject({ fullName: "Mehmet Kaya", email: null, phone: "0541 987 65 43", country: "TR" });
+    expect(dto).toMatchObject({ fullName: "Mehmet Kaya", email: null, phone: "+905419876543", country: "TR" });
     expect(dto.formId).toBeNull();
     expect(dto.submittedAt).toBeNull();
     expect(Object.values(dto.attribution).every((v) => v === null)).toBe(true);
     expect(dto.consents).toEqual([]);
     // Faz 7g (D6): ülke formda yoktu, yerel numara varsayılan ülke koduyla okundu → köken işaretleri.
     expect(dto.extraAnswers).toEqual({ country_source: "phone", dial_code_assumed: "+90" });
+  });
+
+  it("serbest metin ülke + kodsuz yerel numara: numara formdaki ülkeyle okunur, TR varsayılmaz (2026-11-26)", async () => {
+    const dto = await adapter.toInboundLead(fixture("submission-country-input-local-phone.json"), ctx);
+    expect(dto).toMatchObject({ country: "BD", phone: "+8801712345678" });
+    expect(dto.extraAnswers["dial_code_assumed"]).toBe("+880");
+    expect(dto.extraAnswers["country_source"]).toBeUndefined();
+    expect(dto.extraAnswers["country_input"]).toBe("Bangladesh");
   });
 
   it("tanınmayan alanlar ek yanıt olur (dizi korunur, nesne JSON); honeypot alanı sızmaz; bozuk tarih null", async () => {

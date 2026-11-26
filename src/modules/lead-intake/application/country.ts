@@ -300,29 +300,166 @@ for (const [code, names] of Object.entries(LOCALIZED)) {
   for (const name of names) NAMES[fold(name)] ??= code;
 }
 
+/** Elle tutulan tablolarda olmayan kısa ve günlük yazımlar (2026-11-26 canlı verisinde görülenler dahil). */
+const ALIASES: Record<string, string> = {
+  saudi: "SA",
+  ksa: "SA",
+  palestine: "PS",
+  filistin: "PS",
+  emirates: "AE",
+  dubai: "AE",
+  "abu dhabi": "AE",
+  america: "US",
+  scotland: "GB",
+  wales: "GB",
+  "northern ireland": "GB",
+};
+for (const [name, code] of Object.entries(ALIASES)) NAMES[fold(name)] ??= code;
+
+/** Telefon kütüphanesinin tanıdığı bölgeler: geçerli ISO kodu kümesi (DD, FX, YU, UK gibi eski/yanlış kodlar dışarıda). */
+const REGIONS: readonly string[] = (() => {
+  const out: string[] = [];
+  for (let a = 65; a <= 90; a++)
+    for (let b = 65; b <= 90; b++) {
+      const code = String.fromCharCode(a, b);
+      if (PhoneNumber.callingCodeFor(code) !== null) out.push(code);
+    }
+  return out;
+})();
+const REGION_SET = new Set(REGIONS);
+
+/**
+ * Bütün ülkelerin adları `Intl.DisplayNames` ile: önce sitenin 6 dili, sonra ülkelerin kendi dilleri ("България",
+ * "Hrvatska", "Nederland"). Elle tutulan adlar önceliklidir (`??=`).
+ */
+const INTL_LOCALES = [
+  "en", "tr", "de", "fr", "ar", "ru",
+  "es", "it", "pt", "nl", "pl", "bg", "hr", "sr", "bs", "sl", "cs", "sk", "hu", "ro", "el", "sv", "nb", "da", "fi",
+  "uk", "be", "he", "fa", "ur", "bn", "hi", "id", "ms", "az", "ka", "hy", "kk", "uz", "sq", "mk", "lt", "lv", "et",
+] as const; // prettier-ignore
+for (const locale of INTL_LOCALES) {
+  let names: Intl.DisplayNames;
+  try {
+    names = new Intl.DisplayNames([locale], { type: "region", fallback: "none" });
+  } catch {
+    continue;
+  }
+  for (const code of REGIONS) {
+    const name = names.of(code);
+    if (name && name !== code) NAMES[fold(name)] ??= code;
+  }
+}
+
 /** Baştaki tanım edatı ("the", "la", "l'", "die" …) olmadan da denenir: "la France", "die Schweiz". */
 const ARTICLE = /^(the|la|le|les|l|die|der|das) /;
 
-/** "TR" / "tr" / "Türkiye" / "Turkey" → "TR"; tanınmazsa null. */
+/** İki harf: yalnız geçerli bölge kodu ("UK" → "GB"); "XX", "DD" null. */
+function isoCode(text: string): string | null {
+  if (!/^[A-Za-z]{2}$/.test(text)) return null;
+  const code = text.toUpperCase();
+  if (code === "UK") return "GB";
+  return REGION_SET.has(code) ? code : null;
+}
+
+const byName = (f: string): string | null => NAMES[f] ?? NAMES[f.replace(ARTICLE, "")] ?? null;
+
+/**
+ * Metnin bütünü tanınmazsa parçaları: önce virgül/eğik çizgi/tire ile ayrılmış parçalar ("Dhaka, Bangladesh"),
+ * sonra sondaki ve baştaki 3-2-1 kelime ("Mangawhai New Zealand", "Amstetten Österreich").
+ */
+function byParts(text: string): string | null {
+  const parts = text
+    .split(/[,;/|()\-–—]+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length > 1) {
+    for (const part of [...parts].reverse()) {
+      const code = isoCode(part) ?? byName(fold(part));
+      if (code) return code;
+    }
+  }
+  const words = fold(text).split(" ");
+  for (let n = Math.min(3, words.length - 1); n >= 1; n--) {
+    const code = byName(words.slice(-n).join(" ")) ?? byName(words.slice(0, n).join(" "));
+    if (code) return code;
+  }
+  return null;
+}
+
+/** "TR" / "tr" / "Türkiye" / "Turkey" / "Bangladesh" / "Dhaka, Bangladesh" → kod; tanınmazsa null. */
 export function countryCodeFrom(raw: string | null | undefined): string | null {
   const text = String(raw ?? "").trim();
   if (!text) return null;
-  if (/^[A-Za-z]{2}$/.test(text)) return text.toUpperCase();
-  const f = fold(text);
-  return NAMES[f] ?? NAMES[f.replace(ARTICLE, "")] ?? null;
+  if (/^[A-Za-z]{2}$/.test(text)) return isoCode(text);
+  return byName(fold(text)) ?? byParts(text);
 }
 
-/** Ülke alanı → kod; olmazsa telefonun ülkesi (varsayılan ülkeyle çözülerek); o da yoksa null. */
+/** Lead'e giden telefon ve numaranın kendisinin kanıtladığı bilgi (`readIntakePhone`). */
+export interface IntakePhone {
+  /** Çözüldüyse E.164; çözülemediyse ham metin (CreateLead okuyamaz, `phone_raw`'a düşer). */
+  value: string;
+  /** Numaranın gösterdiği ülke: uluslararası yazım ya da varsayılan ülkeyle geçerli yerel numara. */
+  country: string | null;
+  /** Kodsuz yerel numaraya eklenen ülke kodu ("+880"); numara zaten kodluysa null. */
+  addedDialCode: string | null;
+}
+
+/**
+ * Formdaki telefonu okur. Ülke biliniyorsa numara o ülkeyle okunur; `+` olmadan ülke koduyla yazılmış numara da
+ * ("8801712345678") tanınır. Ülke bilinmiyorsa varsayılan ülke yalnız numara o ülkede **geçerliyse** kullanılır:
+ * kodsuz yabancı numara varsayılan ülkeye yazılmaz (2026-11-26: Bangladeş numarası +90 olarak kaydedilmişti).
+ * `keepPossible`: e-posta yoksa lead telefonsuz kalamaz; okunabilen en iyi numara (geçersiz de olsa) tutulur, ülke
+ * kanıtı sayılmaz.
+ */
+export function readIntakePhone(
+  raw: string,
+  country: string | null,
+  defaultCountry: string,
+  opts: { keepPossible?: boolean } = {},
+): IntakePhone {
+  const text = String(raw ?? "").trim();
+  const none: IntakePhone = { value: text, country: null, addedDialCode: null };
+  if (!text) return none;
+  if (/^(\+|00)/.test(text)) {
+    const r = PhoneNumber.parse(text, country ?? defaultCountry);
+    return r.ok ? { value: r.value.e164, country: r.value.country || null, addedDialCode: null } : none;
+  }
+  const digits = text.replace(/\D/g, "");
+  const asLocal = (region: string): { phone: IntakePhone; valid: boolean } | null => {
+    const r = PhoneNumber.parse(text, region);
+    if (!r.ok) return null;
+    // Kütüphane baştaki ülke kodunu kendisi tanıdıysa ("905321234567") kod eklenmiş sayılmaz.
+    const typedCode = r.value.e164 === `+${digits}`;
+    const phone = {
+      value: r.value.e164,
+      country: r.value.country || region,
+      addedDialCode: typedCode ? null : `+${r.value.callingCode}`,
+    };
+    return { phone, valid: r.value.valid };
+  };
+  const plus = digits.length >= 8 ? PhoneNumber.parse(`+${digits}`) : null;
+  const withCode: IntakePhone | null =
+    plus?.ok && plus.value.valid
+      ? { value: plus.value.e164, country: plus.value.country || null, addedDialCode: null }
+      : null;
+
+  if (country) {
+    const local = asLocal(country);
+    if (local?.valid) return local.phone;
+    return withCode ?? local?.phone ?? none;
+  }
+  if (withCode) return withCode;
+  const local = asLocal(defaultCountry);
+  if (local?.valid) return local.phone;
+  if (local && opts.keepPossible) return { ...local.phone, country: null };
+  return none;
+}
+
+/** Ülke alanı → kod; olmazsa numaranın kanıtladığı ülke (`readIntakePhone`); o da yoksa null. */
 export function resolveCountry(
   raw: string | null | undefined,
   phone: string | null,
   defaultCountry: string,
 ): string | null {
-  const fromField = countryCodeFrom(raw);
-  if (fromField) return fromField;
-  if (phone) {
-    const parsed = PhoneNumber.parse(phone, defaultCountry);
-    if (parsed.ok && parsed.value.country) return parsed.value.country;
-  }
-  return null;
+  return countryCodeFrom(raw) ?? (phone ? readIntakePhone(phone, null, defaultCountry).country : null);
 }
