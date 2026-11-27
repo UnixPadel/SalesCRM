@@ -74,9 +74,9 @@ describe("yardımcılar", () => {
     expect(stText("  Padel 🎾  Kulüp  ")).toBe("Padel Kulüp");
     expect(stText("x".repeat(60), 50)).toHaveLength(50);
   });
-  it("ad çakışırsa ülke kodu, sonra sıra numarası; 50 karakteri aşmaz", () => {
+  it("ad çakışırsa ülke kodu, sonra sıra numarası; 200 karakteri aşmaz", () => {
     expect(nameVariants("Kulüp", "tr").slice(0, 3)).toEqual(["Kulüp", "Kulüp (TR)", "Kulüp (2)"]);
-    expect(nameVariants("y".repeat(50), "DE")[1]).toBe(`${"y".repeat(45)} (DE)`);
+    expect(nameVariants("y".repeat(200), "DE")[1]).toBe(`${"y".repeat(195)} (DE)`);
   });
 });
 

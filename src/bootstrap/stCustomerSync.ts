@@ -17,8 +17,8 @@ import { createScheduler, MINUTE, readSecret, type Logger, type Scheduler } from
 
 /** "Nitelikli ve üstü": kayıp dışarıda (kaybedilen lead müşteri listesine girmez). */
 export const ST_SYNC_STAGES = ["QUALIFIED", "PROPOSAL", "WON"] as const;
-/** MusteriBilgileri.MusteriAd varchar(50). */
-export const ST_NAME_MAX = 50;
+/** MusteriBilgileri.MusteriAd varchar(200) (UnixPadelST açılışta 50'den büyütür, 2026-11-27). Önce dar kalırsa yazım hata verir ve sonraki turda yeniden denenir. */
+export const ST_NAME_MAX = 200;
 const IMPORTED_PREFIX = "mysql:musteri:";
 
 export interface StCustomer {
