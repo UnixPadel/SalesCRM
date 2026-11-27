@@ -127,7 +127,13 @@ describe("syncStCustomers", () => {
 
     clock.advance(6 * MINUTE);
     const r = await syncStCustomers({ db, store, now: clock.now(), settleMs: SETTLE });
-    expect(r).toMatchObject({ candidates: 6, created: 3, linked: 3, skipped: [], failed: [] });
+    expect(r).toMatchObject({
+      candidates: 6,
+      created: 2,
+      linked: 3,
+      skipped: [{ leadId: pool, reason: "no_country" }],
+      failed: [],
+    });
 
     const links = new Map(
       (
@@ -151,11 +157,19 @@ describe("syncStCustomers", () => {
       ownerUserId: 32,
     });
     expect(made(clash)).toMatchObject({ name: "Aynı Ad Kulübü (DE)", countryId: 7 });
-    expect(made(pool)).toMatchObject({ name: "Havuz", ownerUserId: null, countryId: null });
+    // Ülkesiz lead yazılmaz; ülke girilince aktarılır (sahipsiz, havuz lead'i).
+    expect(links.has(pool)).toBe(false);
+    await db.query("UPDATE leads SET country = 'TR' WHERE id = $1", [pool]);
+
+    const withCountry = await syncStCustomers({ db, store, now: clock.now(), settleMs: SETTLE });
+    expect(withCountry).toMatchObject({ candidates: 1, created: 1, skipped: [] });
+    expect(store.rows.at(-1)).toMatchObject({ name: "Havuz", ownerUserId: null, countryId: 1 });
 
     const again = await syncStCustomers({ db, store, now: clock.now(), settleMs: SETTLE });
     expect(again).toMatchObject({ candidates: 0, created: 0, linked: 0 });
     expect(store.rows).toHaveLength(6);
+    // CRM'in açtığı her müşterinin ülkesi var (tohum satırlar 10–12 hariç).
+    expect(store.rows.filter((row) => row.id >= 500).every((row) => row.countryId !== null)).toBe(true);
   });
 
   it("geri alınan aşama değişikliği ve silinen lead aktarılmaz", async () => {
@@ -174,7 +188,7 @@ describe("syncStCustomers", () => {
 
   it("ST hatası diğer lead'leri durdurmaz, sonraki koşuda yeniden denenir", async () => {
     const store = new MemoryStore();
-    const id = await lead({ fullName: "Hata", email: "hata@example.test" });
+    const id = await lead({ fullName: "Hata", email: "hata@example.test", country: "TR" });
     await toStage(id, "PROPOSAL");
     clock.advance(SETTLE + MINUTE);
     const failing: StCustomerStore = {

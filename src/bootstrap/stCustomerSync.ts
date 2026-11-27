@@ -6,6 +6,8 @@
  *  - ST'den gelmiş lead (`mysql:musteri:<MusteriID>`) yeniden yazılmaz, o müşteriye bağlanır.
  *  - ST'de aynı e-postalı müşteri varsa ona bağlanır; aynı adlı müşteri e-postası çelişmiyorsa ona bağlanır,
  *    çelişiyorsa ad ülke koduyla ayrıştırılır ("Ad (TR)"). ST müşteri adını tekil tutar.
+ *  - Yeni müşteri yalnız ülkesi ST'de bulunursa yazılır (ST'de ülke zorunlu; ülkesiz satır ST'yi bozuyordu,
+ *    2026-11-27). Ülkesiz lead atlanır (`no_country`), lead'e ülke girilince sonraki turda yazılır.
  *  - Yazılan müşterinin sahibi (`CreatedByKullaniciID`) lead'in sorumlusudur: ST'de satışçı kendi müşterisini görür.
  *  - Bir kez aktarılan lead `st_customer_links` tablosuna yazılır; sonra kayıp olsa da geri çekilse de ST'de kalır.
  * Kişisel veri loglanmaz: yalnız lead kimliği, MusteriID ve sayılar.
@@ -159,6 +161,7 @@ async function placeCustomer(
     if (!countries.has(iso)) countries.set(iso, await store.countryId(iso));
     countryId = countries.get(iso) ?? null;
   }
+  if (countryId === null) return { skip: "no_country" };
   const owner = c.assignedUserId && /^\d+$/.test(c.assignedUserId) ? Number(c.assignedUserId) : null;
   const id = await store.insert({
     name: freeName,

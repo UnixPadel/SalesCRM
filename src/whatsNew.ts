@@ -30,6 +30,30 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-27",
+    date: "2026-11-27",
+    items: {
+      tr: [
+        {
+          title: "UnixPadelST'ye gitmek için ülke gerekli",
+          text: "Nitelikli lead UnixPadelST müşteri listesine ancak ülkesi girilmişse gider; ülkeyi girdiğinizde birkaç dakika içinde orada görünür.",
+        },
+      ],
+      en: [
+        {
+          title: "UnixPadelST needs the lead's country",
+          text: "A qualified lead goes to the UnixPadelST customer list only once it has a country; add it and it appears within minutes.",
+        },
+      ],
+      ar: [
+        {
+          title: "الدولة مطلوبة للإرسال إلى UnixPadelST",
+          text: "العميل المؤهل يُضاف إلى قائمة عملاء UnixPadelST فقط بعد إدخال دولته؛ أدخلها وسيظهر خلال دقائق.",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-26-2",
     date: "2026-11-26",
     items: {
