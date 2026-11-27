@@ -112,9 +112,9 @@ export const ALL_COUNTRY_CODES: readonly string[] = (
 ).split(" ");
 /** Seçim listeleri için bütün ülkeler: [kod, ad], seçili dilde ada göre sıralı. */
 export const countryOptions = (lang: CountryLang = countryLang): [string, string][] =>
-  ALL_COUNTRY_CODES
-    .map((code): [string, string] => [code, countryName(code, lang)])
-    .sort((x, y) => x[1].localeCompare(y[1], lang));
+  ALL_COUNTRY_CODES.map((code): [string, string] => [code, countryName(code, lang)]).sort((x, y) =>
+    x[1].localeCompare(y[1], lang),
+  );
 /** Regional-indicator flag for an ISO country code (empty for unknown). */
 export const flagOf = (c: string) =>
   /^[A-Z]{2}$/.test(c) ? String.fromCodePoint(...[...c].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65)) : "";

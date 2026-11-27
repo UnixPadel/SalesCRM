@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LANGS } from "../src/i18n/lang";
-import {
-  LATEST_WHATS_NEW,
-  WHATS_NEW,
-  WHATS_NEW_TEXT_MAX_WORDS,
-  WHATS_NEW_TITLE_MAX_WORDS,
-} from "../src/whatsNew";
+import { LATEST_WHATS_NEW, WHATS_NEW, WHATS_NEW_TEXT_MAX_WORDS, WHATS_NEW_TITLE_MAX_WORDS } from "../src/whatsNew";
 
 describe("Neler yeni notları", () => {
   it("en yeni en üstte, kimlikler tekrarsız, en yeni kimlik açılış penceresini belirler", () => {

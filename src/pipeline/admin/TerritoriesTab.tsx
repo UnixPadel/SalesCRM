@@ -76,12 +76,7 @@ export function TerritoriesTab() {
     [data],
   );
   const allCountries = useMemo(() => {
-    const fold = (s: string) =>
-      s
-        .toLocaleLowerCase(lang)
-        .replace(/ı/g, "i")
-        .normalize("NFD")
-        .replace(/\p{M}/gu, "");
+    const fold = (s: string) => s.toLocaleLowerCase(lang).replace(/ı/g, "i").normalize("NFD").replace(/\p{M}/gu, "");
     const q = fold(countryQuery.trim());
     const list = countryOptions(lang);
     return q ? list.filter(([code, name]) => fold(name).includes(q) || code.toLowerCase() === q) : list;
