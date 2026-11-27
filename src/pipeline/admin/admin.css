@@ -367,9 +367,99 @@ tr.is-archived td {
 .log-lead {
   font-weight: 700;
 }
+/* Başarısız deneme: cümlenin önünde kısa etiket (yetki yok / geçersiz / hata). */
+.log-result {
+  margin-inline-end: var(--s-2);
+}
+.log-result-denied,
+.log-result-error {
+  background: var(--bad-weak);
+  color: var(--bad-ink);
+}
+.log-result-rejected {
+  background: var(--warn-weak);
+  color: var(--warn-ink);
+}
+.log-scope {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+.log-filters input[type="search"] {
+  min-inline-size: 220px;
+}
 @media (max-width: 640px) {
   .log-list li {
     grid-template-columns: minmax(0, 1fr);
     gap: 2px;
   }
+}
+
+/* Mail Gönderimleri (2026-11-27): hafta seçici, hesap tablosu, açılır alıcı listesi. */
+.mail-week {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.mail-week-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  min-inline-size: 22ch;
+  text-align: center;
+  font-size: var(--t-md, 1rem);
+}
+.mail-week-label .muted {
+  font-size: var(--t-sm);
+  font-weight: 400;
+}
+.mail-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1, 4px);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.mail-toggle:disabled {
+  cursor: default;
+}
+.mail-toggle:disabled .mail-chev {
+  visibility: hidden;
+}
+.mail-chev {
+  transform: rotate(-90deg);
+  transition: transform 0.15s ease;
+}
+[dir="rtl"] .mail-chev {
+  transform: rotate(90deg);
+}
+.mail-chev.open {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mail-chev {
+    transition: none;
+  }
+}
+.mail-tbl th.num,
+.mail-rcpt th.num {
+  text-align: end;
+}
+.tbl td.mail-sub {
+  padding: var(--s-2) var(--s-3) var(--s-3);
+  background: var(--surface-2, transparent);
+}
+.mail-rcpt {
+  inline-size: 100%;
+}
+.mail-note {
+  font-size: var(--t-sm);
+  max-inline-size: 80ch;
 }

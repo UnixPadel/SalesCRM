@@ -10,6 +10,7 @@ import { CheckpointsTab } from "./CheckpointsTab";
 import { DeletedLeadsTab } from "./DeletedLeadsTab";
 import { HealthTab } from "./HealthTab";
 import { LogsTab } from "./LogsTab";
+import { MailStatsTab } from "./MailStatsTab";
 import { MappingsTab } from "./MappingsTab";
 import { ProductsTab } from "./ProductsTab";
 import { SettingsTab } from "./SettingsTab";
@@ -27,11 +28,14 @@ import { TerritoriesTab } from "./TerritoriesTab";
  * Teknik > Geri yükleme noktaları (2026-11-23) yalnız `admin` rolüne görünür; pazarlama rolü de görmez.
  *
  * Silinenler (2026-11-24): yöneticinin sildiği lead'ler, geri alma düğmesiyle. Yalnız `admin` rolü görür.
+ *
+ * Mail Gönderimleri (2026-11-27): satis@, export3@… hesaplarından haftada kaç mail kime gitti. Yalnız oturumu
+ * `seesMailStats` olan kişi görür (server/roles.mjs CRM_MAIL_STATS_VIEWERS); yönetici rolü tek başına yetmez.
  */
 
 const MAIN_TABS = ["territories", "products"] as const;
 const TECH_TABS = ["health", "mappings", "settings", "checkpoints"] as const;
-const TABS = [...MAIN_TABS, "deleted", "logs", ...TECH_TABS] as const;
+const TABS = [...MAIN_TABS, "deleted", "logs", "mail", ...TECH_TABS] as const;
 type Tab = (typeof TABS)[number];
 const isTab = (v: string | null): v is Tab => (TABS as readonly string[]).includes(v ?? "");
 const isTech = (t: Tab) => (TECH_TABS as readonly string[]).includes(t);
@@ -40,8 +44,9 @@ export function AdminPage({ params }: { params: URLSearchParams }) {
   const { t } = useLang();
   const { isAdmin, isMarketing, user } = useCrm();
   const seesLogs = user?.seesLogs === true;
+  const seesMail = user?.seesMailStats === true;
   const panel = isAdmin || isMarketing;
-  if (!panel && !seesLogs) {
+  if (!panel && !seesLogs && !seesMail) {
     return (
       <section className="pl-page" aria-labelledby="adm-h">
         <h1 id="adm-h" className="pl-title">
@@ -53,19 +58,41 @@ export function AdminPage({ params }: { params: URLSearchParams }) {
   }
   const asked = params.get("tab");
   const allowed =
-    isTab(asked) && (asked === "logs" ? seesLogs : asked === "checkpoints" || asked === "deleted" ? isAdmin : panel);
+    isTab(asked) &&
+    (asked === "logs"
+      ? seesLogs
+      : asked === "mail"
+        ? seesMail
+        : asked === "checkpoints" || asked === "deleted"
+          ? isAdmin
+          : panel);
   return (
     <AdminWriteCtx.Provider value={isAdmin}>
       <AdminTabs
-        tab={allowed ? (asked as Tab) : !panel ? "logs" : isAdmin ? "territories" : "health"}
+        tab={allowed ? (asked as Tab) : !panel ? (seesLogs ? "logs" : "mail") : isAdmin ? "territories" : "health"}
         panel={panel}
         seesLogs={seesLogs}
+        seesMail={seesMail}
+        logsLead={params.get("lead") ?? ""}
       />
     </AdminWriteCtx.Provider>
   );
 }
 
-function AdminTabs({ tab, panel, seesLogs }: { tab: Tab; panel: boolean; seesLogs: boolean }) {
+function AdminTabs({
+  tab,
+  panel,
+  seesLogs,
+  seesMail,
+  logsLead,
+}: {
+  tab: Tab;
+  panel: boolean;
+  seesLogs: boolean;
+  seesMail: boolean;
+  /** Loglar: lead sayfasından gelince yalnız o lead (`#/admin?tab=logs&lead=<id>`). */
+  logsLead: string;
+}) {
   const { t } = useLang();
   const errText = useErrorText();
   // Sağlayıcı listesi (ad, giden akışı var mı) bir kez okunur; Eşlemeler ve Ayarlar sekmeleri bunu kullanır.
@@ -101,6 +128,7 @@ function AdminTabs({ tab, panel, seesLogs }: { tab: Tab; panel: boolean; seesLog
           {panel && MAIN_TABS.map((k) => tabButton(k, t(`admin.tab.${k}`)))}
           {canWrite && tabButton("deleted", t("admin.tab.deleted"))}
           {seesLogs && tabButton("logs", t("admin.tab.logs"))}
+          {seesMail && tabButton("mail", t("admin.tab.mail"))}
           {panel && (
             <button
               type="button"
@@ -121,7 +149,7 @@ function AdminTabs({ tab, panel, seesLogs }: { tab: Tab; panel: boolean; seesLog
           {TECH_TABS.filter((k) => k !== "checkpoints" || canWrite).map((k) => tabButton(k, t(`admin.tab.${k}`)))}
         </div>
       )}
-      {!canWrite && tab !== "logs" && tab !== "deleted" && (
+      {!canWrite && tab !== "logs" && tab !== "deleted" && tab !== "mail" && (
         <p className="adm-ro" role="note">
           {t("admin.readOnly")}
         </p>
@@ -134,7 +162,9 @@ function AdminTabs({ tab, panel, seesLogs }: { tab: Tab; panel: boolean; seesLog
         ) : tab === "products" ? (
           <ProductsTab />
         ) : tab === "logs" ? (
-          <LogsTab />
+          <LogsTab key={logsLead} lead={logsLead} />
+        ) : tab === "mail" ? (
+          <MailStatsTab />
         ) : tab === "checkpoints" ? (
           <CheckpointsTab />
         ) : tab === "deleted" ? (

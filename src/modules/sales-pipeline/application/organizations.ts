@@ -60,6 +60,15 @@ export class CreateOrganization {
         updatedAt: now,
       };
       await repos.organizations.insert(organization);
+      await this.deps.actions?.record(
+        {
+          actor: input.actor,
+          action: "organization.created",
+          target: { type: "organization", id: organization.id, label: organization.name },
+          details: { type: organization.type, country: organization.country },
+        },
+        repos,
+      );
       logger.info("kuruluş açıldı", { organizationId: organization.id, actorUserId: input.actor.userId });
       return ok(organization);
     });
@@ -99,6 +108,15 @@ export class UpdateOrganization {
       }
       const now = clock.now();
       await repos.organizations.update(current.id, f, now);
+      await this.deps.actions?.record(
+        {
+          actor: input.actor,
+          action: "organization.updated",
+          target: { type: "organization", id: current.id, label: next.name },
+          details: { fields: Object.keys(f) },
+        },
+        repos,
+      );
       return ok({ ...next, updatedAt: now });
     });
   }
@@ -198,17 +216,18 @@ export class UpdateLeadContact {
           checkedWarnings = kept;
         }
       }
+      await this.deps.actions?.record(
+        {
+          actor: input.actor,
+          action: "lead.fields_updated",
+          lead: { id: lead.id, fullName },
+          details: { fields: changed },
+        },
+        repos,
+      );
       logger.info("lead kimliği güncellendi", { leadId: lead.id, actorUserId: input.actor.userId });
       return ok({ ...lead, fullName, email, phoneE164, extraAnswers, checkedWarnings, updatedAt: now });
     });
-    if (out.ok && changed.length) {
-      await this.deps.actions?.record({
-        actor: input.actor,
-        action: "lead.fields_updated",
-        lead: out.value,
-        details: { fields: changed },
-      });
-    }
     return out;
   }
 }

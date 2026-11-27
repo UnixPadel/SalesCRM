@@ -14,7 +14,7 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
   it("dosyaları sırayla uygular, ikinci çalıştırmada atlar", async () => {
     const files = readMigrations(MIGRATIONS_DIR);
     expect(files.map((f) => f.version)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
     ]);
     const first = await migrate(db, files);
     expect(first.applied).toEqual([
@@ -43,13 +43,15 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
       "0023_notification_push",
       "0024_lead_soft_delete",
       "0025_st_customer_links",
+      "0026_mailbox_sent_stats",
+      "0027_action_log_immutable",
     ]);
     const second = await migrate(db, files);
     expect(second.applied).toEqual([]);
-    expect(second.skipped).toHaveLength(25);
+    expect(second.skipped).toHaveLength(27);
   });
 
-  it("yirmi beş tablo ve seed verisi var", async () => {
+  it("yirmi sekiz tablo ve seed verisi var", async () => {
     const tables = (
       await db.query<{ table_name: string }>(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1",
@@ -69,6 +71,9 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
       "lead_stage_events",
       "leads",
       "lost_reasons",
+      "mailbox_scan_state",
+      "mailbox_sent_messages",
+      "mailbox_sent_recipients",
       "organizations",
       "outbound_conversion_events",
       "persons",
@@ -135,6 +140,25 @@ describe("migration koşucusu + Faz 1–2 şeması (PGlite)", () => {
     await expect(db.query("UPDATE lead_stage_events SET undone_at = NULL WHERE id = $1", [ev])).rejects.toThrow(
       /geri alınmış/,
     );
+  });
+
+  it("user_action_logs yalnız eklenir (0027): UPDATE, DELETE ve TRUNCATE reddedilir; satır aynen kalır", async () => {
+    const id = "66666666-6666-4666-8666-666666666666";
+    await db.query(
+      `INSERT INTO user_action_logs (id, occurred_at, actor_user_id, action, target_type, target_label)
+       VALUES ($1, now(), 'u1', 'territory.updated', 'territory', 'TR')`,
+      [id],
+    );
+    await expect(db.query("UPDATE user_action_logs SET actor_user_id = 'u2' WHERE id = $1", [id])).rejects.toThrow(
+      /yalnız eklenebilir/,
+    );
+    await expect(db.query("DELETE FROM user_action_logs WHERE id = $1", [id])).rejects.toThrow(/yalnız eklenebilir/);
+    await expect(db.query("TRUNCATE user_action_logs")).rejects.toThrow(/yalnız eklenebilir/);
+    const rows = await db.query<{ actor_user_id: string; result: string; target_label: string }>(
+      "SELECT actor_user_id, result, target_label FROM user_action_logs WHERE id = $1",
+      [id],
+    );
+    expect(rows).toEqual([{ actor_user_id: "u1", result: "ok", target_label: "TR" }]);
   });
 
   it("transaction: hata olunca hiçbir şey yazılmaz", async () => {

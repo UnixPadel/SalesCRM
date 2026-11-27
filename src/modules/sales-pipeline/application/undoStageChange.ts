@@ -46,6 +46,10 @@ export class UndoStageChange {
       // Aşama kapısının yazdığı temas da gider (aşama penceresinde girilen kanal ve tarih).
       await repos.activities.removeStageContactByChange(plan.value.changeId);
       await repos.leads.updateStage(lead.id, plan.value.revertTo, now);
+      await this.deps.actions?.record(
+        { actor: input.actor, action: "stage.undone", lead, details: { to: plan.value.revertTo } },
+        repos,
+      );
       return ok({
         lead: { ...lead, currentStage: plan.value.revertTo, updatedAt: now },
         changeId: plan.value.changeId,
@@ -64,12 +68,6 @@ export class UndoStageChange {
         occurredAt: outcome.value.lead.updatedAt,
       },
     ]);
-    await this.deps.actions?.record({
-      actor: input.actor,
-      action: "stage.undone",
-      lead: outcome.value.lead,
-      details: { to: outcome.value.revertedTo },
-    });
     this.deps.logger.info("aşama değişikliği geri alındı", {
       leadId: outcome.value.lead.id,
       changeId: outcome.value.changeId,

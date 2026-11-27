@@ -1,12 +1,18 @@
 import { RuleError, err, ok, type Clock, type IdGenerator, type Logger, type Result } from "../../shared/kernel";
-import type { UnitOfWork } from "../domain";
+import type { ActionLogRecord, ActionLogWriter, Repositories, UnitOfWork } from "../domain";
 
 /**
- * İşlem günlüğü (2026-11-20): kullanıcıların lead üzerinde yaptığı işlemler; yönetimdeki "Loglar" sekmesi okur.
- * Kayıt, işlem başarıyla bittikten sonra yazılır ve asıl işlemi hiçbir zaman bozmaz (hata yalnız loglanır).
- * İçe aktarma, taşıma ve reklam akışı (kişi olmayan aktörler) kaydedilmez.
+ * İşlem günlüğü (2026-11-20; 2026-11-27 bütün işlemler + değiştirilemez): yönetimdeki "Loglar" sekmesi okur.
+ *
+ *  - Lead işlemleri use-case içinde, işlemle aynı transaction'da yazılır (`record(input, repos)`): kayıt yazılamazsa
+ *    işlem de geri alınır. Transaction verilmezse (bellek içi test kurulumu) kayıt sonradan yazılır, hata yalnız loglanır.
+ *  - Yönetim paneli, aktarımlar, oturum ve reddedilen istekler HTTP katmanında (src/bootstrap/auditTrail.ts) yazılır.
+ *  - Satırlar yalnız eklenir: veritabanı UPDATE / DELETE / TRUNCATE'i reddeder (migration 0027), arayüzde silme yoktur.
+ *  - Kişisel veri değerleri (telefon, e-posta, ad) `details`'e yazılmaz; yalnız alan adları ve kişisel olmayan değerler.
+ *  - İçe aktarma, taşıma ve reklam akışı (kişi olmayan aktörler) kaydedilmez.
  */
 export const ACTION_TYPES = [
+  // lead
   "lead.created",
   "lead.assigned",
   "lead.fields_updated",
@@ -26,27 +32,85 @@ export const ACTION_TYPES = [
   "attachment.deleted",
   "lead.deleted",
   "lead.restored",
+  "warning.checked",
+  "warning.unchecked",
+  // kişi / kuruluş
+  "organization.created",
+  "organization.updated",
+  "organization.archived",
+  "organization.unarchived",
+  "person.merged",
+  // yönetim paneli
+  "territory.updated",
+  "territory.deleted",
+  "territory.applied_to_pool",
+  "territory.reassigned",
+  "product_catalog.imported",
+  "settings.updated",
+  "stage_mapping.updated",
+  "field_mapping.updated",
+  "field_mapping.deleted",
+  "fx_rates.updated",
+  "fx_rates.refreshed",
+  "outbox.requeued",
+  "inbox.requeued",
+  "provider.outbound_updated",
+  "checkpoint.restored",
+  // elle başlatılan aktarımlar
+  "sheet_sync.run",
+  "st_customer_sync.run",
+  "mail_stats.run",
+  // oturum
+  "auth.login",
+  "auth.login_failed",
+  "auth.logout",
+  // eşlemesi olmayan yazma isteği (yeni bir uç eklenip tabloya yazılmadıysa da iz kalsın)
+  "request.other",
 ] as const;
 export type ActionType = (typeof ACTION_TYPES)[number];
 export const isActionType = (v: unknown): v is ActionType => (ACTION_TYPES as readonly unknown[]).includes(v);
 
+export const TARGET_TYPES = [
+  "lead",
+  "organization",
+  "person",
+  "territory",
+  "product_catalog",
+  "settings",
+  "mapping",
+  "fx_rates",
+  "queue",
+  "checkpoint",
+  "sync",
+  "session",
+  "request",
+] as const;
+export type TargetType = (typeof TARGET_TYPES)[number];
+export const isTargetType = (v: unknown): v is TargetType => (TARGET_TYPES as readonly unknown[]).includes(v);
+
+export const ACTION_RESULTS = ["ok", "denied", "rejected", "error"] as const;
+export type ActionResult = (typeof ACTION_RESULTS)[number];
+export const isActionResult = (v: unknown): v is ActionResult => (ACTION_RESULTS as readonly unknown[]).includes(v);
+
 /** Kişi olmayan aktörler (Excel / form tablosu aktarımı, eski sistem taşıması). */
 const SYSTEM_ACTORS: readonly string[] = ["import", "migration"];
+/** Oturumu olmayan istek (başarısız giriş). */
+export const ANONYMOUS_ACTOR = "anonymous";
 
-export interface ActionLogEntry {
-  id: string;
-  occurredAt: Date;
-  actorUserId: string;
-  action: ActionType;
-  /** Lead silindiyse null; ad o andaki haliyle `leadName`'de kalır. */
-  leadId: string | null;
-  leadName: string;
-  details: Record<string, unknown>;
-}
+export type ActionLogEntry = Omit<ActionLogRecord<ActionType>, "targetType" | "result"> & {
+  targetType: TargetType;
+  result: ActionResult;
+};
 
 export interface ActionLogFilter {
   actorUserId?: string | undefined;
   actions?: readonly ActionType[] | undefined;
+  targetType?: TargetType | undefined;
+  /** Tek bir hedef (ör. bir lead'in geçmişi); `targetType` ile birlikte. */
+  targetId?: string | undefined;
+  /** Hedef adında (lead adı, ülke kodu…) büyük/küçük harf duyarsız arama. */
+  search?: string | undefined;
+  result?: ActionResult | undefined;
   /** occurred_at alt (dahil) ve üst (hariç) sınırı. */
   from?: Date | undefined;
   to?: Date | undefined;
@@ -55,7 +119,7 @@ export interface ActionLogFilter {
   limit: number;
 }
 
-export interface ActionLogStore {
+export interface ActionLogStore extends ActionLogWriter {
   insert(entry: ActionLogEntry): Promise<void>;
   /** En yeni önce: `(occurred_at DESC, id DESC)`. */
   list(filter: ActionLogFilter): Promise<ActionLogEntry[]>;
@@ -66,41 +130,83 @@ export interface ActionLogStore {
 export interface RecordActionInput {
   actor: { userId: string } | null | undefined;
   action: ActionType;
-  /** `fullName` verilmezse lead'den okunur. */
-  lead: { id: string; fullName?: string | undefined };
+  /** Lead işlemi; `fullName` verilmezse lead'den okunur. Hedef de bu lead olur. */
+  lead?: { id: string; fullName?: string | undefined } | undefined;
+  /** Lead dışı hedef (bölge, ayar, oturum…). */
+  target?: { type: TargetType; id?: string | null | undefined; label?: string | undefined } | undefined;
+  result?: ActionResult | undefined;
   details?: Record<string, unknown> | undefined;
 }
 
-/** Use-case'lerin gördüğü yüz: yalnız kaydetme. */
+/** Use-case'lerin gördüğü yüz: yalnız kaydetme. `repos` verilirse kayıt o transaction'da yazılır. */
 export interface ActionRecorder {
-  record(input: RecordActionInput): Promise<void>;
+  record(input: RecordActionInput, repos?: Repositories): Promise<void>;
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class ActionLog implements ActionRecorder {
   constructor(
-    private readonly deps: { store: ActionLogStore; uow: UnitOfWork; clock: Clock; ids: IdGenerator; logger: Logger },
+    private readonly deps: {
+      store: ActionLogStore;
+      uow: UnitOfWork;
+      clock: Clock;
+      ids: IdGenerator;
+      logger: Logger;
+      /** Kayıt yazıldıktan sonra (HTTP katmanı: bu istek için ayrıca genel kayıt gerekmez). */
+      onRecorded?: (() => void) | undefined;
+    },
   ) {}
 
-  async record(input: RecordActionInput): Promise<void> {
+  /**
+   * Transaction içinde (`repos.actionLog` varsa) hata yukarı fırlar ve işlem geri alınır. Transaction dışında hata
+   * yalnız loglanır: asıl işlem zaten bitmiştir.
+   */
+  async record(input: RecordActionInput, repos?: Repositories): Promise<void> {
     const userId = input.actor?.userId;
     if (!userId || SYSTEM_ACTORS.includes(userId)) return;
-    const { store, uow, clock, ids, logger } = this.deps;
-    try {
-      const leadName =
-        input.lead.fullName ??
-        (await uow.run(async (repos) => (await repos.leads.findById(input.lead.id))?.fullName ?? ""));
-      await store.insert({
-        id: ids.next(),
-        occurredAt: clock.now(),
-        actorUserId: userId,
-        action: input.action,
-        leadId: input.lead.id,
-        leadName,
-        details: input.details ?? {},
-      });
-    } catch (error) {
-      logger.warn("işlem günlüğü yazılamadı", { action: input.action, leadId: input.lead.id, error });
+    const writer = repos?.actionLog;
+    if (writer && repos) {
+      await writer.insert(await this.entry(input, userId, repos));
+      this.deps.onRecorded?.();
+      return;
     }
+    try {
+      await this.deps.store.insert(await this.entry(input, userId, undefined));
+      this.deps.onRecorded?.();
+    } catch (error) {
+      this.deps.logger.warn("işlem günlüğü yazılamadı", { action: input.action, error });
+    }
+  }
+
+  private async entry(
+    input: RecordActionInput,
+    userId: string,
+    repos: Repositories | undefined,
+  ): Promise<ActionLogEntry> {
+    const { clock, ids, uow } = this.deps;
+    const leadId = input.lead && UUID.test(input.lead.id) ? input.lead.id : null;
+    let leadName = input.lead?.fullName ?? "";
+    if (input.lead && input.lead.fullName === undefined && leadId) {
+      const find = async (r: Repositories) => (await r.leads.findById(leadId))?.fullName ?? "";
+      leadName = repos ? await find(repos) : await uow.run(find);
+    }
+    const target = input.lead
+      ? { type: "lead" as const, id: input.lead.id, label: leadName }
+      : { type: input.target?.type ?? "request", id: input.target?.id ?? null, label: input.target?.label ?? "" };
+    return {
+      id: ids.next(),
+      occurredAt: clock.now(),
+      actorUserId: userId,
+      action: input.action,
+      leadId,
+      leadName,
+      targetType: target.type,
+      targetId: target.id,
+      targetLabel: target.label,
+      result: input.result ?? "ok",
+      details: input.details ?? {},
+    };
   }
 }
 
@@ -112,6 +218,10 @@ export interface ListActionsInput {
   viewer: { seesLogs?: boolean | undefined };
   actorUserId?: string | undefined;
   actions?: readonly ActionType[] | undefined;
+  targetType?: TargetType | undefined;
+  targetId?: string | undefined;
+  search?: string | undefined;
+  result?: ActionResult | undefined;
   from?: Date | undefined;
   to?: Date | undefined;
   before?: { at: Date; id: string } | undefined;
@@ -133,9 +243,14 @@ export class ActionLogQueries {
       return err(new RuleError("logs.forbidden", "İşlem günlüğünü görme yetkiniz yok.", {}));
     }
     const limit = Math.min(Math.max(1, Math.floor(input.limit ?? LOG_PAGE_DEFAULT)), LOG_PAGE_MAX);
+    const search = input.search?.trim().slice(0, 100) || undefined;
     const rows = await this.store.list({
       actorUserId: input.actorUserId,
       actions: input.actions,
+      targetType: input.targetType,
+      targetId: input.targetId,
+      search,
+      result: input.result,
       from: input.from,
       to: input.to,
       before: input.before,
@@ -151,7 +266,7 @@ export class ActionLogQueries {
   }
 }
 
-/** Testler ve bellek içi kurulum. */
+/** Testler ve bellek içi kurulum. Gerçek tablo gibi yalnız ekler. */
 export class InMemoryActionLogStore implements ActionLogStore {
   readonly rows: ActionLogEntry[] = [];
   async insert(entry: ActionLogEntry): Promise<void> {
@@ -160,11 +275,16 @@ export class InMemoryActionLogStore implements ActionLogStore {
   async list(f: ActionLogFilter): Promise<ActionLogEntry[]> {
     const key = (e: { occurredAt: Date; id: string }) => `${e.occurredAt.toISOString()}|${e.id}`;
     const before = f.before ? key({ occurredAt: f.before.at, id: f.before.id }) : null;
+    const q = f.search?.toLocaleLowerCase("tr");
     return this.rows
       .filter(
         (e) =>
           (!f.actorUserId || e.actorUserId === f.actorUserId) &&
           (!f.actions?.length || f.actions.includes(e.action)) &&
+          (!f.targetType || e.targetType === f.targetType) &&
+          (!f.targetId || e.targetId === f.targetId) &&
+          (!q || e.targetLabel.toLocaleLowerCase("tr").includes(q)) &&
+          (!f.result || e.result === f.result) &&
           (!f.from || e.occurredAt >= f.from) &&
           (!f.to || e.occurredAt < f.to) &&
           (before === null || key(e) < before),

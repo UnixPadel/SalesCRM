@@ -4,6 +4,7 @@ import {
   adminAccess,
   campaignViewers,
   logViewers,
+  mailStatsViewers,
   canReadDirectory,
   canSeeReports,
   isReadOnlyRole,
@@ -122,6 +123,19 @@ describe("kampanya görünürlüğü (2026-11-20)", () => {
     expect(sessionSees("rep", ids, logViewers({}))).toBe(false);
     expect(sessionSees("marketing", ids, logViewers({}))).toBe(false);
     expect(sessionSees("rep", ids, logViewers({ CRM_LOG_VIEWERS: "mehmet" }))).toBe(true);
+  });
+
+  it("mail gönderim raporu: yalnız admin ve elshan.rasulov; yönetici rolü tek başına yetmez (2026-11-27)", () => {
+    const v = mailStatsViewers({});
+    expect([...v].sort()).toEqual(["admin", "elshan.rasulov"]);
+    expect(seesCampaign({ id: "41", login: "Elshan.Rasulov", email: "elshan@unixpadel.com" }, v)).toBe(true);
+    // Yerel Admin hesabı ve tablodaki admin kullanıcısı.
+    expect(seesCampaign({ id: "admin", login: "admin@unixpadel.com" }, v)).toBe(true);
+    expect(seesCampaign({ id: "88", login: "admin", email: "admin@unixpadel.com" }, v)).toBe(true);
+    // Başka bir yönetici (ör. Veli bey) listede yoksa görmez; girişte sessionSees değil seesCampaign kullanılır.
+    expect(seesCampaign({ id: "7", login: "veli", email: "veli@unixpadel.com" }, v)).toBe(false);
+    expect(seesCampaign({ login: "veli" }, mailStatsViewers({ CRM_MAIL_STATS_VIEWERS: "veli" }))).toBe(true);
+    expect(seesCampaign({ login: "elshan.rasulov" }, mailStatsViewers({ CRM_MAIL_STATS_VIEWERS: "" }))).toBe(false);
   });
 
   it("yanıttaki kampanya bilgisi boşalır, diğer alanlar kalır", () => {

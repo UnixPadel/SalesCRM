@@ -51,8 +51,9 @@ export function Header({ route, onNewLead }: { route: Route; onNewLead: () => vo
     // Raporlar pazarlama rolüne kapalı (sunucu da 403 döner).
     ...(isMarketing ? [] : [{ r: "reports" as const, icon: "chart", label: t("nav.reports") }]),
     // Yönetim paneli (Faz 7): yöneticiye; pazarlama rolüne salt okunur.
-    // İşlem günlüğünü görebilen kişi (seesLogs) yönetici değilse de panele girer; yalnız Loglar sekmesini görür.
-    ...(isAdmin || isMarketing || user?.seesLogs === true
+    // İşlem günlüğünü (seesLogs) ya da mail raporunu (seesMailStats) görebilen kişi yönetici değilse de panele girer;
+    // yalnız o sekmeleri görür.
+    ...(isAdmin || isMarketing || user?.seesLogs === true || user?.seesMailStats === true
       ? [{ r: "admin" as const, icon: "lock", label: t("nav.admin") }]
       : []),
   ];

@@ -42,15 +42,18 @@ export class DeleteLead {
       const at = clock.now();
       const deletion = { at, by: input.actor.userId, reason: reason.value };
       await repos.leads.markDeleted(lead.id, deletion, at);
+      await this.deps.actions?.record(
+        {
+          actor: input.actor,
+          action: "lead.deleted",
+          lead: { id: lead.id, fullName: lead.fullName },
+          details: { reason: reason.value },
+        },
+        repos,
+      );
       return ok({ ...lead, deletion, updatedAt: at });
     });
     if (out.ok) {
-      await this.deps.actions?.record({
-        actor: input.actor,
-        action: "lead.deleted",
-        lead: { id: out.value.id, fullName: out.value.fullName },
-        details: { reason: reason.value },
-      });
       this.deps.logger.info("lead silindi", { leadId: out.value.id, actorUserId: input.actor.userId });
     }
     return out;
@@ -75,14 +78,13 @@ export class RestoreLead {
       if (!lead.deletion) return err(new RuleError("lead.not_deleted", "Bu lead silinmemiş."));
       const at = clock.now();
       await repos.leads.restore(lead.id, at);
+      await this.deps.actions?.record(
+        { actor: input.actor, action: "lead.restored", lead: { id: lead.id, fullName: lead.fullName } },
+        repos,
+      );
       return ok({ ...lead, deletion: null, updatedAt: at });
     });
     if (out.ok) {
-      await this.deps.actions?.record({
-        actor: input.actor,
-        action: "lead.restored",
-        lead: { id: out.value.id, fullName: out.value.fullName },
-      });
       this.deps.logger.info("silinen lead geri alındı", { leadId: out.value.id, actorUserId: input.actor.userId });
     }
     return out;

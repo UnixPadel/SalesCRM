@@ -95,6 +95,15 @@ export class ChangeLeadStage {
           // O değişikliklerle açılan, henüz yapılmamış otomatik takipler gider; gerçek temas kayıtları kalır.
           for (const id of rollback.value.changeIds) await repos.activities.removeAutoCreatedByChange(id);
           await repos.leads.updateStage(lead.id, rollback.value.revertTo, now);
+          await this.deps.actions?.record(
+            {
+              actor: input.actor,
+              action: "stage.changed",
+              lead,
+              details: { from: lead.currentStage, to: rollback.value.revertTo, rolledBack: true },
+            },
+            repos,
+          );
           return ok({
             lead: { ...lead, currentStage: rollback.value.revertTo, updatedAt: now },
             changeId: ids.next(),
@@ -246,6 +255,10 @@ export class ChangeLeadStage {
             occurredAt: now,
           });
         }
+        await this.deps.actions?.record(
+          { actor: input.actor, action: "stage.changed", lead, details: { from: plan.value.from, to: plan.value.to } },
+          repos,
+        );
         return ok({
           lead: { ...lead, currentStage: plan.value.to, assignedUserId: assignedTo, updatedAt: now },
           changeId,
@@ -262,16 +275,6 @@ export class ChangeLeadStage {
 
     if (!outcome.ok) return outcome;
     await this.deps.events.publish(outcome.value.domainEvents);
-    await this.deps.actions?.record({
-      actor: input.actor,
-      action: "stage.changed",
-      lead: outcome.value.lead,
-      details: {
-        from: outcome.value.fromStage,
-        to: outcome.value.lead.currentStage,
-        ...(outcome.value.rolledBack ? { rolledBack: true } : {}),
-      },
-    });
     this.deps.logger.info("aşama değişti", {
       leadId: outcome.value.lead.id,
       changeId: outcome.value.changeId,

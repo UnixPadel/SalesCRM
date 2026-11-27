@@ -53,15 +53,18 @@ export class AddAttachment {
         deleteReason: null,
       };
       await repos.attachments.insert(attachment, input.contentBase64 as string);
+      await this.deps.actions?.record(
+        {
+          actor: input.actor,
+          action: "attachment.added",
+          lead: { id: lead.id, fullName: lead.fullName },
+          details: { fileName: attachment.fileName, image: attachment.mimeType.startsWith("image/") },
+        },
+        repos,
+      );
       return ok(attachment);
     });
     if (out.ok) {
-      await this.deps.actions?.record({
-        actor: input.actor,
-        action: "attachment.added",
-        lead: { id: out.value.leadId },
-        details: { fileName: out.value.fileName, image: out.value.mimeType.startsWith("image/") },
-      });
       this.deps.logger.info("dosya eklendi", {
         leadId: out.value.leadId,
         attachmentId: out.value.id,
@@ -97,15 +100,18 @@ export class DeleteAttachment {
       }
       const at = clock.now();
       await repos.attachments.markDeleted(found.id, input.actor.userId, reason.value, at);
+      await this.deps.actions?.record(
+        {
+          actor: input.actor,
+          action: "attachment.deleted",
+          lead: { id: loaded.value.id, fullName: loaded.value.fullName },
+          details: { fileName: found.fileName },
+        },
+        repos,
+      );
       return ok({ ...found, deletedAt: at, deletedBy: input.actor.userId, deleteReason: reason.value });
     });
     if (out.ok) {
-      await this.deps.actions?.record({
-        actor: input.actor,
-        action: "attachment.deleted",
-        lead: { id: out.value.leadId },
-        details: { fileName: out.value.fileName },
-      });
       this.deps.logger.info("dosya silindi", {
         leadId: out.value.leadId,
         attachmentId: out.value.id,

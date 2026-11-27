@@ -38,6 +38,10 @@ export class AssignLead {
       if (from === input.toUserId) return ok({ lead, from });
       const now = clock.now();
       await repos.leads.updateAssignee(lead.id, input.toUserId, now);
+      await this.deps.actions?.record(
+        { actor: input.actor, action: "lead.assigned", lead, details: { from, to: input.toUserId } },
+        repos,
+      );
       return ok({ lead: { ...lead, assignedUserId: input.toUserId, updatedAt: now }, from });
     });
     if (!outcome.ok) return outcome;
@@ -52,12 +56,6 @@ export class AssignLead {
           occurredAt: outcome.value.lead.updatedAt,
         },
       ]);
-      await this.deps.actions?.record({
-        actor: input.actor,
-        action: "lead.assigned",
-        lead: outcome.value.lead,
-        details: { from: outcome.value.from, to: outcome.value.lead.assignedUserId },
-      });
     }
     return ok(outcome.value.lead);
   }

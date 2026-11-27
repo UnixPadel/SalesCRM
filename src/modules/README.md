@@ -1,6 +1,6 @@
 # Modüller
 
-Genel plan'daki modüler monolit. Dört iş modülü ve bir paylaşılan katman; sınırlar `.dependency-cruiser.cjs` ile zorlanır (`npm run arch`).
+Genel plan'daki modüler monolit. Beş iş modülü ve bir paylaşılan katman; sınırlar `.dependency-cruiser.cjs` ile zorlanır (`npm run arch`).
 
 | Modül | Görev | Faz |
 |---|---|---|
@@ -8,6 +8,7 @@ Genel plan'daki modüler monolit. Dört iş modülü ve bir paylaşılan katman;
 | `lead-intake` | Gelen lead'ler: kaynak başına adaptör, inbox, `CreateLeadFromAd`. | 2, 3 |
 | `ad-feedback` | Giden olaylar: outbox, saf payload builder'ları, platform adaptörleri, dağıtıcı. | 4, 5 |
 | `integration-settings` | Aşama ve form eşlemeleri, bağlantılar, acil durdurma, sağlık paneli. | 2–6 |
+| `mail-activity` | Şirket hesaplarının Gönderilmiş klasörü taraması (IMAP, salt-okunur) ve haftalık mail gönderim raporu. | 2026-11 |
 | `shared` | `normalization` (e-posta, telefon, platform başına hash) ve `kernel` (Clock, Id, Result, hata tipleri, config/secret yükleyici, logger). | 1 |
 
 ## Katman kuralları

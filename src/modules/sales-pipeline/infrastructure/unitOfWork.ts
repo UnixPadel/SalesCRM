@@ -1,6 +1,7 @@
 import type { Db, Queryable } from "../../shared/db";
 import type { IdGenerator } from "../../shared/kernel";
 import type { Repositories, UnitOfWork } from "../domain";
+import { pgActionLogStore } from "./actionLogStore";
 import { pgActivityRepository } from "./activityRepository";
 import { pgAttachmentRepository } from "./attachmentRepository";
 import { pgContactLogRepository } from "./contactLogRepository";
@@ -17,6 +18,7 @@ import {
 
 export function repositoriesFor(q: Queryable, ids: IdGenerator): Repositories {
   return {
+    actionLog: pgActionLogStore(q),
     leads: pgLeadRepository(q),
     persons: pgPersonRepository(q),
     organizations: pgOrganizationRepository(q),

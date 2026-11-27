@@ -19,11 +19,13 @@ import {
   adminAccess,
   campaignViewers,
   logViewers,
+  mailStatsViewers,
   canReadDirectory,
   marketingUsers,
   reportsAccess,
   sessionSees,
   sessionRole,
+  seesCampaign,
 } from "./roles.mjs";
 import { emailsOf, USERS, userFor } from "./users.mjs";
 import { bootSalesPipeline } from "../src/bootstrap/salesPipeline.ts";
@@ -31,6 +33,7 @@ import { bootLeadIntake } from "../src/bootstrap/leadIntake.ts";
 import { bootAdFeedback } from "../src/bootstrap/adFeedback.ts";
 import { bootSheetSync } from "../src/bootstrap/sheetSync.ts";
 import { bootStCustomerSync } from "../src/bootstrap/stCustomerSync.ts";
+import { bootMailActivity } from "../src/bootstrap/mailActivity.ts";
 import { fxRatesJob } from "../src/bootstrap/eurRates.ts";
 import { MINUTE, createScheduler } from "../src/modules/shared/kernel/index.ts";
 import { bootAdmin } from "../src/bootstrap/admin.ts";
@@ -327,6 +330,9 @@ const sheetSync = bootSheetSync(salesPipeline);
 /* UnixPadelST müşteri listesi (2026-11-25): Nitelikli ve üstü lead, geri alma süresi dolunca öteki programın
    MusteriBilgileri tablosuna yazılır (ST_DB_URL, yoksa AUTH_DB_URL; INSERT yetkisi gerekir). ST_CUSTOMER_SYNC=0 kapatır. */
 const stCustomerSync = bootStCustomerSync(salesPipeline);
+/* Mail gönderim raporu (2026-11-27): satis@, export3@, export2@, yusa@ Gönderilmiş klasörleri saatte bir salt-okunur
+   taranır (MAIL_STATS_PASS_* ya da IMAP master). MAIL_STATS_ENABLED=0 taramayı kapatır; rapor geçmişten okunur. */
+const mailActivity = bootMailActivity(salesPipeline);
 /* Kurlar (2026-11-20): TCMB günlük bülteni 3 saatte bir; yönetim ekranında otomatik güncelleme kapatılabilir.
    FX_AUTO_FETCH=0 işi hiç kurmaz (yerel testler, ağsız ortam). */
 const fxRates =
@@ -382,6 +388,10 @@ app.get("/health", async (_req, res) => {
 // Oturumsuz giriş ucu küçük gövde alır; büyük sınır yalnız oturumlu uçlar için.
 app.use("/api/auth", express.json({ limit: "10kb" }));
 app.use(express.json({ limit: "25mb" }));
+/* İşlem günlüğü (2026-11-27): oturumu olan herkesin her yazma isteği (yönetim paneli, aktarımlar, reddedilen istekler
+   dahil) bir satır bırakır; lead işlemleri use-case'te aynı transaction'da ayrıntılı yazılır. Kayıt değiştirilemez.
+   Giriş / çıkış aşağıda açıkça yazılır. src/bootstrap/auditTrail.ts */
+app.use("/api", salesPipeline.audit);
 
 const publicUser = (s) => ({
   id: s.userId,
@@ -390,6 +400,7 @@ const publicUser = (s) => ({
   role: s.role,
   seesCampaign: Boolean(s.seesCampaign),
   seesLogs: Boolean(s.seesLogs),
+  seesMailStats: Boolean(s.seesMailStats),
   hasMailbox: MAIL_ENABLED && !s.local && s.email.includes("@"),
 });
 
@@ -408,6 +419,36 @@ app.post("/api/auth/login", async (req, res) => {
   if (!email) return res.status(400).json({ error: "Kullanıcı adı girin." });
   if (!password) return res.status(400).json({ error: "Şifre girin." });
   const limitKey = email;
+  // İşlem günlüğü: başarılı giriş kişinin kimliğiyle, başarısız deneme "anonymous" ve girilen adla (şifre asla).
+  res.on("finish", () => {
+    const ok = res.statusCode < 300 && res.locals.auditUser;
+    void salesPipeline.actions.record(
+      ok
+        ? {
+            actor: { userId: res.locals.auditUser.userId },
+            action: "auth.login",
+            target: { type: "session", id: res.locals.auditUser.userId, label: res.locals.auditUser.name },
+            details: { role: res.locals.auditUser.role },
+          }
+        : {
+            actor: { userId: "anonymous" },
+            action: "auth.login_failed",
+            target: { type: "session", label: limitKey.slice(0, 100) },
+            result: res.statusCode === 429 ? "denied" : res.statusCode >= 500 ? "error" : "rejected",
+            details: {
+              reason:
+                res.statusCode === 429
+                  ? "rate_limited"
+                  : res.statusCode === 403
+                    ? "inactive"
+                    : res.statusCode >= 500
+                      ? "unavailable"
+                      : "bad_credentials",
+              status: res.statusCode,
+            },
+          },
+    );
+  });
   const ip = req.ip || "";
   const wait = loginLimiter.retryAfter(limitKey, ip);
   if (wait > 0) {
@@ -488,6 +529,11 @@ app.post("/api/auth/login", async (req, res) => {
       who.local ? { id: "admin", login: limitKey } : { id: who.id, login: limitKey, email },
       logViewers(),
     ),
+    // Mail gönderim raporu: yalnız CRM_MAIL_STATS_VIEWERS listesindekiler; yönetici rolü tek başına yetmez.
+    seesMailStats: seesCampaign(
+      who.local ? { id: "admin", login: limitKey } : { id: who.id, login: limitKey, email },
+      mailStatsViewers(),
+    ),
     local: who.local,
     password: who.local ? "" : password,
     expires: Date.now() + SESSION_TTL,
@@ -495,6 +541,7 @@ app.post("/api/auth/login", async (req, res) => {
     cache: new Map(),
   };
   sessions.set(sid, session);
+  res.locals.auditUser = { userId: session.userId, name: session.name, role: session.role };
   res.setHeader("set-cookie", `crm_sid=${sid}; ${COOKIE_FLAGS}; Max-Age=${SESSION_TTL / 1000}`);
   res.json({ user: publicUser(session) });
 });
@@ -506,6 +553,14 @@ app.get("/api/auth/me", (req, res) => {
 });
 
 app.post("/api/auth/logout", (req, res) => {
+  const s = sessions.get(cookies(req).crm_sid);
+  if (s) {
+    void salesPipeline.actions.record({
+      actor: { userId: s.userId },
+      action: "auth.logout",
+      target: { type: "session", id: s.userId, label: s.name },
+    });
+  }
   sessions.delete(cookies(req).crm_sid);
   res.setHeader("set-cookie", `crm_sid=; ${COOKIE_FLAGS}; Max-Age=0`);
   res.status(204).end();
@@ -715,6 +770,9 @@ app.use(
 );
 app.use("/api/admin", auth, adminAccess, adminRouter);
 
+/* ---- mail gönderim raporu: yalnız oturumu seesMailStats olan (CRM_MAIL_STATS_VIEWERS) ---- */
+app.use("/api/mail-activity", auth, mailActivity.router);
+
 /* Raporlar pazarlama rolüne kapalı; lead verisinin geri kalanı salt okunur (actorFromSession.readOnly). */
 app.use("/api/pipeline/reports", auth, reportsAccess);
 app.use("/api/pipeline", auth, salesPipeline.router);
@@ -780,6 +838,7 @@ async function shutdown(signal) {
   adFeedback.scheduler.stop();
   sheetSync?.scheduler.stop();
   stCustomerSync?.scheduler.stop();
+  mailActivity.scheduler?.stop();
   fxRates?.stop();
   notifyJobs?.stop();
   server.close();

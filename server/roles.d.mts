@@ -10,6 +10,7 @@ export function sessionRole(
 ): string;
 export function campaignViewers(env?: Record<string, string | undefined>): Set<string>;
 export function logViewers(env?: Record<string, string | undefined>): Set<string>;
+export function mailStatsViewers(env?: Record<string, string | undefined>): Set<string>;
 export function seesCampaign(ids: { id?: unknown; login?: unknown; email?: unknown }, viewers: Set<string>): boolean;
 export function sessionSees(
   role: string | undefined,

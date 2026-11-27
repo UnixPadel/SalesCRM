@@ -48,6 +48,26 @@ export interface AppConfig {
    * Bağlantı secret olarak okunur: `ST_DB_URL`, yoksa `AUTH_DB_URL`. ST_CUSTOMER_SYNC=0 kapatır.
    */
   stCustomerSync: { enabled: boolean; minutes: number; dbUrlSecretNames: readonly string[] };
+  mailStats: MailStatsConfig;
+}
+
+/**
+ * Mail gönderim raporu (2026-11-27): hesapların IMAP "Gönderilmiş" klasörü salt-okunur taranır. Hesap şifresi secret
+ * olarak okunur (`MAIL_STATS_PASS_<YEREL KISIM>`, ör. MAIL_STATS_PASS_SATIS); yoksa IMAP master kullanıcı
+ * (`IMAP_MASTER_USER` + `IMAP_MASTER_PASSWORD`, giriş "<adres>*<master>"). İkisi de yoksa hesap atlanır.
+ */
+export interface MailStatsConfig {
+  /** MAIL_STATS_ENABLED=0 taramayı kapatır (rapor DB'deki geçmişten yine okunur). */
+  enabled: boolean;
+  /** Tarama aralığı (dakika); varsayılan 60. */
+  minutes: number;
+  /** İlk taramada geriye kaç hafta okunur; varsayılan 12. */
+  backfillWeeks: number;
+  imapHost: string;
+  imapPort: number;
+  masterUser: string;
+  masterPasswordSecretName: string;
+  mailboxes: readonly { address: string; passwordSecretName: string }[];
 }
 
 export interface WebPullConfig {
@@ -189,8 +209,32 @@ export function loadConfig(env: Env = process.env): AppConfig {
       minutes: Math.max(1, num(env["ST_CUSTOMER_SYNC_MINUTES"], 5)),
       dbUrlSecretNames: ["ST_DB_URL", "AUTH_DB_URL"],
     },
+    mailStats: {
+      enabled: env["MAIL_STATS_ENABLED"] !== "0",
+      minutes: Math.max(5, num(env["MAIL_STATS_MINUTES"], 60)),
+      backfillWeeks: Math.min(104, Math.max(1, num(env["MAIL_STATS_BACKFILL_WEEKS"], 12))),
+      imapHost: (env["IMAP_HOST"] ?? "").trim() || "mail.unixpadel.com",
+      imapPort: num(env["IMAP_PORT"], 993),
+      masterUser: (env["IMAP_MASTER_USER"] ?? "").trim(),
+      masterPasswordSecretName: "IMAP_MASTER_PASSWORD",
+      mailboxes: (list(env["MAIL_STATS_MAILBOXES"]).length ? list(env["MAIL_STATS_MAILBOXES"]) : DEFAULT_MAIL_STATS)
+        .map((a) => a.toLowerCase())
+        .filter((a) => a.includes("@"))
+        .map((address) => ({ address, passwordSecretName: mailStatsSecretName(address) })),
+    },
   };
 }
+
+const DEFAULT_MAIL_STATS = [
+  "satis@unixpadel.com",
+  "export3@unixpadel.com",
+  "export2@unixpadel.com",
+  "yusa@unixpadel.com",
+];
+
+/** satis@unixpadel.com → MAIL_STATS_PASS_SATIS (yerel kısım büyük harf, harf/rakam dışı "_"). */
+export const mailStatsSecretName = (address: string): string =>
+  "MAIL_STATS_PASS_" + (address.split("@")[0] ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
 
 const numList = (v: string | undefined, fallback: readonly number[]): number[] => {
   const parsed = list(v)

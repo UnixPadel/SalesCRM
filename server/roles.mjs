@@ -85,6 +85,23 @@ export function logViewers(env = process.env) {
 }
 
 /**
+ * Mail gönderim raporunu (Yönetim > Mail Gönderimleri: satis@, export3@… hesaplarından haftada kaç mail kime gitti)
+ * görebilenler (2026-11-27). Kişi bazında: CRM_MAIL_STATS_VIEWERS (virgülle: kullanıcı adı, e-posta ya da KullaniciID).
+ * Loglar'dan farkı: yönetici rolü tek başına YETMEZ; kontrol yalnız `seesCampaign(ids, mailStatsViewers())` ile yapılır
+ * (sessionSees değil). Değişken tanımlı değilse varsayılan: admin (yerel Admin ve tablodaki admin) ve elshan.rasulov.
+ * @param {Record<string, string | undefined>} env
+ */
+export function mailStatsViewers(env = process.env) {
+  const raw = env.CRM_MAIL_STATS_VIEWERS ?? "admin,elshan.rasulov";
+  return new Set(
+    String(raw)
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+/**
  * Oturumun kampanya adlarını / işlem günlüğünü görüp görmediği (2026-11-25): yönetici rolü her zaman görür; diğer
  * roller yalnız ilgili listedeyse (`campaignViewers` / `logViewers`). Liste yalnız ek kişi tanımlar.
  * @param {string | undefined} role

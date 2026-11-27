@@ -93,7 +93,7 @@ describe("migration 0021: işlem günlüğü ve geçmişin aktarılması", () =>
     expect(rows.every((r) => r.lead_id === LEAD && r.lead_name === "Ayşe Demir")).toBe(true);
   });
 
-  it("lead silinince günlük satırı kalır (lead_id boşalır, ad kalır)", async () => {
+  it("lead silinince günlük satırı aynen kalır (0027: yabancı anahtar yok, satır değişmez)", async () => {
     await db.query(
       "INSERT INTO leads (id, source, person_id, current_stage, full_name) VALUES ($1, 'manual', $2, 'NEW', 'Silinecek')",
       [uuid(900), P],
@@ -108,6 +108,6 @@ describe("migration 0021: işlem günlüğü ve geçmişin aktarılması", () =>
       "SELECT lead_id, lead_name FROM user_action_logs WHERE id = $1",
       [uuid(901)],
     );
-    expect(row).toEqual({ lead_id: null, lead_name: "Silinecek" });
+    expect(row).toEqual({ lead_id: uuid(900), lead_name: "Silinecek" });
   });
 });

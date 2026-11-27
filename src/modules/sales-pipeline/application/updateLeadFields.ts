@@ -4,6 +4,21 @@ import type { Actor, UseCaseDeps } from "./types";
 import { requireFieldAccess } from "./permissions";
 import { loadActionableLead } from "./visibility";
 
+/** İşlem günlüğüne eski → yeni değeriyle yazılan alanlar (kod, sayı, tarih; kişisel veri yok). */
+const LOGGED_VALUE_FIELDS = [
+  "courtCount",
+  "expectedCloseDate",
+  "organizationId",
+  "country",
+  "products",
+  "installSite",
+  "installTimeline",
+  "customerProfile",
+  "courtCountBand",
+  "adSurface",
+  "currency",
+] as const;
+
 export interface UpdateLeadFieldsInput {
   leadId: string;
   /** Ham gövde; yalnız verilen anahtarlar değişir (parseLeadFields doğrular). */
@@ -76,6 +91,23 @@ export class UpdateLeadFields {
           checkedWarnings = kept;
         }
       }
+      // Günlükte eski → yeni değer yalnız kişisel veri taşımayan alanlarda; serbest metinlerde yalnız alan adı.
+      const values = Object.fromEntries(
+        changed
+          .filter((k) => (LOGGED_VALUE_FIELDS as readonly string[]).includes(k))
+          .map((k) => [k, { from: before[k] ?? null, to: (fields as Record<string, unknown>)[k] ?? null }]),
+      );
+      if (changed.length) {
+        await this.deps.actions?.record(
+          {
+            actor: input.actor,
+            action: "lead.fields_updated",
+            lead: { id: lead.value.id, fullName: lead.value.fullName },
+            details: { fields: changed, ...(Object.keys(values).length ? { changes: values } : {}) },
+          },
+          repos,
+        );
+      }
       logger.info("lead alanları güncellendi", {
         leadId: lead.value.id,
         fields: Object.keys(fields),
@@ -83,14 +115,6 @@ export class UpdateLeadFields {
       });
       return { ok: true, value: { ...lead.value, ...fields, extraAnswers, checkedWarnings, updatedAt: now } };
     });
-    if (out.ok && changed.length) {
-      await this.deps.actions?.record({
-        actor: input.actor,
-        action: "lead.fields_updated",
-        lead: out.value,
-        details: { fields: changed },
-      });
-    }
     return out;
   }
 }

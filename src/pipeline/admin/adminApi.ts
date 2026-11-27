@@ -24,15 +24,25 @@ import type {
   TerritoryBody,
   TerritoryRuleDto,
 } from "../../modules/sales-pipeline/api/dto";
-import type { ActionLogPageDto, ActionTypeDto } from "../../modules/sales-pipeline/api/dto.actionLog";
+import type {
+  ActionLogPageDto,
+  ActionResultDto,
+  ActionTypeDto,
+  TargetTypeDto,
+} from "../../modules/sales-pipeline/api/dto.actionLog";
+import type { MailActivityStatusDto, MailWeekReportDto } from "../../modules/mail-activity/api/dto";
 import { PipelineError, call } from "../api";
 
 /** Yönetim paneli istemcisi (Faz 7): `/api/admin` + satış modülündeki bölge / birleştirme / arşiv uçları. */
 const enc = encodeURIComponent;
 
-async function admin<T>(method: string, path: string, body?: unknown): Promise<T> {
+const admin = <T>(method: string, path: string, body?: unknown) => request<T>(method, "/api/admin" + path, body);
+/** Mail gönderim raporu (yalnız seesMailStats; src/modules/mail-activity/api). */
+const mail = <T>(method: string, path: string) => request<T>(method, "/api/mail-activity" + path);
+
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   try {
-    return await api<T>(method, "/api/admin" + path, body);
+    return await api<T>(method, path, body);
   } catch (e) {
     if (e instanceof ApiError) {
       throw new PipelineError(
@@ -88,6 +98,10 @@ export const adminApi = {
   actionLogs: (p: {
     actor?: string | undefined;
     actions?: readonly ActionTypeDto[] | undefined;
+    target?: TargetTypeDto | undefined;
+    targetId?: string | undefined;
+    q?: string | undefined;
+    result?: ActionResultDto | undefined;
     from?: string | undefined;
     to?: string | undefined;
     before?: string | undefined;
@@ -96,6 +110,10 @@ export const adminApi = {
     const q = new URLSearchParams();
     if (p.actor) q.set("actor", p.actor);
     if (p.actions?.length) q.set("action", p.actions.join(","));
+    if (p.target) q.set("target", p.target);
+    if (p.targetId) q.set("targetId", p.targetId);
+    if (p.q) q.set("q", p.q);
+    if (p.result) q.set("result", p.result);
     if (p.from) q.set("from", p.from);
     if (p.to) q.set("to", p.to);
     if (p.before) q.set("before", p.before);
@@ -108,6 +126,10 @@ export const adminApi = {
     call<MergePersonResultDto>("POST", `/persons/${enc(targetId)}/merge`, { sourceId }),
   archiveOrganization: (id: string, archived: boolean) =>
     call<OrganizationDto>("POST", `/organizations/${enc(id)}/${archived ? "archive" : "unarchive"}`),
+
+  mailWeekly: (week?: string) => mail<MailWeekReportDto>("GET", `/weekly${week ? "?week=" + enc(week) : ""}`),
+  mailStatus: () => mail<MailActivityStatusDto>("GET", "/status"),
+  mailRun: () => mail<MailActivityStatusDto>("POST", "/run"),
 
   // Geri yükleme noktaları (yalnız admin; src/bootstrap/checkpoints.ts).
   checkpoints: () => admin<{ items: CheckpointDto[] }>("GET", "/checkpoints"),

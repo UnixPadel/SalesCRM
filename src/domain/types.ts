@@ -28,6 +28,8 @@ export interface User {
   seesCampaign?: boolean;
   /** İşlem günlüğünü (Yönetim > Loglar) görebilir (sunucu CRM_LOG_VIEWERS listesi; 2026-11-20). */
   seesLogs?: boolean;
+  /** Mail gönderim raporunu (Yönetim > Mail Gönderimleri) görebilir (sunucu CRM_MAIL_STATS_VIEWERS; 2026-11-27). */
+  seesMailStats?: boolean;
   /** Yerel Admin için false: kendi posta kutusu yok. */
   hasMailbox: boolean;
 }

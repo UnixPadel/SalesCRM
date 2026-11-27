@@ -2,7 +2,7 @@
  * Kompozisyon kökü: config → veritabanı → repository'ler → use-case'ler → Express router.
  * Yalnız burası somut uygulamaları bir araya getirir; modüller birbirini doğrudan bilmez.
  */
-import type { Request, Router } from "express";
+import type { Request, RequestHandler, Router } from "express";
 import { openDatabase, type Db } from "../modules/shared/db";
 import {
   createLogger,
@@ -17,6 +17,7 @@ import {
 import {
   ActionLog,
   ActionLogQueries,
+  type ActionRecorder,
   LeadNotifier,
   NotificationDelivery,
   NotificationQueries,
@@ -42,6 +43,7 @@ import {
   pgSweepSource,
 } from "../modules/sales-pipeline/infrastructure";
 
+import { auditMiddleware, markRecorded } from "./auditTrail";
 import { createEurRatesStore, type EurRatesStore } from "./eurRates";
 
 export interface SessionLike {
@@ -52,10 +54,16 @@ export interface SessionLike {
   seesCampaign?: boolean;
   /** İşlem günlüğünü görebilir (server/roles.mjs CRM_LOG_VIEWERS). */
   seesLogs?: boolean;
+  /** Mail gönderim raporunu görebilir (server/roles.mjs CRM_MAIL_STATS_VIEWERS; yönetici rolü tek başına yetmez). */
+  seesMailStats?: boolean;
 }
 
 export interface SalesPipelineApp {
   router: Router;
+  /** İşlem günlüğüne doğrudan yazma (giriş / çıkış gibi HTTP ara katmanının görmediği hareketler). */
+  actions: ActionRecorder;
+  /** `/api` önüne bağlanan denetim izi: her yazma isteği günlüğe bir satır bırakır (auditTrail.ts). */
+  audit: RequestHandler;
   pipeline: SalesPipeline;
   notifications: NotificationQueries;
   /** Web Push açık mı (VAPID anahtarları tanımlı). */
@@ -180,7 +188,8 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
     logger,
   });
 
-  // İşlem günlüğü: use-case'ler başarıdan sonra yazar; Yönetim > Loglar okur.
+  // İşlem günlüğü: lead use-case'leri işlemle aynı transaction'da yazar; geri kalan yazma istekleri HTTP denetim izi
+  // (auditTrail.ts) üzerinden. Yalnız ekleme; Yönetim > Loglar okur.
   const actionStore = pgActionLogStore(db);
   const actions = new ActionLog({
     store: actionStore,
@@ -188,6 +197,7 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
     clock: systemClock,
     ids: uuidGenerator,
     logger: logger.child({ module: "action-log" }),
+    onRecorded: markRecorded,
   });
 
   const pipeline = createSalesPipeline({
@@ -228,6 +238,8 @@ export async function bootSalesPipeline(opts: BootOptions = {}): Promise<SalesPi
   });
   return {
     router,
+    actions,
+    audit: auditMiddleware({ actions }),
     pipeline,
     notifications,
     pushEnabled,

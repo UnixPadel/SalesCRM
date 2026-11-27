@@ -58,15 +58,18 @@ export class AddActivity {
         updatedAt: now,
       };
       await repos.activities.insert(activity);
+      await this.deps.actions?.record(
+        {
+          actor: input.actor,
+          action: "activity.planned",
+          lead: { id: lead.value.id, fullName: lead.value.fullName },
+          details: { type: activity.type },
+        },
+        repos,
+      );
       return ok(activity);
     });
     if (outcome.ok) {
-      await this.deps.actions?.record({
-        actor: input.actor,
-        action: "activity.planned",
-        lead: { id: outcome.value.leadId },
-        details: { type: outcome.value.type },
-      });
       this.deps.logger.info("aktivite eklendi", {
         activityId: outcome.value.id,
         leadId: outcome.value.leadId,
@@ -112,6 +115,17 @@ export class SetActivityDone {
       const now = clock.now();
       const doneAt = input.done ? now : null;
       await repos.activities.setDone(activity.id, doneAt, now);
+      if (changed) {
+        await this.deps.actions?.record(
+          {
+            actor: input.actor,
+            action: input.done ? "activity.done" : "activity.reopened",
+            lead: { id: lead.value.id, fullName: lead.value.fullName },
+            details: { type: activity.type },
+          },
+          repos,
+        );
+      }
       return ok(
         doneAt === null
           ? {
@@ -127,14 +141,6 @@ export class SetActivityDone {
           : { ...activity, doneAt, updatedAt: now },
       );
     });
-    if (out.ok && changed) {
-      await this.deps.actions?.record({
-        actor: input.actor,
-        action: input.done ? "activity.done" : "activity.reopened",
-        lead: { id: out.value.leadId },
-        details: { type: out.value.type },
-      });
-    }
     return out;
   }
 }
@@ -235,20 +241,20 @@ export class UpdateActivity {
       changedFields = Object.keys(patch).filter((k) => k !== "dateEstimated");
       if (!changedFields.length) return ok(a);
       await repos.activities.update(a.id, patch, now);
-      return ok({ ...a, ...patch, updatedAt: now });
+      const next = { ...a, ...patch, updatedAt: now };
+      await this.deps.actions?.record(
+        {
+          actor: input.actor,
+          action: done ? "contact.updated" : "activity.updated",
+          lead: { id: lead.value.id, fullName: lead.value.fullName },
+          details: { type: next.type, ...(done ? { outcome: next.outcome } : {}), fields: changedFields },
+        },
+        repos,
+      );
+      return ok(next);
     });
     if (out.ok && changedFields.length) {
       const done = out.value.doneAt !== null;
-      await this.deps.actions?.record({
-        actor: input.actor,
-        action: done ? "contact.updated" : "activity.updated",
-        lead: { id: out.value.leadId },
-        details: {
-          type: out.value.type,
-          ...(done ? { outcome: out.value.outcome } : {}),
-          fields: changedFields,
-        },
-      });
       this.deps.logger.info(done ? "temas düzenlendi" : "aktivite düzenlendi", {
         activityId: out.value.id,
         leadId: out.value.leadId,
@@ -269,7 +275,6 @@ export class DeleteActivity {
   constructor(private readonly deps: UseCaseDeps) {}
 
   async execute(input: DeleteActivityInput): Promise<Result<{ id: string }, RuleError>> {
-    let removed: Activity | null = null;
     const out = await this.deps.uow.run(async (repos): Promise<Result<{ id: string }, RuleError>> => {
       const activity = await repos.activities.findById(input.activityId);
       if (!activity) return err(new NotFoundError("Activity", input.activityId));
@@ -291,18 +296,17 @@ export class DeleteActivity {
         }
       }
       await repos.activities.remove(activity.id);
-      removed = activity;
+      await this.deps.actions?.record(
+        {
+          actor: input.actor,
+          action: "activity.deleted",
+          lead: { id: lead.value.id, fullName: lead.value.fullName },
+          details: { type: activity.type },
+        },
+        repos,
+      );
       return ok({ id: activity.id });
     });
-    const gone = removed as Activity | null;
-    if (out.ok && gone) {
-      await this.deps.actions?.record({
-        actor: input.actor,
-        action: "activity.deleted",
-        lead: { id: gone.leadId },
-        details: { type: gone.type },
-      });
-    }
     return out;
   }
 }

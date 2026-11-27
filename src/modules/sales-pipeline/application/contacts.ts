@@ -29,6 +29,7 @@ import {
   type StageLineMode,
 } from "../domain";
 import { ADMIN_ONLY, requireAdmin } from "./permissions";
+import type { RecordActionInput } from "./actionLog";
 import type { Actor, UseCaseDeps } from "./types";
 import type { ChangeLeadStage } from "./changeLeadStage";
 import type { UndoStageChange } from "./undoStageChange";
@@ -343,6 +344,15 @@ export class LogContact {
             occurredAt: now,
           });
         }
+        await this.deps.actions?.record(
+          {
+            actor: input.actor,
+            action: "contact.logged",
+            lead: { id: fresh.id, fullName: fresh.fullName },
+            details: { type: activity.type, outcome: activity.outcome },
+          },
+          repos,
+        );
         return ok({
           logId,
           activity,
@@ -364,12 +374,6 @@ export class LogContact {
     }
     const { domainEvents, ...result } = written.value;
     if (domainEvents.length) await this.deps.events.publish(domainEvents);
-    await this.deps.actions?.record({
-      actor: input.actor,
-      action: "contact.logged",
-      lead,
-      details: { type: result.activity.type, outcome: result.activity.outcome },
-    });
     this.deps.logger.info("temas kaydedildi", {
       leadId: lead.id,
       logId: result.logId,
@@ -421,8 +425,9 @@ export class UndoLogContact {
       }
     }
 
-    const stageUndone = await revertContactLog(this.deps, this.undoStage, log, input.actor, now);
-    await this.deps.actions?.record({ actor: input.actor, action: "contact.undone", lead: { id: log.leadId } });
+    const stageUndone = await revertContactLog(this.deps, this.undoStage, log, input.actor, now, {
+      action: "contact.undone",
+    });
     this.deps.logger.info("temas kaydı geri alındı", {
       leadId: log.leadId,
       logId: log.id,
@@ -444,6 +449,8 @@ async function revertContactLog(
   log: ContactLog,
   actor: Actor,
   now: Date,
+  /** İşlem günlüğü satırı; geri çevirmeyle aynı transaction'da yazılır. */
+  entry: Pick<RecordActionInput, "action" | "details">,
 ): Promise<boolean> {
   let stageUndone = false;
   if (log.stageChangeId) {
@@ -470,6 +477,7 @@ async function revertContactLog(
       }
     }
     await repos.contactLogs.remove(log.id);
+    await deps.actions?.record({ actor, lead: { id: log.leadId }, ...entry }, repos);
   });
   return stageUndone;
 }
@@ -514,11 +522,8 @@ export class DeleteContactLog {
     if (!found.ok) return found;
     const { log, row } = found.value;
     const now = this.deps.clock.now();
-    const stageUndone = await revertContactLog(this.deps, this.undoStage, log, input.actor, now);
-    await this.deps.actions?.record({
-      actor: input.actor,
+    const stageUndone = await revertContactLog(this.deps, this.undoStage, log, input.actor, now, {
       action: "contact.deleted",
-      lead: { id: log.leadId },
       details: { reason, ...(row ? { type: row.type, outcome: row.outcome } : {}) },
     });
     this.deps.logger.info("temas kaydı silindi", {

@@ -1,11 +1,21 @@
 import type { Request, Response, Router } from "express";
 import type { RuleError } from "../../shared/kernel";
-import { isActionType, type ActionLogQueries, type ActionType, type Actor } from "../application";
+import {
+  isActionResult,
+  isActionType,
+  isTargetType,
+  type ActionLogQueries,
+  type ActionType,
+  type Actor,
+} from "../application";
 import type { ActionLogPageDto } from "./dto.actionLog";
 
 /**
  * İşlem günlüğü ucu (Yönetim > Loglar). Görme izni kişi bazındadır (`seesLogs`, server/roles.mjs CRM_LOG_VIEWERS);
- * karar application katmanında, izinsiz oturum 403 `logs.forbidden` alır.
+ * karar application katmanında, izinsiz oturum 403 `logs.forbidden` alır. Yalnız okuma: günlükte değiştirme ya da silme
+ * ucu yoktur ve olmayacaktır (tablo da reddeder, migration 0027).
+ *
+ * Süzgeçler: actor · action (virgülle) · target (hedef türü) · targetId · q (hedef adında arama) · result · from · to.
  */
 export interface ActionLogRouteDeps {
   actionLog: ActionLogQueries;
@@ -34,10 +44,16 @@ export function registerActionLogRoutes(r: Router, deps: ActionLogRouteDeps): vo
     const a = deps.actor(req, res, false);
     if (!a) return;
     const actions = (text(req.query["action"]) ?? "").split(",").filter(isActionType) as ActionType[];
+    const target = text(req.query["target"]);
+    const outcome = text(req.query["result"]);
     const result = await deps.actionLog.list({
       viewer: a,
       actorUserId: text(req.query["actor"]),
       actions,
+      targetType: isTargetType(target) ? target : undefined,
+      targetId: text(req.query["targetId"])?.slice(0, 100),
+      search: text(req.query["q"]),
+      result: isActionResult(outcome) ? outcome : undefined,
       from: day(req.query["from"]),
       to: day(req.query["to"]),
       before: cursor(req.query["before"]),
@@ -52,6 +68,10 @@ export function registerActionLogRoutes(r: Router, deps: ActionLogRouteDeps): vo
         action: e.action,
         leadId: e.leadId,
         leadName: e.leadName,
+        targetType: e.targetType,
+        targetId: e.targetId,
+        targetLabel: e.targetLabel,
+        result: e.result,
         details: e.details,
       })),
       next: result.value.next ? `${result.value.next.at.toISOString()}|${result.value.next.id}` : null,

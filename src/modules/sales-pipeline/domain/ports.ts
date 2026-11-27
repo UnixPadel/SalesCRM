@@ -265,7 +265,37 @@ export interface AttachmentRepository {
   markDeleted(id: string, by: string, reason: string, at: Date): Promise<void>;
 }
 
+/**
+ * İşlem günlüğü satırı (`user_action_logs`, migration 0021 + 0027). Yalnız eklenir; veritabanı güncellemeyi ve silmeyi
+ * reddeder. Lead dışı işlemlerde `leadId` null, `leadName` boştur; hedef `target*` alanlarındadır.
+ */
+export interface ActionLogRecord<A extends string = string> {
+  id: string;
+  occurredAt: Date;
+  actorUserId: string;
+  action: A;
+  /** Lead silindiyse de kimlik kalır (yabancı anahtar yok); lead dışı işlemde null. */
+  leadId: string | null;
+  leadName: string;
+  targetType: string;
+  targetId: string | null;
+  targetLabel: string;
+  /** ok | denied | rejected | error */
+  result: string;
+  details: Record<string, unknown>;
+}
+
+/** Günlüğe yazma (yalnız ekleme). */
+export interface ActionLogWriter {
+  insert(entry: ActionLogRecord): Promise<void>;
+}
+
 export interface Repositories {
+  /**
+   * Lead işlemleri günlüğe işlemle aynı transaction'da yazılır (2026-11-27): kayıt yazılamazsa işlem de geri alınır.
+   * Bellek içi test kurulumunda verilmeyebilir; o zaman `ActionLog` kendi deposuna yazar.
+   */
+  actionLog?: ActionLogWriter | undefined;
   leads: LeadRepository;
   persons: PersonRepository;
   organizations: OrganizationRepository;

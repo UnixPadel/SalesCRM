@@ -261,6 +261,12 @@ export function LeadPage({ id }: { id: string }) {
           ) : allowedTransitions.length === 0 ? (
             <p className="muted">{t("stage.terminalHint")}</p>
           ) : null}
+          {/* İşlem günlüğünü görebilen kişi bu lead'in bütün geçmişine gider (Yönetim > Loglar, yalnız bu lead). */}
+          {user?.seesLogs === true && (
+            <a className="btn btn-ghost btn-md" href={`#/admin?tab=logs&lead=${encodeURIComponent(lead.id)}`}>
+              {t("lead.history")}
+            </a>
+          )}
           {/* Yalnız yönetici siler (sunucu da satışçıyı 403 ile reddeder); lead çöp kutusuna gider. */}
           {isAdmin && (
             <Button variant="ghost" icon="trash" onClick={() => setDeleting(true)}>

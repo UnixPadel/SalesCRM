@@ -113,12 +113,19 @@ export {
 } from "./territories";
 export { currentEurRates } from "./types";
 export {
+  ACTION_RESULTS,
   ACTION_TYPES,
+  ANONYMOUS_ACTOR,
   ActionLog,
   ActionLogQueries,
   InMemoryActionLogStore,
   LOG_PAGE_MAX,
+  TARGET_TYPES,
+  isActionResult,
   isActionType,
+  isTargetType,
+  type ActionResult,
+  type TargetType,
   type ActionLogEntry,
   type ActionLogFilter,
   type ActionLogPage,

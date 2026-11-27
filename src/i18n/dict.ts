@@ -114,6 +114,7 @@ export const DICT = {
     "Lead not found, or you don't have access to it.",
   ],
   "lead.delete.button": ["Lead'i sil", "Delete lead"],
+  "lead.history": ["İşlem geçmişi", "Activity history"],
   "lead.delete.title": ["Lead'i sil", "Delete lead"],
   "lead.delete.lede": [
     "{name} listeden, panodan ve raporlardan kalkacak. Geçmişi silinmez; Yönetim > Silinenler'den geri alabilirsiniz.",

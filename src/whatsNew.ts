@@ -30,6 +30,30 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW: readonly WhatsNewRelease[] = [
   {
+    id: "2026-11-27-2",
+    date: "2026-11-27",
+    items: {
+      tr: [
+        {
+          title: "İşlemleriniz kayıt altında",
+          text: "CRM'de yaptığınız her işlem, giriş dahil, adınız ve saatiyle kaydedilir; kayıtlar silinemez ve değiştirilemez.",
+        },
+      ],
+      en: [
+        {
+          title: "Your actions are recorded",
+          text: "Every action you take in the CRM, sign-ins included, is recorded with your name and time; records cannot be deleted or changed.",
+        },
+      ],
+      ar: [
+        {
+          title: "إجراءاتك مسجّلة",
+          text: "كل إجراء تقوم به في النظام، بما في ذلك تسجيل الدخول، يُسجَّل باسمك ووقته؛ ولا يمكن حذف السجلات أو تعديلها.",
+        },
+      ],
+    },
+  },
+  {
     id: "2026-11-27",
     date: "2026-11-27",
     items: {
